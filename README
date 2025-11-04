@@ -1,12 +1,13 @@
 # Spotiscan
 
-Scan Spotify playlists for Russian artists.
+Scan Spotify playlists for Russian artists. 
+
+**Built with:** Go (Gin) backend, Svelte frontend, Docker containerization.
 
 ## Quick Start
-
 ```bash
 # Using Docker
 docker-compose up
+```
 
-# Or manually
-./run.sh
+Access at: http://localhost:8080
