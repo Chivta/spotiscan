@@ -1,0 +1,12 @@
+# Spotiscan
+
+Scan Spotify playlists for Russian artists.
+
+## Quick Start
+
+```bash
+# Using Docker
+docker-compose up
+
+# Or manually
+./run.sh
