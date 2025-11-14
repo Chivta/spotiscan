@@ -1,31 +1,27 @@
 <script>
-    let playlistURL = ""
-    let artists = []
+  import Router from 'svelte-spa-router';
+  import Scanner from './pages/Scanner.svelte';
+  import Singup from './pages/Signup.svelte';
 
-    const IDExtract = /(?:playlist\/|spotify:playlist:)([A-Za-z0-9]+)/
-
-    async function fetchArtists(event) {
-        event.preventDefault()
-        artists = []
-
-        const playlistID = IDExtract.exec(playlistURL)[1]
-        console.log(playlistID)
-        const response = await fetch(`/playlist/ruartists?id=${encodeURIComponent(playlistID)}`)
-        if (!response.ok){
-            throw new Error(`HTTP error status: ${response.status}`)
-        }
-
-        artists = await response.json()
-    }
+  const routes = {
+    '/scanner': Scanner,
+    '/signup': Singup,
+  };
 </script>
 
-<h1>Paste spotify playlist url</h1>
-<form>
-    <input bind:value={playlistURL} type="text">
-    <button on:click={fetchArtists} placeholder="Playlist url">Get ru artists</button>
-</form>
-<ul>
-    {#each artists as artist}
-    <li>{artist}</li>
-    {/each}
-</ul>
+<header>
+  <nav>
+    <a href="#/">Home</a>
+    <a href="#/scanner">Scanner</a>
+    <a href="#/signup">Sing up</a>
+  </nav>
+</header>
+
+<main>
+  <Router {routes}>
+    <div slot="notFound">
+      <h1>Welcome to Spotiscan</h1>
+      <p>Your home page content here</p>
+    </div>
+  </Router>
+</main>
