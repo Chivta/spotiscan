@@ -8,37 +8,13 @@ import (
 	"spotiscan/internal/config"
 	"spotiscan/internal/handlers"
 	"spotiscan/internal/services"
+	"spotiscan/internal/middlewares"
 	"spotiscan/pkg/db"
 )
 
-type AuthMiddleware struct {
-	db *db.DB
-}
 
-func (m *AuthMiddleware) RequireSessionToken() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		token, err := c.Cookie("session")
-		if err != nil || token == "" {
-			c.JSON(401, gin.H{"error": "unauthorized"})
-			c.Abort()
-			return
-		}
-
-		userId, err := m.db.GetUserIDBySessionToken(token)
-		if err != nil {
-			c.JSON(401, gin.H{"error": "unauthorized"})
-			c.Abort()
-			return
-		}
-
-		c.Set("user_id", userId)
-
-		c.Next()
-	}
-}
 
 func main() {
-
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -48,7 +24,16 @@ func main() {
 		log.Fatalf("Failed to create DB connection: %v", err)
 	}
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/health"},
+	}))
+	r.Use(gin.Recovery())
+
+	// Health check
+	r.GET("/health", func(c *gin.Context) {
+		c.String(200, "I'm healthy!")
+	})
 
 	playlistService := services.NewPlaylistService(db)
 	playlistHandler := handlers.NewPlaylistHandler(playlistService)
@@ -56,7 +41,7 @@ func main() {
 	userService := services.NewUserService(db)
 	signupHandler := handlers.NewSignupHandler(userService)
 
-	authMiddleware := &AuthMiddleware{db: db}
+	authMiddleware := middlewares.NewAuthMiddleware(db)
 
 	api := r.Group("/api")
 	{
@@ -67,13 +52,6 @@ func main() {
 			auth.GET("/playlist/ruartists", playlistHandler.GetRussianArtists)
 		}
 	}
-
-	r.Static("/static", "./static")
-
-	// TODO: serve static files separately from api
-	r.GET("/", func(c *gin.Context) {
-		c.File("./static/index.html")
-	})
 
 	r.Run()
 }

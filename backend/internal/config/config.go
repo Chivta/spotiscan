@@ -12,8 +12,10 @@ type Config struct{
 }
 
 func Load() (*Config, error){
-	// Load .env file if it exists
-	godotenv.Load()
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println("No .env file found, reading configuration from environment variables")
+	}
 
 	config := &Config{
 		DatabaseURL: os.Getenv("DB_URL"),

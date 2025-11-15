@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-  spotiscan:
-    build: .
+  spotiscan-backend:
+    build: backend/
     ports:
       - "${PORT:-8080}:8080"
     environment:
@@ -11,8 +11,13 @@ services:
       - DB_URL=${DB_URL}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+  spotiscan-frontend:
+    build: frontend/
+    ports:
+      - "3000:80"
+    restart: unless-stopped
