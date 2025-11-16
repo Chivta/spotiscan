@@ -16,7 +16,7 @@ func NewAuthMiddleware(db *db.DB) *AuthMiddleware {
 
 func (m *AuthMiddleware) RequireSessionToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token, err := c.Cookie("session")
+		token, err := c.Cookie("session_token")
 		if err != nil || token == "" {
 			c.JSON(401, gin.H{"error": "unauthorized"})
 			c.Abort()

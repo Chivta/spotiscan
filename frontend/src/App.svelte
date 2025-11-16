@@ -1,27 +1,43 @@
 <script>
   import Router from 'svelte-spa-router';
   import Scanner from './pages/Scanner.svelte';
-  import Singup from './pages/Signup.svelte';
+  import Signup from './pages/Signup.svelte';
+  import Login from './pages/Login.svelte';
+  import Header from './components/Header.svelte';
+  import { onMount } from 'svelte';
 
   const routes = {
     '/scanner': Scanner,
-    '/signup': Singup,
+    '/signup': Signup,
+    '/login': Login,
   };
+
+  let authenticated = false;
+  let checking = true;
+
+  onMount(async () => {
+    try {
+      const res = await fetch('/api/me', { credentials: 'include' }); // endpoint returns 200 if authenticated
+      authenticated = res.ok;
+    } catch {
+      authenticated = false;
+    } finally {
+      checking = false;
+    }
+  });
+
+  async function signOut() {
+    try {
+      await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+    } catch (e) {
+      // ignore network errors, still flip UI
+    }
+    authenticated = false;
+  }
 </script>
 
-<header>
-  <nav>
-    <a href="#/">Home</a>
-    <a href="#/scanner">Scanner</a>
-    <a href="#/signup">Sing up</a>
-  </nav>
-</header>
+<Header {authenticated} onSignOut={signOut} />
 
 <main>
-  <Router {routes}>
-    <div slot="notFound">
-      <h1>Welcome to Spotiscan</h1>
-      <p>Your home page content here</p>
-    </div>
-  </Router>
+  <Router {routes}/>
 </main>

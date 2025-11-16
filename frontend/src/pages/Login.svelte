@@ -1,69 +1,55 @@
 <script>
     let { redirectLocation } = $props()
-    let username = $state("")
-    let email = $state("")
+    let emailOrUsername = $state("")
     let password = $state("")
     let errorMessage = $state("")
 
-    async function Signup(event) {
+    async function Login(event) {
         event.preventDefault()
-        
-        const response = await fetch("/api/signup", {
+
+        const response = await fetch("/api/login", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             credentials: 'include',
-            body: JSON.stringify({ username, email, password })
+            body: JSON.stringify({ emailOrUsername, password })
         })
-
-
 
         errorMessage = ""
         if (!response.ok) {
-            const error = await response.json()
-            if (error.code === 'USERNAME_IN_USE') {
-                errorMessage = 'Username is already taken'
-            } 
-            else if (error.code === 'EMAIL_IN_USE') {
-                errorMessage = 'Email is already in use'
-            } 
-            else if (error.code === 'INVALID_EMAIL') {
-                errorMessage = 'Please enter a valid email address'
-            }
-            else {
-                errorMessage = error.error || 'Signup failed'
+            let error = {}
+            try {
+                error = await response.json()
+            } catch {}
+            if (error.code === 'INVALID_CREDENTIALS') {
+                errorMessage = 'Invalid credentials'
+            } else {
+                errorMessage = error.error || 'Login failed'
             }
             return
         }
 
-        if (response.headers.get('content-type')?.includes('application/json')) {
-            const result = await response.json()
-            console.log('Signup successful:', result)
-        }
+        // success — backend sets HttpOnly cookie; redirect
         window.location.href = redirectLocation;
     }
 </script>
 
 <main>
-    <form onsubmit={Signup}>
-        <h1>Sign Up</h1>
+    <form onsubmit={Login}>
+        <h1>Log in</h1>
         {#if errorMessage}
             <div class="error">{errorMessage}</div>
         {/if}
         <label>
-            Username
-            <input type="text" bind:value={username} required />
-        </label>
-        <label>
-            Email
-            <input type="email" bind:value={email} required />
+            Email or Username
+            <input type="text" bind:value={emailOrUsername} required />
         </label>
         <label>
             Password
             <input type="password" bind:value={password} required />
         </label>
-        <button type="submit">Sign up</button>
+        <button type="submit">Log in</button>
     </form>
 </main>
 
