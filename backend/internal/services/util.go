@@ -3,6 +3,7 @@ package services
 import (
 	"crypto/rand"
 	"encoding/hex"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -15,7 +16,7 @@ func hashPassword(password string) (string, error) {
 	return string(password_hash), nil
 }
 
-func generateSessionToken() string {
+func generateRandomString() string {
 	b := make([]byte, 48)
 	rand.Read(b)
 	return hex.EncodeToString(b)

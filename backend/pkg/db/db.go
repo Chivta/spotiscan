@@ -6,6 +6,7 @@ import (
 	"spotiscan/models"
 
 	_ "github.com/lib/pq"
+	"golang.org/x/oauth2"
 )
 
 func NewDBConnection(DatabaseURL string) (*DB, error) {
@@ -128,10 +129,12 @@ func (db *DB) Close() error {
 func (db *DB) GetUserIDByEmailOrUsername(emailOrUsername string) (int, error) {
 	var userID int
 	err := db.conn.QueryRow(`
-		SELECT user_id FROM users 
-		WHERE email=$1 OR username=$1
-	`, emailOrUsername).Scan(&userID)
-	if err != nil {
+	       SELECT user_id FROM users 
+	       WHERE email=$1 OR username=$1
+       `, emailOrUsername).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	} else if err != nil {
 		return 0, err
 	}
 	return userID, nil
@@ -147,7 +150,6 @@ func (db *DB) CreateSession(userID int, sessionToken string) error {
 	return err
 }
 
-
 func (db *DB) GetPasswordHashByUserID(userID int) (string, error) {
 	var passwordHash string
 	err := db.conn.QueryRow(`
@@ -158,4 +160,65 @@ func (db *DB) GetPasswordHashByUserID(userID int) (string, error) {
 		return "", err
 	}
 	return passwordHash, nil
+}
+
+func (db *DB) CreateOathState(state string, userId int) error {
+	_, err := db.conn.Exec(
+		`INSERT INTO oauth_states (state, user_id, created_at, expires_at) VALUES ($1, $2, NOW(), NOW() + INTERVAL '10 minutes')
+	       ON CONFLICT (state) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at`,
+		state, userId,
+	)
+	return err
+}
+
+func (db *DB) DeleteOathState(state string) error {
+	_, err := db.conn.Exec(`
+		DELETE FROM oauth_states WHERE state=$1
+	`, state)
+	return err
+}
+
+func (db *DB) GetUserIdByState(state string) (int, error) {
+	var userID int
+	err := db.conn.QueryRow(`
+		SELECT user_id FROM oauth_states 
+		WHERE state=$1 AND expires_at > NOW()
+	`, state).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+	return userID, nil
+}
+
+func (db *DB) StoreSpotifyTokens(userId int, token *oauth2.Token) error {
+	accessToken := token.AccessToken
+	refreshToken := token.RefreshToken
+	expiresAt := token.Expiry
+
+	_, err := db.conn.Exec(
+		`INSERT INTO spotify_tokens (user_id, access_token, refresh_token, expires_at) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (user_id) DO UPDATE SET access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token, expires_at = EXCLUDED.expires_at`,
+		userId, accessToken, refreshToken, expiresAt,
+	)
+	return err
+}
+
+func (db *DB) GetSpotifyTokensByUserId(userId int) (*oauth2.Token, error) {
+	var accessToken, refreshToken string
+	var expiresAt sql.NullTime
+	err := db.conn.QueryRow(`
+	       SELECT access_token, refresh_token, expires_at FROM spotify_tokens 
+	       WHERE user_id=$1
+       `, userId).Scan(&accessToken, &refreshToken, &expiresAt)
+	if err != nil {
+		return nil, err
+	}
+	token := oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}
+	if expiresAt.Valid {
+		token.Expiry = expiresAt.Time
+	}
+	return &token, nil
 }

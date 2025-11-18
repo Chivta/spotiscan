@@ -6,7 +6,14 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
+	github.com/zmb3/spotify/v2 v2.4.3
 	golang.org/x/crypto v0.40.0
+	golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5
+)
+
+require (
+	github.com/golang/protobuf v1.5.2 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
 )
 
 require (

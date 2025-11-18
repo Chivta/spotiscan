@@ -9,4 +9,6 @@ var (
 	ErrInvalidEmail    		= errors.New("invalid email format")
 	ErrInvalidCredentials	= errors.New("invalid email/username or password")
 	ErrDatabaseFailure 		= errors.New("database operation failed")
+	ErrSpotifyAPIError		= errors.New("spotify api error")
+	ErrInvalidState			= errors.New("invalid oauth state")
 )

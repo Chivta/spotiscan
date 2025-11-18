@@ -3,13 +3,15 @@ package main
 import (
 	"log"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gin-contrib/cors"
 	"spotiscan/internal/config"
 	"spotiscan/internal/handlers"
 	"spotiscan/internal/middlewares"
 	"spotiscan/internal/services"
 	"spotiscan/pkg/db"
+	"spotiscan/pkg/spotify"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -45,8 +47,9 @@ func main() {
 		c.Status(204)
 	})
 
-	playlistService := services.NewPlaylistService(db)
-	playlistHandler := handlers.NewPlaylistHandler(playlistService)
+	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret, cfg.SpotifyRedirectURI)
+	spotifyService := services.NewSpotifyService(db, spotifyClient)
+	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, cfg.FrontendURL)
 
 	userService := services.NewUserService(db)
 	userHandler := handlers.NewUserHandler(userService)
@@ -66,8 +69,11 @@ func main() {
 
 		auth.POST("/logout", authHandler.PostLogout)
 
+		spotify := auth.Group("/spotify")
 		{
-			auth.GET("/playlist/ruartists", playlistHandler.GetRussianArtists)
+			spotify.GET("/auth", spotifyHandler.GetAuth)
+			spotify.GET("/callback", spotifyHandler.PostCallback)
+			spotify.GET("/playlist/ruartists", spotifyHandler.GetPlaylistRussianArtists)
 		}
 		{
 			auth.GET("/me", userHandler.GetMe)

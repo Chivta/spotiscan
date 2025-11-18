@@ -17,7 +17,7 @@
         const match = IDExtract.exec(playlistURL)
         const playlistID = match![1] 
         console.log(playlistID)
-        const response = await fetch(`/api/playlist/ruartists?id=${encodeURIComponent(playlistID)}`)
+        const response = await fetch(`/api/spotify/playlist/ruartists?id=${encodeURIComponent(playlistID)}`)
         if (!response.ok){
             throw new Error(`HTTP error status: ${response.status}`)
         }

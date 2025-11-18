@@ -42,7 +42,7 @@ func (s *AuthService) Signup(username, email, password string) (string, error) {
 		return "", ErrInternal
 	}
 
-	token := generateSessionToken()
+	token := generateRandomString()
 
 	err = s.db.CreateUserWithSession(username, email, passwordHash, token)
 	if err != nil {
@@ -69,7 +69,6 @@ func (s *AuthService) Login(emailOrUsername, password string) (string, error) {
 		log.Println(err)
 		return "", ErrDatabaseFailure
 	}
-
 	if userId == 0 {
 		return "", ErrInvalidCredentials
 	}
@@ -84,7 +83,7 @@ func (s *AuthService) Login(emailOrUsername, password string) (string, error) {
 		return "", ErrInvalidCredentials
 	}
 
-	token := generateSessionToken()
+	token := generateRandomString()
 
 	err = s.db.CreateSession(userId, token)
 	if err != nil {
