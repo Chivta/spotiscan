@@ -2,6 +2,5 @@ package models
 
 type User struct {
 	ID       int	`json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	SpotifyID string `json:"spotify_id"`
 }

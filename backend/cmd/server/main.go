@@ -28,17 +28,17 @@ func main() {
 	r := gin.New()
 
 	r.SetTrustedProxies([]string{"172.16.0.0/12"})
-	
+
 	r.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{cfg.FrontendURL}, 
-        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-        AllowHeaders:     []string{"Content-Type", "Authorization"},
-        AllowCredentials: true, 
-        MaxAge:           12 * 3600,
-    }))
+		AllowOrigins:     []string{cfg.FrontendURL},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           12 * 3600,
+	}))
 
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/health"},
+		SkipPaths: []string{"/"},
 	}))
 	r.Use(gin.Recovery())
 
@@ -49,35 +49,32 @@ func main() {
 
 	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret, cfg.SpotifyRedirectURI)
 	spotifyService := services.NewSpotifyService(db, spotifyClient)
-	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, cfg.FrontendURL)
+	spotifyHandler := handlers.NewSpotifyHandler(spotifyService)
 
 	userService := services.NewUserService(db)
 	userHandler := handlers.NewUserHandler(userService)
 
-	authService := services.NewAuthService(db)
-	authHandler := handlers.NewAuthHandler(authService)
+	authService := services.NewAuthService(db, spotifyClient)
+	authHandler := handlers.NewAuthHandler(authService, cfg.FrontendURL)
 
-	authMiddleware := middlewares.NewAuthMiddleware(db)
+	authMiddleware := middlewares.NewAuthMiddleware(userService, spotifyService)
 
 	api := r.Group("/api")
-	{
-		api.POST("/signup", authHandler.PostSignup)
-		api.POST("/login", authHandler.PostLogin)
-
-		auth := api.Group("/")
-		auth.Use(authMiddleware.RequireSessionToken())
-
-		auth.POST("/logout", authHandler.PostLogout)
-
-		spotify := auth.Group("/spotify")
+	{	
+		auth := api.Group("/auth")
 		{
-			spotify.GET("/auth", spotifyHandler.GetAuth)
-			spotify.GET("/callback", spotifyHandler.PostCallback)
-			spotify.GET("/playlist/ruartists", spotifyHandler.GetPlaylistRussianArtists)
+			auth.GET("/start", authHandler.GetAuth)
+			auth.GET("/callback", authHandler.GetCallback)
 		}
+
+		protected := api.Group("/")
+		protected.Use(authMiddleware.RequireAuthentication())
 		{
-			auth.GET("/me", userHandler.GetMe)
+			protected.POST("/logout", authHandler.PostLogout)
+			protected.GET("/playlist/ruartists", spotifyHandler.GetPlaylistRussianArtists)
+			protected.GET("/me", userHandler.GetMe)
 		}
+
 	}
 
 	r.Run()

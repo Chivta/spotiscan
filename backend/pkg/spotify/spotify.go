@@ -35,7 +35,7 @@ func (c *SpotifyClient) GetAuthURL(state string) string {
 	return c.auth.AuthURL(state)
 }
 
-func (c *SpotifyClient) AcceptRequest(r *http.Request, state string) (*oauth2.Token, error) {
+func (c *SpotifyClient) GetToken(r *http.Request, state string) (*oauth2.Token, error) {
 	token, err := c.auth.Token(r.Context(),state, r)
 	if err != nil {
 		log.Printf("couldn't get token: %v", err)
@@ -64,6 +64,31 @@ func (c *SpotifyClient) GetRuArtistsFromPlaylist(playlistId string, token *oauth
 	}
 
 	return artists, nil
+}
+
+func (c *SpotifyClient) RefreshToken(token *oauth2.Token) (*oauth2.Token, error) {
+	ctx := context.Background()
+	newToken, err := c.auth.RefreshToken(ctx,token)
+	if err != nil {
+		log.Printf("couldn't refresh token: %v", err)
+		return nil, err
+	}
+	return newToken, nil
+}
+
+func (c *SpotifyClient) FetchSpotifyUserId(token *oauth2.Token) (string, error) {
+	ctx := context.Background()
+	client := spotify.New(c.auth.Client(ctx, token))
+
+	user, err := client.CurrentUser(ctx)
+	if err != nil {
+		log.Printf("couldn't fetch user: %v", err)
+		return "", err
+	}
+
+	log.Printf("Fetched user: %s", user.ID)
+
+	return user.ID, nil
 }
 
 func isRussianArtist(artistName string) bool {

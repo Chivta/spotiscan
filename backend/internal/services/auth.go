@@ -3,54 +3,85 @@ package services
 import (
 	"log"
 	"spotiscan/pkg/db"
+	"spotiscan/pkg/spotify"
+	"net/http"
 )
 
-func NewAuthService(db *db.DB) *AuthService {
+func NewAuthService(db *db.DB,spotify *spotify.SpotifyClient) *AuthService {
 	return &AuthService{
 		db: db,
+		spotify: spotify,
 	}
 }
 
 type AuthService struct {
 	db *db.DB
+	spotify *spotify.SpotifyClient
 }
 
-func (s *AuthService) Signup(username, email, password string) (string, error) {
-	emailUsed, err := s.db.EmailUsed(email)
+
+func (s *AuthService) InitializeSpotifyAuth() (string,error) {
+	state := generateRandomString()
+	err := s.db.CreateOathState(state)
 	if err != nil {
 		log.Println(err)
 		return "", ErrDatabaseFailure
 	}
-	if emailUsed {
-		log.Println(err)
-		return "", ErrEmailUsed
-	}
+	authUrl := s.spotify.GetAuthURL(state)
+	return authUrl, nil
+}
 
-	usernameUsed, err := s.db.UsernameExists(username)
+func (s *AuthService) AcceptSpotifyAuthCallback(r *http.Request, state string) (string,error) {
+	exists, err := s.db.StateExists(state)
 	if err != nil {
 		log.Println(err)
-		return "", ErrDatabaseFailure
+		return "",ErrDatabaseFailure
 	}
-	if usernameUsed {
-		log.Println(err)
-		return "", ErrUsernameUsed
+	if !exists {
+		log.Println("invalid oauth state")
+		return "",ErrInvalidState
 	}
 
-	passwordHash, err := hashPassword(password)
+	spotifyToken, err := s.spotify.GetToken(r,state)
 	if err != nil {
 		log.Println(err)
-		return "", ErrInternal
+		return "",ErrSpotifyAPIError
 	}
 
-	token := generateRandomString()
-
-	err = s.db.CreateUserWithSession(username, email, passwordHash, token)
+	spotifyId, err := s.spotify.FetchSpotifyUserId(spotifyToken)
 	if err != nil {
 		log.Println(err)
-		return "", ErrDatabaseFailure
+		return "",ErrSpotifyAPIError
 	}
 
-	return token, nil
+	sessionToken := generateRandomString()
+	userId, err := s.db.GetUserIdBySpotifyId(spotifyId)
+	if err == db.ErrNotFound {
+		userId, err = s.db.CreateUserWithSession(spotifyId,sessionToken)
+		if err != nil {
+			log.Println(err)
+			return "",ErrDatabaseFailure
+		}
+	} else if err != nil {
+		log.Println(err)
+		return "",ErrDatabaseFailure
+	} else {
+		err = s.db.CreateSession(userId, sessionToken)
+	}
+
+	err = s.db.StoreSpotifyTokens(userId, spotifyToken)
+	if err != nil {
+		log.Println(err)
+		return "",ErrDatabaseFailure
+	}
+
+	err = s.db.DeleteOathState(state)
+	if err != nil {
+		log.Println(err)
+		return "",ErrDatabaseFailure
+	}
+
+	return sessionToken, nil
 }
 
 func (s *AuthService) Logout(sessionToken string) error {
@@ -61,35 +92,4 @@ func (s *AuthService) Logout(sessionToken string) error {
 	}
 
 	return nil
-}
-
-func (s *AuthService) Login(emailOrUsername, password string) (string, error) {
-	userId, err := s.db.GetUserIDByEmailOrUsername(emailOrUsername)
-	if err != nil {
-		log.Println(err)
-		return "", ErrDatabaseFailure
-	}
-	if userId == 0 {
-		return "", ErrInvalidCredentials
-	}
-
-	passwordHash, err := s.db.GetPasswordHashByUserID(userId)
-	if err != nil {
-		log.Println(err)
-		return "", ErrDatabaseFailure
-	}
-
-	if !passwordMatchesHash(password, passwordHash) {
-		return "", ErrInvalidCredentials
-	}
-
-	token := generateRandomString()
-
-	err = s.db.CreateSession(userId, token)
-	if err != nil {
-		log.Println(err)
-		return "", ErrDatabaseFailure
-	}
-
-	return token, nil
 }

@@ -15,8 +15,6 @@ type UserHandler struct {
 	svc *services.UserService
 }
 
-
-
 func (h *UserHandler) GetMe(c *gin.Context) {
 	userId, exists := c.Get("user_id")
 	if ! exists{

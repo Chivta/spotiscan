@@ -1,18 +1,15 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS users(
-    user_id serial PRIMARY KEY,
-    username VARCHAR (50) UNIQUE NOT NULL,
-    password_hash VARCHAR (60) NOT NULL,
-    email VARCHAR (300) UNIQUE NOT NULL
+CREATE TABLE IF NOT EXISTS users (
+    user_id SERIAL PRIMARY KEY,
+    spotify_id VARCHAR(128) UNIQUE NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS sessions(
-    token  VARCHAR(96) PRIMARY KEY NOT NULL,
-    user_id integer REFERENCES users,
+CREATE TABLE IF NOT EXISTS sessions (
+    token VARCHAR(96) PRIMARY KEY NOT NULL,
+    user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
     created_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    CONSTRAINT sessions_user_id_unique UNIQUE (user_id)
+    expires_at TIMESTAMP NOT NULL
 );
 
 CREATE OR REPLACE FUNCTION set_session_created_at()
@@ -30,18 +27,16 @@ EXECUTE FUNCTION set_session_created_at();
 
 CREATE TABLE IF NOT EXISTS oauth_states (
     state VARCHAR(96) PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS spotify_tokens (
-    user_id INTEGER PRIMARY KEY REFERENCES users(user_id),
+    user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
     access_token VARCHAR(300) NOT NULL,
     refresh_token VARCHAR(300) NOT NULL,
     expires_at TIMESTAMP NOT NULL
 );
-
 -- +goose StatementEnd
 
 -- +goose Down
@@ -50,5 +45,6 @@ DROP TABLE IF EXISTS oauth_states;
 DROP TRIGGER IF EXISTS session_created_at_trigger ON sessions;
 DROP FUNCTION IF EXISTS set_session_created_at();
 DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS spotify_tokens;
 DROP TABLE IF EXISTS users;
 -- +goose StatementEnd
