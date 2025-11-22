@@ -7,4 +7,5 @@ var (
 	ErrDatabaseFailure 		= errors.New("database operation failed")
 	ErrSpotifyAPIError		= errors.New("spotify api error")
 	ErrInvalidState			= errors.New("invalid oauth state")
+	ErrInvalidSession		= errors.New("invalid session token")
 )

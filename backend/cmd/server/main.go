@@ -38,7 +38,7 @@ func main() {
 	}))
 
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/"},
+		SkipPaths: []string{"/","/api/me"},
 	}))
 	r.Use(gin.Recovery())
 
@@ -60,7 +60,7 @@ func main() {
 	authMiddleware := middlewares.NewAuthMiddleware(userService, spotifyService)
 
 	api := r.Group("/api")
-	{	
+	{
 		auth := api.Group("/auth")
 		{
 			auth.GET("/start", authHandler.GetAuth)
@@ -71,8 +71,9 @@ func main() {
 		protected.Use(authMiddleware.RequireAuthentication())
 		{
 			protected.POST("/logout", authHandler.PostLogout)
-			protected.GET("/playlist/ruartists", spotifyHandler.GetPlaylistRussianArtists)
 			protected.GET("/me", userHandler.GetMe)
+			protected.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
+			protected.GET("/user/liked-songs/rucontent", spotifyHandler.GetLikedSongsRuContent)
 		}
 
 	}

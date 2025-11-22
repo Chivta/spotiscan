@@ -28,10 +28,27 @@ func (m *AuthMiddleware) RequireAuthentication() gin.HandlerFunc {
 		}
 
 		userId, err := m.userService.GetUserIdBySessionToken(token)
-		if err != nil {
+		switch err {
+		case nil:
+			// all good
+		case services.ErrInvalidSession:
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid session",
+				"code":  "INVALID_SESSION",
+			})
+			c.Abort()
+			return
+		case services.ErrDatabaseFailure:
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "Database error",
 				"code":  "DATABASE_ERROR",
+			})
+			c.Abort()
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error",
+				"code":  "INTERNAL_ERROR",
 			})
 			c.Abort()
 			return

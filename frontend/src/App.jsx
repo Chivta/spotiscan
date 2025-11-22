@@ -1,15 +1,34 @@
 import Header from "./components/Header";
-import Scanner from "./pages/Scanner";
-import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard.tsx";
+import Landing from "./pages/Landing";
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useNavigate as useNav } from "react-router-dom";
 
 function RequireAuth({ children, authenticated }) {
   const location = useLocation();
   if (!authenticated) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
   return children;
+}
+
+// Custom fetch wrapper to catch 401s and redirect to landing
+function useAuthFetch(setAuthenticated) {
+  const navigate = useNav();
+  React.useEffect(() => {
+    const origFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const res = await origFetch(...args);
+      if (res.status === 401) {
+        setAuthenticated(false);
+        navigate("/", { replace: true });
+      }
+      return res;
+    };
+    return () => {
+      window.fetch = origFetch;
+    };
+  }, [setAuthenticated, navigate]);
 }
 
 export default function App() {
@@ -40,18 +59,24 @@ export default function App() {
 
   return (
     <Router>
+      <AuthFetchWrapper setAuthenticated={setAuthenticated} />
       <Header authenticated={authenticated} onSignOut={signOut} />
       <main>
         <Routes>
-          <Route path="/scanner" element={
+          <Route path="/dashboard" element={
             <RequireAuth authenticated={authenticated}>
-              <Scanner />
+              <Dashboard />
             </RequireAuth>
           } />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="*" element={<Navigate to="/scanner" replace />} />
+          <Route path="/" element={<Landing authenticated={authenticated} />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
     </Router>
   );
+}
+
+function AuthFetchWrapper({ setAuthenticated }) {
+  useAuthFetch(setAuthenticated);
+  return null;
 }

@@ -19,6 +19,9 @@ type UserService struct {
 func (s *UserService) GetUserIdBySessionToken(sessionToken string) (int, error){
 	userId, err := s.db.GetUserIdBySessionToken(sessionToken)
 	if err != nil {
+		if err == db.ErrNotFound {
+			return 0, ErrInvalidSession
+		}
 		log.Println(err)
 		return 0, ErrDatabaseFailure
 	}
