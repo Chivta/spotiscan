@@ -33,8 +33,8 @@ CREATE TABLE IF NOT EXISTS oauth_states (
 
 CREATE TABLE IF NOT EXISTS spotify_tokens (
     user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
-    access_token VARCHAR(300) NOT NULL,
-    refresh_token VARCHAR(300) NOT NULL,
+    access_token VARCHAR(512) NOT NULL,
+    refresh_token VARCHAR(512) NOT NULL,
     expires_at TIMESTAMP NOT NULL
 );
 -- +goose StatementEnd

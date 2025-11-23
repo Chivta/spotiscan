@@ -30,7 +30,6 @@ func (s *SpotifyService) GetValidUserSpotifyToken(userId int) (*oauth2.Token, er
 	}
 
 	expired := spotifyToken.Expiry.UTC().Before(time.Now().UTC())
-	log.Println("Spotify token expired:", expired)
 	if expired {
 		newToken, err := s.spotifyClient.RefreshToken(spotifyToken)
 		if err != nil {
@@ -61,6 +60,7 @@ func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*m
 	}
 
 	var ruContent models.RuContent
+	ruContent.AbleToDelete = true
 	var ruTracks []models.Track
 	var ruArtists []models.Artist
 
@@ -86,7 +86,7 @@ func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*m
 	for _, artist := range artistMap {
 		uniqueArtists = append(uniqueArtists, artist)
 	}
-	ruContent.RuArtists = uniqueArtists
+	ruContent.Artists = uniqueArtists
 
 	// remove duplicate tracks
 	trackMap := make(map[string]models.Track)
@@ -97,22 +97,33 @@ func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*m
 	for _, track := range trackMap {
 		uniqueTracks = append(uniqueTracks, track)
 	}
-	ruContent.RuTracks = uniqueTracks
+	ruContent.Tracks = uniqueTracks
 
 	return &ruContent, nil
 }
 
+func (s *SpotifyService) DeletePlaylistRuContent(oathToken *oauth2.Token, playlistId string, tracks []models.Track) error {
+	err := s.spotifyClient.DeletePlaylistRuContent(oathToken, playlistId, tracks)
+	if err != nil {
+		log.Println(err)
+		return ErrSpotifyAPIError
+	}
+	return nil
+}
+
 func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oauth2.Token) (*models.RuContent, error) {
-	playlist, err := s.spotifyClient.GetPlaylist(playlistId, oathToken)
+	playlist, err := s.spotifyClient.GetPlaylistWithTracks(playlistId, oathToken)
 	if err != nil {
 		log.Println(err)
 		return nil, ErrSpotifyAPIError
 	}
 
 	var ruContent models.RuContent
+	ruContent.AbleToDelete = playlist.Owned
 
 	var ruArtists []models.Artist
 	var ruTracks []models.Track
+
 
 	for _, track := range playlist.Tracks {
 		for _, artist := range track.Artists {
@@ -132,7 +143,7 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 	for _, artist := range artistMap {
 		uniqueArtists = append(uniqueArtists, artist)
 	}
-	ruContent.RuArtists = uniqueArtists
+	ruContent.Artists = uniqueArtists
 
 	// remove duplicate tracks
 	trackMap := make(map[string]models.Track)
@@ -143,7 +154,16 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 	for _, track := range trackMap {
 		uniqueTracks = append(uniqueTracks, track)
 	}
-	ruContent.RuTracks = uniqueTracks
+	ruContent.Tracks = uniqueTracks
 
 	return &ruContent, nil
+}
+
+func (s *SpotifyService) GetUserPlaylists(oathToken *oauth2.Token) ([]models.Playlist, error) {
+	playlists, err := s.spotifyClient.GetUserPlaylists(oathToken)
+	if err != nil {
+		log.Println(err)
+		return nil, ErrSpotifyAPIError
+	}
+	return playlists, nil
 }

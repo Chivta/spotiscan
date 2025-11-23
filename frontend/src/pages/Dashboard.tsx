@@ -1,117 +1,76 @@
 import * as React from "react";
 import { useState } from "react";
+import Aurora from "../components/Aurora";
+import type { Artist, Track, Playlist, RuContent } from "../types/models";
 // Ensure JSX namespace is available for TS
 /// <reference types="react/next" />
 
 
-// Types
-export interface Artist {
-  ID: string;
-  Name: string;
-}
+const SPOTIFY_PLAYLIST_BASE = "https://open.spotify.com/playlist/";
 
-export interface Track {
-  ID: string;
-  Name: string;
-  Artists: Artist[];
-}
-
-export interface RuContent {
-  RuTracks: Track[];
-  RuArtists: Artist[];
-}
-
-interface ArtistListProps {
-  artists: Artist[];
-  selected: Set<string>;
-  onToggle: (id: string) => void;
-  onSelectAll: (checked: boolean) => void;
-}
-
-const ArtistList = ({ artists, selected, onToggle, onSelectAll }: ArtistListProps) => {
-  if (!artists.length) return null;
-  const allSelected = artists.length > 0 && artists.every((a: Artist) => selected.has(a.ID));
-  return (
-    <section style={{ marginTop: 32 }}>
-      <label style={{ fontWeight: "bold" }}>
-        <input
-          type="checkbox"
-          checked={allSelected}
-          onChange={e => onSelectAll((e.target as HTMLInputElement).checked)}
-        />
-        Select All
-      </label>
-      <ul style={{ listStyle: "none", padding: 0, marginTop: 12 }}>
-        {artists.map((artist: Artist) => (
-          <li key={artist.ID} style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
-            <input
-              type="checkbox"
-              checked={selected.has(artist.ID)}
-              onChange={() => onToggle(artist.ID)}
-              style={{ marginRight: 8 }}
-            />
-            {artist.Name}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
+// Helper to extract playlist ID from various formats
+const extractPlaylistId = (input: string): string => {
+  // If it's already just an ID (alphanumeric, typically 22 chars)
+  if (/^[A-Za-z0-9]{22}$/.test(input.trim())) {
+    return input.trim();
+  }
+  // Extract from full URL or URI
+  const match = /(?:playlist\/|spotify:playlist:)([A-Za-z0-9]+)/.exec(input);
+  return match ? match[1] : input.trim();
 };
 
-interface PlaylistInputProps {
-  value: string;
-  onChange: (v: string) => void;
-  onScan: () => void;
-  loading: boolean;
-}
-
-const PlaylistInput = ({ value, onChange, onScan, loading }: PlaylistInputProps) => (
-  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 24 }}>
-    <input
-      type="text"
-      placeholder="Enter playlist URL"
-      value={value}
-      onChange={e => onChange((e.target as HTMLInputElement).value)}
-      style={{ flex: 1, padding: 8, fontSize: 16 }}
-      disabled={loading}
-    />
-    <button onClick={onScan} disabled={loading || !value} style={{ padding: "8px 16px" }}>
-      {loading ? "Scanning..." : "Scan Playlist"}
-    </button>
-  </div>
-);
-
-interface ScanButtonsProps {
-  onScanLiked: () => void;
-  loading: string | null;
-}
-
-const ScanButtons = ({ onScanLiked, loading }: ScanButtonsProps) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", marginBottom: 24 }}>
-    <button onClick={onScanLiked} disabled={loading === "liked"} style={{ width: 220, padding: "10px 0" }}>
-      {loading === "liked" ? "Scanning..." : "Scan Liked Songs"}
-    </button>
-  </div>
-);
-
 const Dashboard = () => {
-  const [playlistUrl, setPlaylistUrl] = useState("");
+  const [playlistId, setPlaylistId] = useState("");
   const [ruContent, setRuContent] = useState<RuContent | null>(null);
   const [selected, setSelected] = useState(new Set<string>());
   const [loading, setLoading] = useState<null | string>(null); // null | 'playlist' | 'liked'
   const [error, setError] = useState<string | null>(null);
   const [lastPlaylistId, setLastPlaylistId] = useState<string | null>(null);
+  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(true);
+  const [playlistSearch, setPlaylistSearch] = useState("");
 
+  // No longer needed: selectedPlaylist
+
+  // Fetch user's top playlists on mount
+  React.useEffect(() => {
+    const fetchPlaylists = async () => {
+      try {
+        const response = await fetch("/api/user/playlists", { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch playlists: ${response.status}`);
+        }
+        const data: Playlist[] = await response.json();
+        setUserPlaylists(data);
+      } catch (e: any) {
+        console.error("Error fetching playlists:", e.message);
+        setUserPlaylists([]);
+      } finally {
+        setPlaylistsLoading(false);
+      }
+    };
+    fetchPlaylists();
+  }, []);
+
+  // Handle input change - auto-extract ID from pasted URLs
+  const handlePlaylistInput = (value: string) => {
+    const extracted = extractPlaylistId(value);
+    setPlaylistId(extracted);
+  };
+
+  // Filter playlists based on search term
+  const filteredPlaylists = userPlaylists.filter(playlist =>
+    playlist.Name.toLowerCase().includes(playlistSearch.toLowerCase())
+  );
 
   // Real fetch for playlist scan
-  const fetchPlaylistRuContent = async (playlistUrl: string): Promise<RuContent> => {
+  const fetchPlaylistRuContent = async (id: string): Promise<RuContent> => {
     setError(null);
     setLoading("playlist");
-    // Extract playlist ID from URL
-    const match = /(?:playlist\/|spotify:playlist:)([A-Za-z0-9]+)/.exec(playlistUrl);
-    if (!match) throw new Error("Invalid Spotify playlist URL format");
-    const playlistID = match[1];
-    const response = await fetch(`/api/playlist/${encodeURIComponent(playlistID)}/rucontent`);
+    if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
+      throw new Error("Invalid playlist ID format");
+    }
+    const response = await fetch(`/api/playlist/${encodeURIComponent(id)}/rucontent`);
     if (!response.ok) {
       throw new Error(`HTTP error status: ${response.status}`);
     }
@@ -119,22 +78,19 @@ const Dashboard = () => {
   };
 
   const handleScanPlaylist = async () => {
-    // Extract playlist ID from URL
-    const match = /(?:playlist\/|spotify:playlist:)([A-Za-z0-9]+)/.exec(playlistUrl);
-    if (!match) {
-      setError("Invalid Spotify playlist URL format");
+    if (!playlistId || !/^[A-Za-z0-9]+$/.test(playlistId)) {
+      setError("Invalid playlist ID format");
       return;
     }
-    const playlistID = match[1];
-    if (playlistID === lastPlaylistId) {
+    if (playlistId === lastPlaylistId) {
       setError("This playlist has already been scanned.");
       return;
     }
     try {
-      const data = await fetchPlaylistRuContent(playlistUrl);
+      const data = await fetchPlaylistRuContent(playlistId);
       setRuContent(data);
       setSelected(new Set());
-      setLastPlaylistId(playlistID);
+      setLastPlaylistId(playlistId);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -158,7 +114,8 @@ const Dashboard = () => {
     }
   };
 
-  const handleToggle = (id: string) => {
+  // Track selection logic
+  const handleTrackToggle = (id: string) => {
     setSelected((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -166,70 +123,513 @@ const Dashboard = () => {
       return next;
     });
   };
-  const handleSelectAll = (checked: boolean) => {
-    if (ruContent && checked) setSelected(new Set((ruContent.RuArtists ?? []).map((a: Artist) => a.ID)));
+  const handleTrackSelectAll = (checked: boolean) => {
+    if (ruContent && checked) setSelected(new Set((ruContent.Tracks ?? []).map((t: Track) => t.ID)));
     else setSelected(new Set());
   };
 
-  const handleDelete = async () => {
-    setLoading("delete");
+  // Delete selected tracks from playlist or liked songs
+  const handleDeleteTracks = async (from: 'playlist' | 'liked') => {
+    setLoading('delete');
     setError(null);
     try {
-      // Simulate API call
-      await new Promise(res => setTimeout(res, 800));
+      let endpoint = '';
+      let bodyTracks: Track[] = [];
+      if (from === 'playlist') {
+        if (!playlistId) throw new Error('No playlist selected');
+        endpoint = `/api/playlist/${encodeURIComponent(playlistId)}/rucontent`;
+      } else {
+        endpoint = '/api/user/liked-songs/rucontent';
+      }
+      // Find selected tracks
+      bodyTracks = (ruContent?.Tracks ?? []).filter((t: Track) => selected.has(t.ID));
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyTracks),
+      });
+      if (!response.ok) throw new Error(`HTTP error status: ${response.status}`);
+      // Remove deleted tracks from UI
       if (ruContent) {
-        const filtered = (ruContent.RuArtists ?? []).filter((a: Artist) => !selected.has(a.ID));
-        setRuContent({ ...ruContent, RuArtists: filtered });
+        const filtered = (ruContent.Tracks ?? []).filter((t: Track) => !selected.has(t.ID));
+        setRuContent({ ...ruContent, Tracks: filtered });
       }
       setSelected(new Set());
-    } catch {
-      setError("Failed to delete selected artists.");
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete selected tracks.');
     } finally {
       setLoading(null);
     }
   };
 
-  // Helper: set of RuArtist IDs for quick lookup
-  const ruArtistIds = new Set((ruContent?.RuArtists ?? []).map(a => a.ID));
+  // Helper: set of Russian artist IDs for quick lookup
+  const ruArtistIds = new Set((ruContent?.Artists ?? []).map((a: Artist) => a.ID));
+
+  const cardStyle: React.CSSProperties = {
+    background: "rgba(255, 255, 255, 0.05)",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    borderRadius: 16,
+    padding: 24,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    flex: 1,
+    padding: "12px 16px",
+    fontSize: 16,
+    background: "rgba(255, 255, 255, 0.1)",
+    border: "1px solid rgba(255, 255, 255, 0.2)",
+    borderRadius: 8,
+    color: "#fff",
+    outline: "none",
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: "12px 24px",
+    background: "#1DB954",
+    color: "#000",
+    border: "none",
+    borderRadius: 50,
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  };
+
+  const deleteButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    background: "#e74c3c",
+    color: "#fff",
+  };
 
   return (
-    <section style={{ maxWidth: 700, margin: "40px auto", padding: 24, background: "#fff", borderRadius: 12, boxShadow: "0 2px 12px #0001" }}>
-      <h2 style={{ marginBottom: 24 }}>Music Dashboard</h2>
-      <PlaylistInput value={playlistUrl} onChange={setPlaylistUrl} onScan={handleScanPlaylist} loading={loading === "playlist"} />
-      <ScanButtons
-        onScanLiked={handleScanLiked}
-        loading={loading}
-      />
-      {error && <div style={{ color: "#b00", marginBottom: 16 }}>{error}</div>}
+    <div style={{ position: "relative", minHeight: "100vh", width: "100vw" }}>
+      {/* Sign Out Button - fixed top right */}
+      <button
+        onClick={() => { window.location.href = "/api/auth/signout"; }}
+        style={{
+          position: "fixed",
+          top: 12,
+          right: 16,
+          zIndex: 10,
+          padding: "8px 16px",
+          background: "#caffdcff",
+          color: "#000",
+          border: "none",
+          borderRadius: 50,
+          fontWeight: 600,
+          fontSize: 12,
+          cursor: "pointer",
+          transition: "all 0.2s ease",
+          boxShadow: "0 2px 8px 0 rgba(0,0,0,0.08)",
+        }}
+      >
+        Sign Out
+      </button>
+      {/* Aurora Background */}
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 0,
+        pointerEvents: "none"
+      }}>
+        <Aurora
+          colorStops={["#0D4F1C", "#1DB954", "#90EE90"]}
+          blend={0.5}
+          amplitude={1.0}
+          speed={0.5}
+        />
+      </div>
 
-      {/* Show tracks and artists if ruContent is loaded */}
-      {ruContent && (
-        <div style={{ marginTop: 32 }}>
-          <h3>Tracks with Russian Artists</h3>
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {(ruContent.RuTracks ?? []).map(track => (
-              <li key={track.ID} style={{ marginBottom: 18, padding: 12, border: "1px solid #eee", borderRadius: 8 }}>
-                <div style={{ fontWeight: 600 }}>{track.Name}</div>
-                <div style={{ marginTop: 4, fontSize: 15 }}>
-                  {(track.Artists ?? []).map(artist => (
-                    <span
-                      key={artist.ID}
+      {/* Content */}
+      <div style={{
+        position: "relative",
+        zIndex: 1,
+        maxWidth: 1400,
+        margin: "0 auto",
+        padding: "40px 24px",
+      }}>
+        <h1 style={{
+          fontSize: "2.5rem",
+          fontFamily: "'Outfit', sans-serif",
+          fontWeight: 800,
+          marginBottom: 32,
+          textAlign: "center",
+          color: "#fff",
+        }}>
+          Music Dashboard
+        </h1>
+
+        {/* Two Column Layout */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "340px 1fr",
+          gap: 24,
+          alignItems: "start",
+        }}>
+          {/* Left Column - Controls */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Scan Controls */}
+            <div style={cardStyle}>
+              <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>Scan Playlist</h3>
+
+              {/* Show selected playlist name */}
+              {playlistId && (() => {
+                const selectedPlaylist = userPlaylists.find(p => p.ID === playlistId);
+                return selectedPlaylist ? (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    marginBottom: 12,
+                    background: "rgba(29, 185, 84, 0.15)",
+                    border: "1px solid rgba(29, 185, 84, 0.3)",
+                    borderRadius: 8,
+                    animation: "fadeIn 0.3s ease",
+                  }}>
+                    <img
+                      src={selectedPlaylist.ImageURL}
+                      alt={selectedPlaylist.Name}
+                      style={{ width: 32, height: 32, borderRadius: 4 }}
+                    />
+                    <div style={{ flex: 1, overflow: "hidden" }}>
+                      <div style={{ color: "#1DB954", fontSize: 12, fontWeight: 500 }}>Selected</div>
+                      <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {selectedPlaylist.Name}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setPlaylistId("")}
                       style={{
-                        color: ruArtistIds.has(artist.ID) ? "#e74c3c" : undefined,
-                        fontWeight: ruArtistIds.has(artist.ID) ? 700 : 400,
-                        marginRight: 12
+                        background: "transparent",
+                        border: "none",
+                        color: "rgba(255,255,255,0.5)",
+                        cursor: "pointer",
+                        padding: 4,
+                        fontSize: 18,
+                        lineHeight: 1,
                       }}
                     >
-                      {artist.Name}
-                    </span>
-                  ))}
+                      ×
+                    </button>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* URL prefix - shows only when ID is entered */}
+              {playlistId && (
+                <div style={{
+                  color: "rgba(255, 255, 255, 0.5)",
+                  fontSize: 12,
+                  marginBottom: 6,
+                  animation: "fadeIn 0.2s ease",
+                }}>
+                  {SPOTIFY_PLAYLIST_BASE}
                 </div>
-              </li>
-            ))}
-          </ul>
+              )}
+              <input
+                type="text"
+                placeholder="Paste playlist URL..."
+                value={playlistId}
+                onChange={e => handlePlaylistInput((e.target as HTMLInputElement).value)}
+                style={{
+                  ...inputStyle,
+                  width: "100%",
+                  marginBottom: 12,
+                  borderColor: playlistId ? "#1DB954" : "rgba(255, 255, 255, 0.2)",
+                  transition: "border-color 0.2s ease",
+                }}
+                disabled={loading === "playlist"}
+              />
+              <button
+                onClick={handleScanPlaylist}
+                disabled={loading === "playlist" || !playlistId}
+                style={{
+                  ...buttonStyle,
+                  width: "100%",
+                  opacity: (loading === "playlist" || !playlistId) ? 0.5 : 1,
+                  cursor: (loading === "playlist" || !playlistId) ? "not-allowed" : "pointer",
+                }}
+              >
+                {loading === "playlist" ? "Scanning..." : "Scan Playlist"}
+              </button>
+
+              <div style={{ textAlign: "center", margin: "16px 0" }}>
+                <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>or</span>
+              </div>
+
+              <button
+                onClick={handleScanLiked}
+                disabled={loading === "liked"}
+                style={{
+                  ...buttonStyle,
+                  width: "100%",
+                  background: "transparent",
+                  border: "1px solid #1DB954",
+                  color: "#1DB954",
+                  opacity: loading === "liked" ? 0.5 : 1,
+                }}
+              >
+                {loading === "liked" ? "Scanning..." : "Scan Liked Songs"}
+              </button>
+            </div>
+
+            {/* Your Playlists */}
+            <div style={cardStyle}>
+              <h3 style={{ color: "#fff", marginBottom: 12, fontSize: "1.1rem" }}>Your Playlists</h3>
+              {!playlistsLoading && userPlaylists.length > 0 && (
+                <input
+                  type="text"
+                  placeholder="Search playlists..."
+                  value={playlistSearch}
+                  onChange={e => setPlaylistSearch(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    width: "100%",
+                    marginBottom: 12,
+                    fontSize: 13,
+                  }}
+                />
+              )}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                maxHeight: 400,
+                overflowY: "auto",
+              }}>
+                {playlistsLoading ? (
+                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
+                    Loading playlists...
+                  </div>
+                ) : userPlaylists.length === 0 ? (
+                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
+                    No playlists found
+                  </div>
+                ) : filteredPlaylists.length === 0 ? (
+                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
+                    No playlists match "{playlistSearch}"
+                  </div>
+                ) : (
+                  filteredPlaylists.map(playlist => {
+                    const isSelected = playlistId === playlist.ID;
+                    return (
+                  <button
+                    key={playlist.ID}
+                    onClick={() => {
+                      setPlaylistId(playlist.ID);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: 10,
+                      background: isSelected ? "rgba(29, 185, 84, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                      border: isSelected ? "1px solid #1DB954" : "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={e => {
+                      if (!isSelected) {
+                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255, 255, 255, 0.08)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#1DB954";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!isSelected) {
+                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255, 255, 255, 0.03)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255, 255, 255, 0.08)";
+                      }
+                    }}
+                  >
+                    <img
+                      src={playlist.ImageURL}
+                      alt={playlist.Name}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 6,
+                        objectFit: "cover",
+                        flexShrink: 0,
+                      }}
+                      onError={e => {
+                        (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E";
+                      }}
+                    />
+                    <div style={{ overflow: "hidden", flex: 1 }}>
+                      <div style={{
+                        color: "#fff",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {playlist.Name}
+                      </div>
+                      <div style={{
+                        color: "rgba(255,255,255,0.5)",
+                        fontSize: 11,
+                        marginTop: 2,
+                      }}>
+                        {playlist.TrackCount} tracks
+                      </div>
+                    </div>
+                  </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Results */}
+          <div>
+            {/* Error Message */}
+            {error && (
+              <div style={{
+                ...cardStyle,
+                background: "rgba(231, 76, 60, 0.1)",
+                border: "1px solid rgba(231, 76, 60, 0.3)",
+                color: "#e74c3c",
+                marginBottom: 20,
+                textAlign: "center",
+              }}>
+                {error}
+              </div>
+            )}
+
+            {/* Results */}
+            {ruContent ? (
+              <div style={cardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                  <h3 style={{ color: "#fff", margin: 0, fontSize: "1.1rem" }}>
+                    Tracks with Russian Artists ({(ruContent.Tracks ?? []).length})
+                  </h3>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    {/* Only show Select All if AbleToDelete is true */}
+                    {ruContent.AbleToDelete && (
+                      <label style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={(ruContent.Tracks ?? []).length > 0 && (ruContent.Tracks ?? []).every((t: Track) => selected.has(t.ID))}
+                          onChange={e => handleTrackSelectAll((e.target as HTMLInputElement).checked)}
+                          style={{ accentColor: "#1DB954" }}
+                        />
+                        Select All
+                      </label>
+                    )}
+                    {/* Only show delete button if AbleToDelete is true */}
+                    {ruContent.AbleToDelete && (
+                      <button
+                        onClick={() => handleDeleteTracks(lastPlaylistId ? 'playlist' : 'liked')}
+                        disabled={selected.size === 0 || loading === 'delete'}
+                        style={{
+                          ...deleteButtonStyle,
+                          opacity: (selected.size === 0 || loading === 'delete') ? 0.5 : 1,
+                          cursor: (selected.size === 0 || loading === 'delete') ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {loading === 'delete' ? 'Deleting...' : `Delete (${selected.size})`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 600, overflowY: "auto" }}>
+                  {(ruContent.Tracks ?? []).map((track: Track) => (
+                    <li
+                      key={track.ID}
+                      style={{
+                        padding: 16,
+                        marginBottom: 8,
+                        background: selected.has(track.ID) ? "rgba(231, 76, 60, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                        border: selected.has(track.ID) ? "1px solid rgba(231, 76, 60, 0.3)" : "1px solid rgba(255, 255, 255, 0.05)",
+                        borderRadius: 10,
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
+                        {ruContent.AbleToDelete && (
+                          <input
+                            type="checkbox"
+                            checked={selected.has(track.ID)}
+                            onChange={() => handleTrackToggle(track.ID)}
+                            style={{ accentColor: "#1DB954", width: 18, height: 18, flexShrink: 0 }}
+                          />
+                        )}
+                        {track.ImageURL && (
+                          <img
+                            src={track.ImageURL}
+                            alt={track.Name}
+                            style={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 4,
+                              objectFit: "cover",
+                              flexShrink: 0,
+                            }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.Name}</div>
+                          <div style={{ marginTop: 4, fontSize: 13 }}>
+                            {(track.Artists ?? []).map((artist: Artist, idx: number) => (
+                              <span key={artist.ID}>
+                                <span
+                                  style={{
+                                    color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
+                                    fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
+                                  }}
+                                >
+                                  {artist.Name}
+                                </span>
+                                {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+
+                {(ruContent.Tracks ?? []).length === 0 && (
+                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
+                    No Russian tracks found. Your library is clean!
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{
+                ...cardStyle,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 400,
+                color: "rgba(255,255,255,0.5)",
+              }}>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.3, marginBottom: 16 }}>
+                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                </svg>
+                <p style={{ fontSize: 16, marginBottom: 8 }}>No scan results yet</p>
+                <p style={{ fontSize: 13, opacity: 0.7 }}>Select a playlist or scan your liked songs to get started</p>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 };
 

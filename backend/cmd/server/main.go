@@ -38,7 +38,7 @@ func main() {
 	}))
 
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/","/api/me"},
+		SkipPaths: []string{"/", "/api/me"},
 	}))
 	r.Use(gin.Recovery())
 
@@ -73,7 +73,10 @@ func main() {
 			protected.POST("/logout", authHandler.PostLogout)
 			protected.GET("/me", userHandler.GetMe)
 			protected.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
+			protected.DELETE("/playlist/:id/rucontent", spotifyHandler.DeletePlaylistRuContent)
 			protected.GET("/user/liked-songs/rucontent", spotifyHandler.GetLikedSongsRuContent)
+			protected.DELETE("/user/liked-songs/rucontent", spotifyHandler.DeleteLikedSongsRuContent)
+			protected.GET("/user/playlists", spotifyHandler.GetUserPlaylists)
 		}
 
 	}

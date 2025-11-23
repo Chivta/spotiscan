@@ -6,9 +6,10 @@ type User struct {
 }
 
 type Track struct {
-	ID      string   `json:"ID"`
-	Name    string   `json:"Name"`
-	Artists []Artist `json:"Artists"`
+	ID      	string   `json:"ID"`
+	Name    	string   `json:"Name"`
+	ImageURL 	string   `json:"ImageURL"`
+	Artists 	[]Artist `json:"Artists"`
 }
 
 type Artist struct {
@@ -17,13 +18,17 @@ type Artist struct {
 }
 
 type Playlist struct {
-	ID     string  `json:"ID"`
-	Name   string  `json:"Name"`
-	Tracks []Track `json:"Tracks"`
+	ID          string  `json:"ID"`
+	Name        string  `json:"Name"`
+	Description string  `json:"Description"`
+	Owned 	  	bool    `json:"Owned"`
+	ImageURL    string  `json:"ImageURL"`
+	TrackCount  int     `json:"TrackCount"`
+	Tracks      []Track `json:"Tracks"`
 }
 
-
 type RuContent struct {
-	RuTracks  []Track  `json:"RuTracks"`
-	RuArtists []Artist `json:"RuArtists"`
+	AbleToDelete 	bool    	`json:"AbleToDelete"`
+	Tracks  		[]Track  	`json:"Tracks"`
+	Artists 		[]Artist 	`json:"Artists"`
 }

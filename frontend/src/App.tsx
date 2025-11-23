@@ -1,10 +1,16 @@
-import Header from "./components/Header";
+import Header from "./components/Header.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
-import Landing from "./pages/Landing";
+import Landing from "./pages/Landing.tsx";
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useNavigate as useNav } from "react-router-dom";
+import { ReactNode } from "react";
 
-function RequireAuth({ children, authenticated }) {
+interface RequireAuthProps {
+  children: ReactNode;
+  authenticated: boolean;
+}
+
+function RequireAuth({ children, authenticated }: RequireAuthProps) {
   const location = useLocation();
   if (!authenticated) {
     return <Navigate to="/" state={{ from: location }} replace />;
@@ -13,11 +19,11 @@ function RequireAuth({ children, authenticated }) {
 }
 
 // Custom fetch wrapper to catch 401s and redirect to landing
-function useAuthFetch(setAuthenticated) {
+function useAuthFetch(setAuthenticated: (value: boolean) => void) {
   const navigate = useNav();
   React.useEffect(() => {
     const origFetch = window.fetch;
-    window.fetch = async (...args) => {
+    window.fetch = async (...args: any[]) => {
       const res = await origFetch(...args);
       if (res.status === 401) {
         setAuthenticated(false);
@@ -76,7 +82,11 @@ export default function App() {
   );
 }
 
-function AuthFetchWrapper({ setAuthenticated }) {
+interface AuthFetchWrapperProps {
+  setAuthenticated: (value: boolean) => void;
+}
+
+function AuthFetchWrapper({ setAuthenticated }: AuthFetchWrapperProps) {
   useAuthFetch(setAuthenticated);
   return null;
 }
