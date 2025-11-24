@@ -48,13 +48,43 @@ func (s *SpotifyService) GetValidUserSpotifyToken(userId int) (*oauth2.Token, er
 	return spotifyToken, nil
 }
 
-func (s *SpotifyService) isRussianArtist(artistName string) bool {
-	isRu, err := s.db.IsRussian(strings.ToLower(artistName))
-	if err != nil {
-		log.Println("Failed to check if artist is Russian:", err)
-		return false
+func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent, error) {
+	var ruContent models.RuContent
+
+	
+	artistMap := make(map[string]models.Artist)
+	for _, track := range tracks {
+		for _, artist := range track.Artists {
+			artistMap[strings.ToLower(artist.Name)] = artist
+		}
 	}
-	return isRu
+	
+	ruArtistsMap, err := s.db.FilterRussian(artistMap)
+	if err != nil {
+		log.Println("Failed to filter Russian artists:", err)
+		return nil, ErrDatabaseFailure
+	}
+
+	trackMap := make(map[string]models.Track)	
+
+	for _, track := range tracks {
+		for _, artist := range track.Artists {
+			if _, exists := ruArtistsMap[strings.ToLower(artist.Name)]; exists {
+				trackMap[track.ID] = track
+				break
+			}
+		}
+	}
+	
+	for _, track := range trackMap {
+		ruContent.Tracks = append(ruContent.Tracks, track)
+	}
+
+	for _, artist := range ruArtistsMap {
+		ruContent.Artists = append(ruContent.Artists, artist)
+	}
+
+	return &ruContent, nil
 }
 
 func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*models.RuContent, error) {
@@ -64,47 +94,15 @@ func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*m
 		return nil, ErrSpotifyAPIError
 	}
 
-	var ruContent models.RuContent
+	ruContent, err := s.formRuContent(tracks)
+	if err != nil {
+		log.Println(err)
+		return nil, ErrSpotifyAPIError
+	}
+
 	ruContent.AbleToDelete = true
-	var ruTracks []models.Track
-	var ruArtists []models.Artist
-
-	for _, track := range tracks {
-		isRuTrack := false
-		for _, artist := range track.Artists {
-			if s.isRussianArtist(artist.Name) {
-				ruArtists = append(ruArtists, artist)
-				isRuTrack = true
-			}
-		}
-		if isRuTrack {
-			ruTracks = append(ruTracks, track)
-		}
-	}
-
-	// remove duplicate artists
-	artistMap := make(map[string]models.Artist)
-	for _, artist := range ruArtists {
-		artistMap[artist.ID] = artist
-	}
-	uniqueArtists := make([]models.Artist, 0, len(artistMap))
-	for _, artist := range artistMap {
-		uniqueArtists = append(uniqueArtists, artist)
-	}
-	ruContent.Artists = uniqueArtists
-
-	// remove duplicate tracks
-	trackMap := make(map[string]models.Track)
-	for _, track := range ruTracks {
-		trackMap[track.ID] = track
-	}
-	uniqueTracks := make([]models.Track, 0, len(trackMap))
-	for _, track := range trackMap {
-		uniqueTracks = append(uniqueTracks, track)
-	}
-	ruContent.Tracks = uniqueTracks
-
-	return &ruContent, nil
+	
+	return ruContent, nil
 }
 
 func (s *SpotifyService) DeletePlaylistRuContent(oathToken *oauth2.Token, playlistId string, tracks []models.Track) error {
@@ -123,45 +121,14 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 		return nil, ErrSpotifyAPIError
 	}
 
-	var ruContent models.RuContent
+	ruContent,err := s.formRuContent(playlist.Tracks)
+	if err != nil {
+		log.Println(err)
+		return nil, ErrSpotifyAPIError
+	}
 	ruContent.AbleToDelete = playlist.Owned
 
-	var ruArtists []models.Artist
-	var ruTracks []models.Track
-
-
-	for _, track := range playlist.Tracks {
-		for _, artist := range track.Artists {
-			if s.isRussianArtist(artist.Name) {
-				ruArtists = append(ruArtists, artist)
-				ruTracks = append(ruTracks, track)
-			}
-		}
-	}
-
-	// remove duplicate artists
-	artistMap := make(map[string]models.Artist)
-	for _, artist := range ruArtists {
-		artistMap[artist.ID] = artist
-	}
-	uniqueArtists := make([]models.Artist, 0, len(artistMap))
-	for _, artist := range artistMap {
-		uniqueArtists = append(uniqueArtists, artist)
-	}
-	ruContent.Artists = uniqueArtists
-
-	// remove duplicate tracks
-	trackMap := make(map[string]models.Track)
-	for _, track := range ruTracks {
-		trackMap[track.ID] = track
-	}
-	uniqueTracks := make([]models.Track, 0, len(trackMap))
-	for _, track := range trackMap {
-		uniqueTracks = append(uniqueTracks, track)
-	}
-	ruContent.Tracks = uniqueTracks
-
-	return &ruContent, nil
+	return ruContent, nil
 }
 
 func (s *SpotifyService) GetUserPlaylists(oathToken *oauth2.Token) ([]models.Playlist, error) {

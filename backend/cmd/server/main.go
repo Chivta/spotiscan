@@ -75,7 +75,7 @@ func main() {
 		protected := api.Group("/")
 		protected.Use(authMiddleware.RequireAuthentication())
 		{
-			protected.POST("/signout", authHandler.PostLogout)
+			protected.POST("/logout", authHandler.PostLogout)
 			protected.GET("/me", userHandler.GetMe)
 			protected.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
 			protected.DELETE("/playlist/:id/rucontent", spotifyHandler.DeletePlaylistRuContent)

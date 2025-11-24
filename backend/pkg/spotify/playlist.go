@@ -66,6 +66,7 @@ func (c *SpotifyClient) getAllPlaylistTracks(client *spotify.Client, playlistId 
 			for _, artist := range track.Artists {
 				artist := models.Artist{
 					ID:   string(artist.ID),
+					URL:  artist.ExternalURLs["spotify"],
 					Name: artist.Name,
 				}
 

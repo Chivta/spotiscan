@@ -8,7 +8,7 @@ import (
 func (db *DB) StoreSpotifyTokens(userId int, token *oauth2.Token) error {
 	accessToken := token.AccessToken
 	refreshToken := token.RefreshToken
-	expiresAt := token.Expiry
+	expiresAt := token.Expiry.UTC()
 
 	_, err := db.conn.Exec(
 		`INSERT INTO spotify_tokens (user_id, access_token, refresh_token, expires_at) VALUES ($1, $2, $3, $4)

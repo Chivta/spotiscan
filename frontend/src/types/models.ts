@@ -5,6 +5,7 @@ export interface User {
 
 export interface Artist {
   ID: string;
+  URL: string;
   Name: string;
 }
 

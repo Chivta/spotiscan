@@ -50,6 +50,7 @@ GET    /api/auth/start                    # Initiate OAuth
 GET    /api/auth/callback                 # OAuth callback
 POST   /api/logout                        # Clear session
 GET    /api/me                            # Current user info
+GET    /api/user/playlists                # Fetch user's playlists
 GET    /api/playlist/:id/rucontent        # Scan playlist for Russian content
 DELETE /api/playlist/:id/rucontent        # Remove Russian tracks from playlist
 GET    /api/user/liked-songs/rucontent    # Scan liked songs
@@ -65,9 +66,32 @@ DELETE /api/user/liked-songs/rucontent    # Remove Russian tracks from liked son
 - `pkg/spotify/` - Spotify API wrapper
 
 ### Frontend Structure
-- `src/App.jsx` - Router with auth state
-- `src/pages/Landing.jsx` - Login page with Aurora background
-- `src/pages/Dashboard.tsx` - Main scanner interface
+- `src/App.tsx` - Router with auth state, `RequireAuth` wrapper for protected routes
+- `src/pages/Landing.tsx` - Landing page with Aurora background and login CTA
+- `src/pages/Dashboard.tsx` - Main scanner interface with playlist selection and track filtering
+- `src/components/Aurora.tsx` - WebGL-based animated gradient background
+- `src/components/GradientText.tsx` - Animated gradient text effect
+- `src/components/Header.tsx` - Simple navigation header with sign-out button
+- `src/components/AnimatedList.tsx` - Reusable scrollable list with keyboard navigation
+- `src/types/models.ts` - TypeScript interfaces (User, Artist, Track, Playlist, RuContent)
+
+## Frontend Implementation Details
+
+### Auth Pattern
+Frontend uses a custom fetch wrapper (`useAuthFetch` in `src/App.tsx`) that intercepts 401 responses globally and redirects to landing page. Session validation happens on app load via `GET /api/me`.
+
+### Dashboard State Management
+The Dashboard component (645 lines) uses React hooks for state. Key features:
+- **Playlist selection:** Users can paste Spotify URLs/IDs or pick from `GET /api/user/playlists`
+- **Track filtering:** `RuContent` response contains tracks and artist list; client-side rendering with highlight for Russian artists
+- **Selective deletion:** Users can select individual tracks before calling `DELETE` endpoint
+- **Search filtering:** Built-in search for user's playlists with `AnimatedList` rendering
+
+### Component Architecture
+- Use inline styles with TypeScript `CSSProperties` (avoid CSS files in most components)
+- `Aurora` component renders WebGL canvas for animated background via `ogl` library
+- `AnimatedList` provides virtualized scrolling with arrow key navigation
+- Components pass styling objects (`cardStyle`, `buttonStyle`, etc.) for consistent theming
 
 ## Environment Variables
 
@@ -86,7 +110,13 @@ SPOTIFY_REDIRECT_URI    # Must match Spotify app config
 - **Spotify scopes:** user-read-private, user-library-read, playlist-modify-public, playlist-modify-private
 - **CORS:** Only allows FRONTEND_URL origin with credentials
 - **Vite proxy:** Dev mode proxies `/api/*` to backend at localhost:8080
+- **Sign-out endpoint:** Uses `/api/logout` (not `/api/signout` as currently called in Dashboard.tsx line 211 - this is a bug)
+- **Playlist ownership check:** `Playlist.Owned` field controls if tracks can be deleted; `RuContent.AbleToDelete` also gates delete UI
 
+## Frontend Testing Notes
 
-## Files Not to Modify Without Explicit Permission
-- `backend/` - NEVER edit if wasn't requested explicitly
+When testing the Dashboard:
+- Invalid playlist IDs (not alphanumeric) trigger validation error
+- Already-scanned playlists show "already been scanned" error on re-scan
+- Playlists user doesn't own show results but delete buttons are disabled
+- Track artist highlighting matches on `Artist.ID` in Russian artist list

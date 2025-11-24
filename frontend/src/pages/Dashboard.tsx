@@ -30,6 +30,10 @@ const Dashboard = () => {
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(true);
   const [playlistSearch, setPlaylistSearch] = useState("");
+  const [resultTab, setResultTab] = useState<'tracks' | 'artists'>('tracks');
+  const [tracksSearch, setTracksSearch] = useState("");
+  const [artistsSearch, setArtistsSearch] = useState("");
+  const [scannedSource, setScannedSource] = useState<{ type: 'playlist' | 'liked'; playlistName?: string; imageURL?: string; description?: string } | null>(null);
 
   // No longer needed: selectedPlaylist
 
@@ -88,10 +92,20 @@ const Dashboard = () => {
       return;
     }
     try {
+      const playlist = userPlaylists.find(p => p.ID === playlistId);
+      setScannedSource({
+        type: 'playlist',
+        playlistName: playlist?.Name || 'Unknown Playlist',
+        imageURL: playlist?.ImageURL || '',
+        description: playlist?.Description || '',
+      });
       const data = await fetchPlaylistRuContent(playlistId);
       setRuContent(data);
       setSelected(new Set());
       setLastPlaylistId(playlistId);
+      setResultTab('tracks');
+      setTracksSearch("");
+      setArtistsSearch("");
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -101,6 +115,7 @@ const Dashboard = () => {
   const handleScanLiked = async () => {
     setError(null);
     setLoading("liked");
+    setScannedSource({ type: 'liked' });
     try {
       const response = await fetch("/api/user/liked-songs/rucontent");
       if (!response.ok) throw new Error(`HTTP error status: ${response.status}`);
@@ -108,6 +123,10 @@ const Dashboard = () => {
       setRuContent(data);
       setSelected(new Set());
       setLastPlaylistId(null);
+      setPlaylistId("");
+      setResultTab('tracks');
+      setTracksSearch("");
+      setArtistsSearch("");
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -125,8 +144,18 @@ const Dashboard = () => {
     });
   };
   const handleTrackSelectAll = (checked: boolean) => {
-    if (ruContent && checked) setSelected(new Set((ruContent.Tracks ?? []).map((t: Track) => t.ID)));
-    else setSelected(new Set());
+    setSelected((prev: Set<string>) => {
+      const next = new Set(prev);
+      const filteredIds = new Set(filteredTracks.map((t: Track) => t.ID));
+      if (checked) {
+        // Add filtered tracks to current selection
+        filteredIds.forEach(id => next.add(id));
+      } else {
+        // Remove filtered tracks from current selection
+        filteredIds.forEach(id => next.delete(id));
+      }
+      return next;
+    });
   };
 
   // Delete selected tracks from playlist or liked songs
@@ -165,6 +194,21 @@ const Dashboard = () => {
 
   // Helper: set of Russian artist IDs for quick lookup
   const ruArtistIds = new Set((ruContent?.Artists ?? []).map((a: Artist) => a.ID));
+
+  // Search filter logic
+  const filteredTracks = (ruContent?.Tracks ?? []).filter((track: Track) => {
+    if (!tracksSearch.trim()) return true;
+    const searchLower = tracksSearch.toLowerCase();
+    return (
+      track.Name.toLowerCase().includes(searchLower) ||
+      (track.Artists ?? []).some((a: Artist) => a.Name.toLowerCase().includes(searchLower))
+    );
+  });
+
+  const filteredArtists = (ruContent?.Artists ?? []).filter((artist: Artist) => {
+    if (!artistsSearch.trim()) return true;
+    return artist.Name.toLowerCase().includes(artistsSearch.toLowerCase());
+  });
 
   const cardStyle: React.CSSProperties = {
     background: "rgba(255, 255, 255, 0.05)",
@@ -205,31 +249,6 @@ const Dashboard = () => {
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", width: "100%", overflow: "hidden" }}>
-      {/* Sign Out Button - fixed top right */}
-      <button
-        onClick={async () => {
-          await fetch("/api/signout", { method: "POST", credentials: "include" });
-          window.location.href = "/";
-        }}
-        style={{
-          position: "fixed",
-          top: 12,
-          right: 16,
-          zIndex: 10,
-          padding: "8px 16px",
-          background: "#caffdcff",
-          color: "#000",
-          border: "none",
-          borderRadius: 50,
-          fontWeight: 600,
-          fontSize: 12,
-          cursor: "pointer",
-          transition: "all 0.2s ease",
-          boxShadow: "0 2px 8px 0 rgba(0,0,0,0.08)",
-        }}
-      >
-        Sign Out
-      </button>
       {/* Aurora Background */}
       <div style={{
         position: "fixed",
@@ -507,115 +526,423 @@ const Dashboard = () => {
             )}
 
             {/* Results */}
-            {ruContent ? (
+            {ruContent || scannedSource ? (
               <div style={cardStyle}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-                  <h3 style={{ color: "#fff", margin: 0, fontSize: "1.1rem" }}>
-                    Tracks with Russian Artists ({(ruContent.Tracks ?? []).length})
-                  </h3>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    {/* Only show Select All if AbleToDelete is true and there are tracks */}
-                    {ruContent.AbleToDelete && (ruContent.Tracks ?? []).length > 0 && (
-                      <label style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                        <input
-                          type="checkbox"
-                          checked={(ruContent.Tracks ?? []).length > 0 && (ruContent.Tracks ?? []).every((t: Track) => selected.has(t.ID))}
-                          onChange={e => handleTrackSelectAll((e.target as HTMLInputElement).checked)}
-                          style={{ accentColor: "#1DB954" }}
+                {/* Scan Source Header - Always visible */}
+                {scannedSource && (
+                  <div style={{
+                    marginBottom: 24,
+                    paddingBottom: 16,
+                    borderBottom: "2px solid rgba(29, 185, 84, 0.3)",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 16,
+                  }}>
+                    {/* Image or Heart Emoji */}
+                    {scannedSource.type === 'playlist' ? (
+                      scannedSource.imageURL ? (
+                        <img
+                          src={scannedSource.imageURL}
+                          alt={scannedSource.playlistName}
+                          style={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: 8,
+                            objectFit: "cover",
+                            flexShrink: 0,
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
-                        Select All
-                      </label>
+                      ) : (
+                        <div style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 8,
+                          background: "rgba(29, 185, 84, 0.2)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          fontSize: 32,
+                        }}>
+                          📋
+                        </div>
+                      )
+                    ) : (
+                      <div style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 8,
+                        background: "rgba(231, 76, 60, 0.2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        fontSize: 32,
+                      }}>
+                        ❤️
+                      </div>
                     )}
-                    {/* Only show delete button if AbleToDelete is true and there are tracks */}
-                    {ruContent.AbleToDelete && (ruContent.Tracks ?? []).length > 0 && (
+
+                    {/* Text Content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 8,
+                      }}>
+                        <div style={{
+                          padding: "4px 10px",
+                          background: "#1DB954",
+                          color: "#000",
+                          borderRadius: 20,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                        }}>
+                          {scannedSource.type === 'playlist' ? 'Playlist' : 'Liked Songs'}
+                        </div>
+                      </div>
+                      <h4 style={{
+                        color: "#fff",
+                        margin: "0 0 6px 0",
+                        fontSize: 16,
+                        fontWeight: 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {scannedSource.type === 'playlist'
+                          ? scannedSource.playlistName
+                          : 'Your Liked Songs'}
+                      </h4>
+                      {scannedSource.type === 'playlist' && scannedSource.description && (
+                        <p style={{
+                          color: "rgba(255, 255, 255, 0.6)",
+                          margin: 0,
+                          fontSize: 13,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}>
+                          {scannedSource.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Loading Animation */}
+                {(loading === 'playlist' || loading === 'liked') && (
+                  <div style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 300,
+                    gap: 20,
+                  }}>
+                    <style>{`
+                      @keyframes l1 {
+                        to { transform: rotate(0.5turn); }
+                      }
+                      .loader {
+                        width: 50px;
+                        aspect-ratio: 1;
+                        border-radius: 50%;
+                        border: 8px solid;
+                        border-color: #1DB954 #0000;
+                        animation: l1 1s infinite;
+                      }
+                    `}</style>
+                    <div className="loader" />
+                    <p style={{ color: "rgba(255, 255, 255, 0.6)" }}>Scanning...</p>
+                  </div>
+                )}
+
+                {!loading && ruContent && (
+                  <>
+                    {/* Tab Navigation */}
+                    <div style={{
+                      display: "flex",
+                      gap: 12,
+                      marginBottom: 20,
+                      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                    }}>
                       <button
-                        onClick={() => handleDeleteTracks(lastPlaylistId ? 'playlist' : 'liked')}
-                        disabled={selected.size === 0 || loading === 'delete'}
+                        onClick={() => setResultTab('tracks')}
                         style={{
-                          ...deleteButtonStyle,
-                          opacity: (selected.size === 0 || loading === 'delete') ? 0.5 : 1,
-                          cursor: (selected.size === 0 || loading === 'delete') ? "not-allowed" : "pointer",
+                          padding: "12px 16px",
+                          background: "transparent",
+                          border: "none",
+                          borderBottom: resultTab === 'tracks' ? "2px solid #1DB954" : "none",
+                          color: resultTab === 'tracks' ? "#1DB954" : "rgba(255, 255, 255, 0.6)",
+                          cursor: "pointer",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          transition: "all 0.2s ease",
                         }}
                       >
-                        {loading === 'delete' ? 'Deleting...' : `Delete (${selected.size})`}
+                        Tracks ({(ruContent?.Tracks ?? []).length})
                       </button>
-                    )}
-                  </div>
-                </div>
+                      <button
+                        onClick={() => setResultTab('artists')}
+                        style={{
+                          padding: "12px 16px",
+                          background: "transparent",
+                          border: "none",
+                          borderBottom: resultTab === 'artists' ? "2px solid #1DB954" : "none",
+                          color: resultTab === 'artists' ? "#1DB954" : "rgba(255, 255, 255, 0.6)",
+                          cursor: "pointer",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        Artists ({ruContent?.Artists?.length ?? 0})
+                      </button>
+                    </div>
 
-                <AnimatedList
-                  items={(ruContent.Tracks ?? []).map((t: Track) => t.ID)}
-                  showGradients={false}
-                  displayScrollbar={true}
-                  enableArrowNavigation={true}
-                  children={(trackId: string) => {
-                    const track = (ruContent.Tracks ?? []).find((t: Track) => t.ID === trackId);
-                    if (!track) return null;
-                    const isSelected = selected.has(track.ID);
-                    return (
-                      <div style={{
-                        padding: 16,
-                        background: isSelected ? "rgba(231, 76, 60, 0.15)" : "rgba(255, 255, 255, 0.03)",
-                        border: isSelected ? "1px solid rgba(231, 76, 60, 0.3)" : "1px solid rgba(255, 255, 255, 0.05)",
-                        borderRadius: 10,
-                        transition: "all 0.2s ease",
-                      }}>
-                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
-                          {ruContent.AbleToDelete && (
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleTrackToggle(track.ID);
-                              }}
-                              style={{ accentColor: "#1DB954", width: 18, height: 18, flexShrink: 0 }}
-                            />
-                          )}
-                          {track.ImageURL && (
-                            <img
-                              src={track.ImageURL}
-                              alt={track.Name}
-                              style={{
-                                width: 48,
-                                height: 48,
-                                borderRadius: 4,
-                                objectFit: "cover",
-                                flexShrink: 0,
-                              }}
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.Name}</div>
-                            <div style={{ marginTop: 4, fontSize: 13 }}>
-                              {(track.Artists ?? []).map((artist: Artist, idx: number) => (
-                                <span key={artist.ID}>
-                                  <span
-                                    style={{
-                                      color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
-                                      fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
-                                    }}
-                                  >
-                                    {artist.Name}
-                                  </span>
-                                  {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
-                                </span>
-                              ))}
-                            </div>
+                    {/* Tracks Tab */}
+                    {resultTab === 'tracks' && (
+                      <div>
+                        {/* Tracks Search Bar */}
+                        {(ruContent?.Tracks ?? []).length > 0 && (
+                          <input
+                            type="text"
+                            placeholder="Search tracks..."
+                            value={tracksSearch}
+                            onChange={e => setTracksSearch(e.target.value)}
+                            style={{
+                              ...inputStyle,
+                              width: "100%",
+                              marginBottom: 12,
+                            }}
+                          />
+                        )}
+
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                          <h3 style={{ color: "#fff", margin: 0, fontSize: "1.1rem" }}>
+                            Tracks with Russian Artists ({filteredTracks.length})
+                          </h3>
+                          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                            {/* Only show Select All if AbleToDelete is true and there are tracks */}
+                            {ruContent?.AbleToDelete && filteredTracks.length > 0 && (
+                              <label style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={filteredTracks.length > 0 && filteredTracks.every((t: Track) => selected.has(t.ID))}
+                                  onChange={e => handleTrackSelectAll((e.target as HTMLInputElement).checked)}
+                                  style={{ accentColor: "#1DB954" }}
+                                />
+                                Select All
+                              </label>
+                            )}
+                            {/* Only show delete button if AbleToDelete is true and there are tracks */}
+                            {ruContent?.AbleToDelete && (ruContent?.Tracks ?? []).length > 0 && (
+                              <button
+                                onClick={() => handleDeleteTracks(lastPlaylistId ? 'playlist' : 'liked')}
+                                disabled={selected.size === 0 || loading === 'delete'}
+                                style={{
+                                  ...deleteButtonStyle,
+                                  opacity: (selected.size === 0 || loading === 'delete') ? 0.5 : 1,
+                                  cursor: (selected.size === 0 || loading === 'delete') ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                {loading === 'delete' ? 'Deleting...' : `Delete (${selected.size})`}
+                              </button>
+                            )}
                           </div>
-                        </label>
-                      </div>
-                    );
-                  }}
-                />
+                        </div>
 
-                {(ruContent.Tracks ?? []).length === 0 && (
-                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
-                    No Russian tracks found. Your library is clean!
-                  </div>
+                        <AnimatedList
+                          items={filteredTracks.map((t: Track) => t.ID)}
+                          showGradients={false}
+                          displayScrollbar={true}
+                          enableArrowNavigation={true}
+                          children={(trackId: string) => {
+                            const track = filteredTracks.find((t: Track) => t.ID === trackId);
+                            if (!track) return null;
+                            const isSelected = selected.has(track.ID);
+                            return (
+                              <div style={{
+                                padding: 16,
+                                background: isSelected ? "rgba(231, 76, 60, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                                border: isSelected ? "1px solid rgba(231, 76, 60, 0.3)" : "1px solid rgba(255, 255, 255, 0.05)",
+                                borderRadius: 10,
+                                transition: "all 0.2s ease",
+                              }}>
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
+                                  {ruContent?.AbleToDelete && (
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        handleTrackToggle(track.ID);
+                                      }}
+                                      style={{ accentColor: "#1DB954", width: 18, height: 18, flexShrink: 0 }}
+                                    />
+                                  )}
+                                  {track.ImageURL && (
+                                    <img
+                                      src={track.ImageURL}
+                                      alt={track.Name}
+                                      style={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 4,
+                                        objectFit: "cover",
+                                        flexShrink: 0,
+                                      }}
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                    />
+                                  )}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.Name}</div>
+                                    <div style={{ marginTop: 4, fontSize: 13 }}>
+                                      {(track.Artists ?? []).map((artist: Artist, idx: number) => (
+                                        <span key={artist.ID}>
+                                          <span
+                                            style={{
+                                              color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
+                                              fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
+                                            }}
+                                          >
+                                            {artist.Name}
+                                          </span>
+                                          {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </label>
+                              </div>
+                            );
+                          }}
+                        />
+
+                        {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length === 0 && (
+                          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
+                            No Russian tracks found. Your library is clean!
+                          </div>
+                        )}
+                        {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length > 0 && (
+                          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
+                            No tracks match your search
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Artists Tab */}
+                    {resultTab === 'artists' && (
+                      <div>
+                        {/* Artists Search Bar */}
+                        {(ruContent?.Artists ?? []).length > 0 && (
+                          <input
+                            type="text"
+                            placeholder="Search artists..."
+                            value={artistsSearch}
+                            onChange={e => setArtistsSearch(e.target.value)}
+                            style={{
+                              ...inputStyle,
+                              width: "100%",
+                              marginBottom: 12,
+                            }}
+                          />
+                        )}
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length === 0 && (
+                            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
+                              No artists found
+                            </div>
+                          )}
+                          {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length > 0 && (
+                            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
+                              No artists match your search
+                            </div>
+                          )}
+                          {filteredArtists
+                            .map((artist: Artist) => ({
+                              artist,
+                              trackCount: (ruContent?.Tracks ?? []).filter((t: Track) =>
+                                (t.Artists ?? []).some(a => a.ID === artist.ID)
+                              ).length,
+                            }))
+                            .sort((a, b) => b.trackCount - a.trackCount)
+                            .map(({ artist, trackCount }) => {
+                            return (
+                              <div
+                                key={artist.ID}
+                                style={{
+                                  padding: 16,
+                                  background: "rgba(255, 255, 255, 0.03)",
+                                  border: "1px solid rgba(255, 255, 255, 0.05)",
+                                  borderRadius: 10,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: 12,
+                                }}
+                              >
+                                <a
+                                  href={artist.URL}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    flex: 1,
+                                    color: "rgba(255, 255, 255, 0.7)",
+                                    textDecoration: "none",
+                                    fontWeight: 500,
+                                    fontSize: 15,
+                                    cursor: "pointer",
+                                    transition: "color 0.2s ease",
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.color = "#1DB954")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)")}
+                                >
+                                  {artist.Name}
+                                </a>
+                                <button
+                                  onClick={() => {
+                                    setResultTab('tracks');
+                                    setTracksSearch(artist.Name);
+                                  }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    background: "rgba(29, 185, 84, 0.2)",
+                                    border: "1px solid rgba(29, 185, 84, 0.4)",
+                                    borderRadius: 6,
+                                    color: "#1DB954",
+                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    whiteSpace: "nowrap",
+                                    transition: "all 0.2s ease",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)";
+                                  }}
+                                >
+                                  {trackCount} track{trackCount !== 1 ? 's' : ''}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : (

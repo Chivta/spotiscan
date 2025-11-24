@@ -1,16 +1,42 @@
 package db
 
 import (
+	"log"
+	"spotiscan/models"
+
+	"github.com/lib/pq"
 )
 
-func (db *DB) IsRussian(name string) (bool, error) {
-	row,err := db.conn.Query(`
-			SELECT 1 FROM ru_artists 
-			WHERE name=$1
-	`, name)
-	if err != nil {
-		return false, err
+func (db *DB) FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error) {	
+	var names []string
+	for name := range artists {
+		names = append(names, name) 
 	}
-	defer row.Close()
-	return row.Next(), nil
+	log.Println(names)
+	
+	rows, err := db.conn.Query(`
+        SELECT name FROM ru_artists WHERE name = ANY($1)
+    `, pq.Array(names))
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+	var ruNames []string
+
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		ruNames = append(ruNames, name)
+	}
+	log.Println(ruNames)
+	ruArtists := make(map[string]models.Artist, len(ruNames))
+
+	for _, name := range ruNames {
+		ruArtists[name] = artists[name]
+	}
+
+	return ruArtists, nil
 }

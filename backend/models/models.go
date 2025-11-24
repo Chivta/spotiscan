@@ -13,8 +13,9 @@ type Track struct {
 }
 
 type Artist struct {
-	ID   string `json:"ID"`
-	Name string `json:"Name"`
+	ID   		string `json:"ID"`
+	URL			string `json:"URL"`
+	Name 		string `json:"Name"`
 }
 
 type Playlist struct {
