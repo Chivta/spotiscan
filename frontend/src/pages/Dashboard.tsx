@@ -898,17 +898,31 @@ const Dashboard = () => {
                                   rel="noopener noreferrer"
                                   style={{
                                     flex: 1,
-                                    color: "rgba(255, 255, 255, 0.7)",
+                                    color: "#fff",
                                     textDecoration: "none",
-                                    fontWeight: 500,
-                                    fontSize: 15,
+                                    fontWeight: 600,
+                                    fontSize: 16,
                                     cursor: "pointer",
-                                    transition: "color 0.2s ease",
+                                    transition: "all 0.2s ease",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
                                   }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.color = "#1DB954")}
-                                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)")}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = "#1DB954";
+                                    e.currentTarget.style.textDecoration = "underline";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = "#fff";
+                                    e.currentTarget.style.textDecoration = "none";
+                                  }}
                                 >
                                   {artist.Name}
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                  </svg>
                                 </a>
                                 <button
                                   onClick={() => {
