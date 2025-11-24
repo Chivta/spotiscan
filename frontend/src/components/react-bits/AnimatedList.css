@@ -32,10 +32,6 @@
   scrollbar-width: none;
 }
 
-.item {
-  /* Styling provided via children or default */
-}
-
 .item-text {
   color: white;
   margin: 0;

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Aurora from "../components/Aurora";
-import GradientText from "../components/GradientText";
+import Aurora from "../components/react-bits/Aurora";
+import GradientText from "../components/react-bits/GradientText";
 
 interface LandingProps {
   authenticated: boolean;

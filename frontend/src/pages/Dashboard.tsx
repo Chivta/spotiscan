@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useState } from "react";
-import Aurora from "../components/Aurora";
-import AnimatedList from "../components/AnimatedList";
+import Aurora from "../components/react-bits/Aurora";
+import AnimatedList from "../components/react-bits/AnimatedList";
 import type { Artist, Track, Playlist, RuContent } from "../types/models";
 // Ensure JSX namespace is available for TS
 /// <reference types="react/next" />

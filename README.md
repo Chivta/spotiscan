@@ -12,8 +12,8 @@ Take control of your Spotify library. SpotiScan scans your playlists and liked s
 
 ## Tech Stack
 
-**Frontend:** React 19 + TypeScript + Vite
-**Backend:** Go + Gin + PostgreSQL
+**Frontend:** React 19 + TypeScript + Vite\
+**Backend:** Go + Gin + PostgreSQL\
 **Deployment:** Docker & Docker Compose
 
 ## Quick Start
