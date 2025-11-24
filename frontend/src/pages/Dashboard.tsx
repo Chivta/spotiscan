@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useState } from "react";
 import Aurora from "../components/Aurora";
+import AnimatedList from "../components/AnimatedList";
 import type { Artist, Track, Playlist, RuContent } from "../types/models";
 // Ensure JSX namespace is available for TS
 /// <reference types="react/next" />
@@ -203,10 +204,13 @@ const Dashboard = () => {
   };
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", width: "100vw" }}>
+    <div style={{ position: "relative", minHeight: "100vh", width: "100%", overflow: "hidden" }}>
       {/* Sign Out Button - fixed top right */}
       <button
-        onClick={() => { window.location.href = "/api/auth/signout"; }}
+        onClick={async () => {
+          await fetch("/api/signout", { method: "POST", credentials: "include" });
+          window.location.href = "/";
+        }}
         style={{
           position: "fixed",
           top: 12,
@@ -248,9 +252,11 @@ const Dashboard = () => {
       <div style={{
         position: "relative",
         zIndex: 1,
-        maxWidth: 1400,
-        margin: "0 auto",
+        width: "100%",
+        height: "100%",
         padding: "40px 24px",
+        boxSizing: "border-box",
+        overflow: "auto",
       }}>
         <h1 style={{
           fontSize: "2.5rem",
@@ -291,11 +297,17 @@ const Dashboard = () => {
                     borderRadius: 8,
                     animation: "fadeIn 0.3s ease",
                   }}>
-                    <img
-                      src={selectedPlaylist.ImageURL}
-                      alt={selectedPlaylist.Name}
-                      style={{ width: 32, height: 32, borderRadius: 4 }}
-                    />
+                    {selectedPlaylist.ImageURL ? (
+                      <img
+                        src={selectedPlaylist.ImageURL}
+                        alt={selectedPlaylist.Name}
+                        style={{ width: 48, height: 48, borderRadius: 4, flexShrink: 0 }}
+                      />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#666" style={{ borderRadius: 4, flexShrink: 0 }}>
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                      </svg>
+                    )}
                     <div style={{ flex: 1, overflow: "hidden" }}>
                       <div style={{ color: "#1DB954", fontSize: 12, fontWeight: 500 }}>Selected</div>
                       <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -395,97 +407,86 @@ const Dashboard = () => {
                   }}
                 />
               )}
-              <div style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                maxHeight: 400,
-                overflowY: "auto",
-              }}>
-                {playlistsLoading ? (
-                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
-                    Loading playlists...
-                  </div>
-                ) : userPlaylists.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
-                    No playlists found
-                  </div>
-                ) : filteredPlaylists.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
-                    No playlists match "{playlistSearch}"
-                  </div>
-                ) : (
-                  filteredPlaylists.map(playlist => {
-                    const isSelected = playlistId === playlist.ID;
+              {playlistsLoading ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
+                  Loading playlists...
+                </div>
+              ) : userPlaylists.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
+                  No playlists found
+                </div>
+              ) : filteredPlaylists.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
+                  No playlists match "{playlistSearch}"
+                </div>
+              ) : (
+                <div style={{ marginLeft: "-16px" }}>
+                  <AnimatedList
+                    items={filteredPlaylists.map((p: Playlist) => p.ID)}
+                    showGradients={false}
+                    displayScrollbar={true}
+                    enableArrowNavigation={true}
+                    maxHeight={400}
+                    children={(itemId: string) => {
+                    const playlist = filteredPlaylists.find((p: Playlist) => p.ID === itemId);
+                    if (!playlist) return null;
+                    const isSelected = playlistId === itemId;
                     return (
-                  <button
-                    key={playlist.ID}
-                    onClick={() => {
-                      setPlaylistId(playlist.ID);
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: 10,
-                      background: isSelected ? "rgba(29, 185, 84, 0.15)" : "rgba(255, 255, 255, 0.03)",
-                      border: isSelected ? "1px solid #1DB954" : "1px solid rgba(255, 255, 255, 0.08)",
-                      borderRadius: 10,
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      textAlign: "left",
-                    }}
-                    onMouseEnter={e => {
-                      if (!isSelected) {
-                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255, 255, 255, 0.08)";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#1DB954";
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!isSelected) {
-                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255, 255, 255, 0.03)";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255, 255, 255, 0.08)";
-                      }
-                    }}
-                  >
-                    <img
-                      src={playlist.ImageURL}
-                      alt={playlist.Name}
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 6,
-                        objectFit: "cover",
-                        flexShrink: 0,
-                      }}
-                      onError={e => {
-                        (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E";
-                      }}
-                    />
-                    <div style={{ overflow: "hidden", flex: 1 }}>
-                      <div style={{
-                        color: "#fff",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}>
-                        {playlist.Name}
-                      </div>
-                      <div style={{
-                        color: "rgba(255,255,255,0.5)",
-                        fontSize: 11,
-                        marginTop: 2,
-                      }}>
-                        {playlist.TrackCount} tracks
-                      </div>
-                    </div>
-                  </button>
+                      <button
+                        onClick={() => setPlaylistId(playlist.ID)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: 10,
+                          background: isSelected ? "rgba(29, 185, 84, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                          border: isSelected ? "2px solid #1DB954" : "1px solid rgba(255, 255, 255, 0.1)",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          textAlign: "left",
+                          width: "100%",
+                        }}
+                      >
+                        <img
+                          src={playlist.ImageURL}
+                          alt={playlist.Name}
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 6,
+                            objectFit: "cover",
+                            flexShrink: 0,
+                          }}
+                          onError={e => {
+                            (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E";
+                          }}
+                        />
+                        <div style={{ overflow: "hidden", flex: 1 }}>
+                          <div style={{
+                            color: "#fff",
+                            fontSize: 13,
+                            fontWeight: 500,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}>
+                            {playlist.Name}
+                          </div>
+                          <div style={{
+                            color: "rgba(255,255,255,0.5)",
+                            fontSize: 11,
+                            marginTop: 2,
+                          }}>
+                            {playlist.TrackCount} tracks
+                          </div>
+                        </div>
+                      </button>
                     );
-                  })
-                )}
-              </div>
+                  }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -513,8 +514,8 @@ const Dashboard = () => {
                     Tracks with Russian Artists ({(ruContent.Tracks ?? []).length})
                   </h3>
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    {/* Only show Select All if AbleToDelete is true */}
-                    {ruContent.AbleToDelete && (
+                    {/* Only show Select All if AbleToDelete is true and there are tracks */}
+                    {ruContent.AbleToDelete && (ruContent.Tracks ?? []).length > 0 && (
                       <label style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
                         <input
                           type="checkbox"
@@ -525,8 +526,8 @@ const Dashboard = () => {
                         Select All
                       </label>
                     )}
-                    {/* Only show delete button if AbleToDelete is true */}
-                    {ruContent.AbleToDelete && (
+                    {/* Only show delete button if AbleToDelete is true and there are tracks */}
+                    {ruContent.AbleToDelete && (ruContent.Tracks ?? []).length > 0 && (
                       <button
                         onClick={() => handleDeleteTracks(lastPlaylistId ? 'playlist' : 'liked')}
                         disabled={selected.size === 0 || loading === 'delete'}
@@ -542,66 +543,74 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 600, overflowY: "auto" }}>
-                  {(ruContent.Tracks ?? []).map((track: Track) => (
-                    <li
-                      key={track.ID}
-                      style={{
+                <AnimatedList
+                  items={(ruContent.Tracks ?? []).map((t: Track) => t.ID)}
+                  showGradients={false}
+                  displayScrollbar={true}
+                  enableArrowNavigation={true}
+                  children={(trackId: string) => {
+                    const track = (ruContent.Tracks ?? []).find((t: Track) => t.ID === trackId);
+                    if (!track) return null;
+                    const isSelected = selected.has(track.ID);
+                    return (
+                      <div style={{
                         padding: 16,
-                        marginBottom: 8,
-                        background: selected.has(track.ID) ? "rgba(231, 76, 60, 0.15)" : "rgba(255, 255, 255, 0.03)",
-                        border: selected.has(track.ID) ? "1px solid rgba(231, 76, 60, 0.3)" : "1px solid rgba(255, 255, 255, 0.05)",
+                        background: isSelected ? "rgba(231, 76, 60, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                        border: isSelected ? "1px solid rgba(231, 76, 60, 0.3)" : "1px solid rgba(255, 255, 255, 0.05)",
                         borderRadius: 10,
                         transition: "all 0.2s ease",
-                      }}
-                    >
-                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
-                        {ruContent.AbleToDelete && (
-                          <input
-                            type="checkbox"
-                            checked={selected.has(track.ID)}
-                            onChange={() => handleTrackToggle(track.ID)}
-                            style={{ accentColor: "#1DB954", width: 18, height: 18, flexShrink: 0 }}
-                          />
-                        )}
-                        {track.ImageURL && (
-                          <img
-                            src={track.ImageURL}
-                            alt={track.Name}
-                            style={{
-                              width: 48,
-                              height: 48,
-                              borderRadius: 4,
-                              objectFit: "cover",
-                              flexShrink: 0,
-                            }}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.Name}</div>
-                          <div style={{ marginTop: 4, fontSize: 13 }}>
-                            {(track.Artists ?? []).map((artist: Artist, idx: number) => (
-                              <span key={artist.ID}>
-                                <span
-                                  style={{
-                                    color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
-                                    fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
-                                  }}
-                                >
-                                  {artist.Name}
+                      }}>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
+                          {ruContent.AbleToDelete && (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleTrackToggle(track.ID);
+                              }}
+                              style={{ accentColor: "#1DB954", width: 18, height: 18, flexShrink: 0 }}
+                            />
+                          )}
+                          {track.ImageURL && (
+                            <img
+                              src={track.ImageURL}
+                              alt={track.Name}
+                              style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: 4,
+                                objectFit: "cover",
+                                flexShrink: 0,
+                              }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.Name}</div>
+                            <div style={{ marginTop: 4, fontSize: 13 }}>
+                              {(track.Artists ?? []).map((artist: Artist, idx: number) => (
+                                <span key={artist.ID}>
+                                  <span
+                                    style={{
+                                      color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
+                                      fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
+                                    }}
+                                  >
+                                    {artist.Name}
+                                  </span>
+                                  {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
                                 </span>
-                                {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
-                              </span>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
+                        </label>
+                      </div>
+                    );
+                  }}
+                />
 
                 {(ruContent.Tracks ?? []).length === 0 && (
                   <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>

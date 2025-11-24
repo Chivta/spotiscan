@@ -5,6 +5,7 @@ import (
 	"spotiscan/models"
 	"spotiscan/pkg/db"
 	spotifyClient "spotiscan/pkg/spotify"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -47,9 +48,13 @@ func (s *SpotifyService) GetValidUserSpotifyToken(userId int) (*oauth2.Token, er
 	return spotifyToken, nil
 }
 
-func isRussianArtist(artistName string) bool {
-	// TODO: Implement actual logic to determine if an artist is Russian.
-	return len(artistName)%2 == 0
+func (s *SpotifyService) isRussianArtist(artistName string) bool {
+	isRu, err := s.db.IsRussian(strings.ToLower(artistName))
+	if err != nil {
+		log.Println("Failed to check if artist is Russian:", err)
+		return false
+	}
+	return isRu
 }
 
 func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*models.RuContent, error) {
@@ -67,7 +72,7 @@ func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*m
 	for _, track := range tracks {
 		isRuTrack := false
 		for _, artist := range track.Artists {
-			if isRussianArtist(artist.Name) {
+			if s.isRussianArtist(artist.Name) {
 				ruArtists = append(ruArtists, artist)
 				isRuTrack = true
 			}
@@ -127,7 +132,7 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 
 	for _, track := range playlist.Tracks {
 		for _, artist := range track.Artists {
-			if isRussianArtist(artist.Name) {
+			if s.isRussianArtist(artist.Name) {
 				ruArtists = append(ruArtists, artist)
 				ruTracks = append(ruTracks, track)
 			}

@@ -12,9 +12,14 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	// "spotiscan/pkg/db/sqlite_migration"
 )
 
 func main() {
+	// For migrating artists from old sqlite database to postgres database
+	// sqlite_migration.Migrate()
+	// return
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -70,7 +75,7 @@ func main() {
 		protected := api.Group("/")
 		protected.Use(authMiddleware.RequireAuthentication())
 		{
-			protected.POST("/logout", authHandler.PostLogout)
+			protected.POST("/signout", authHandler.PostLogout)
 			protected.GET("/me", userHandler.GetMe)
 			protected.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
 			protected.DELETE("/playlist/:id/rucontent", spotifyHandler.DeletePlaylistRuContent)
@@ -78,7 +83,7 @@ func main() {
 			protected.DELETE("/user/liked-songs/rucontent", spotifyHandler.DeleteLikedSongsRuContent)
 			protected.GET("/user/playlists", spotifyHandler.GetUserPlaylists)
 		}
-
+		// TODO: Add admin panel
 	}
 
 	r.Run()

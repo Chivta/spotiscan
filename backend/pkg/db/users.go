@@ -55,9 +55,8 @@ func (db *DB) CreateUserWithSession(spotifyId, sessionToken string) (int,error) 
 		return 0,err
 	}
 
-	// TODO: set session expiration time properly
 	_, err = tx.Exec(
-		`INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 days')
+		`INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')
 		ON CONFLICT (user_id) DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at`,
 		userID, sessionToken,
 	)

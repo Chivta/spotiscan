@@ -37,6 +37,11 @@ CREATE TABLE IF NOT EXISTS spotify_tokens (
     refresh_token VARCHAR(512) NOT NULL,
     expires_at TIMESTAMP NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS ru_artists (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(256) NOT NULL
+);
 -- +goose StatementEnd
 
 -- +goose Down
@@ -47,4 +52,5 @@ DROP FUNCTION IF EXISTS set_session_created_at();
 DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS spotify_tokens;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS ru_artists;
 -- +goose StatementEnd
