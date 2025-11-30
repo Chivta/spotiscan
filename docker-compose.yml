@@ -1,13 +1,15 @@
+version: '3.8'
+
 services:
   spotiscan-backend:
-    image: ghcr.io/chivta/spotiscan-backend:latest
     build: backend/
+    image: ghcr.io/chivta/spotiscan-backend:latest
     ports:
       - "${PORT:-8080}:8080"
     environment:
       - PORT=8080
       - ENV=development
-      - DB_URL=${DB_URL}
+      # DB_URL will be injected at runtime on VPS
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
@@ -17,8 +19,10 @@ services:
       start_period: 40s
 
   spotiscan-frontend:
-    image: ghcr.io/chivta/spotiscan-frontend:latest
     build: frontend/
-    volumes:
-      - frontend-dist:/build/dist
+    image: ghcr.io/chivta/spotiscan-frontend:latest
     restart: unless-stopped
+
+# Optional volume for local dev; not required in CI/CD
+volumes:
+  frontend-dist:
