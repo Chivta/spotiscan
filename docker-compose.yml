@@ -18,6 +18,9 @@ services:
       start_period: 40s
   spotiscan-frontend:
     build: frontend/
-    ports:
-      - "3000:80"
+    volumes:
+      - frontend-dist:/build/dist
     restart: unless-stopped
+
+volumes:
+  frontend-dist:
