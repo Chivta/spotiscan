@@ -18,6 +18,10 @@ jobs:
       # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Compose CLI plugin
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose-plugin
 
       # Log in to GitHub Container Registry
       - name: Log in to GHCR
@@ -29,7 +33,7 @@ jobs:
 
       # Build all services
       - name: Build Docker Compose services
-        run: docker-compose -f docker-compose.yml build
+        run: docker compose -f docker-compose.yml build
 
       # Tag images for GHCR
       - name: Tag backend image
