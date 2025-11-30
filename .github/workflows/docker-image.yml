@@ -33,11 +33,10 @@ jobs:
 
       # Tag backend image for GHCR
       - name: Tag backend image
-        run: docker tag ${PWD##*/}_spotiscan-backend:latest ghcr.io/${{ github.repository_owner }}/spotiscan-backend:latest
-
-      # Tag frontend image for GHCR
+        run: docker tag ${PWD##*/}_spotiscan-backend:latest ghcr.io/chivta/spotiscan-backend:latest
+      
       - name: Tag frontend image
-        run: docker tag ${PWD##*/}_spotiscan-frontend:latest ghcr.io/${{ github.repository_owner }}/spotiscan-frontend:latest
+        run: docker tag ${PWD##*/}_spotiscan-frontend:latest ghcr.io/chivta/spotiscan-frontend:latest
 
       # Push backend image
       - name: Push backend image
