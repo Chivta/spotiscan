@@ -12,16 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
+      # Checkout the repo
       - uses: actions/checkout@v4
 
-      # Set up Docker Buildx
+      # Set up Docker Buildx (includes modern docker compose CLI)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Set up Docker Compose CLI plugin
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose-plugin
 
       # Log in to GitHub Container Registry
       - name: Log in to GHCR
@@ -31,20 +27,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build all services
+      # Build all services defined in docker-compose.yml
       - name: Build Docker Compose services
         run: docker compose -f docker-compose.yml build
 
-      # Tag images for GHCR
+      # Tag backend image for GHCR
       - name: Tag backend image
         run: docker tag ${PWD##*/}_spotiscan-backend:latest ghcr.io/${{ github.repository_owner }}/spotiscan-backend:latest
 
+      # Tag frontend image for GHCR
       - name: Tag frontend image
         run: docker tag ${PWD##*/}_spotiscan-frontend:latest ghcr.io/${{ github.repository_owner }}/spotiscan-frontend:latest
 
-      # Push images to GHCR
+      # Push backend image
       - name: Push backend image
         run: docker push ghcr.io/${{ github.repository_owner }}/spotiscan-backend:latest
 
+      # Push frontend image
       - name: Push frontend image
         run: docker push ghcr.io/${{ github.repository_owner }}/spotiscan-frontend:latest
