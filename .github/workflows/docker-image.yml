@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repo
+      # Checkout repository
       - uses: actions/checkout@v4
 
       # Set up Docker Buildx (includes modern docker compose CLI)
@@ -27,7 +27,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build all services using explicit image names
+      # Build all services defined in docker-compose.yml
       - name: Build Docker Compose services
         run: docker compose -f docker-compose.yml build
 
