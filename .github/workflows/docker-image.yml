@@ -27,21 +27,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build all services defined in docker-compose.yml
+      # Build all services using explicit image names
       - name: Build Docker Compose services
         run: docker compose -f docker-compose.yml build
 
-      # Tag backend image for GHCR
-      - name: Tag backend image
-        run: docker tag ${PWD##*/}_spotiscan-backend:latest ghcr.io/chivta/spotiscan-backend:latest
-      
-      - name: Tag frontend image
-        run: docker tag ${PWD##*/}_spotiscan-frontend:latest ghcr.io/chivta/spotiscan-frontend:latest
-
-      # Push backend image
+      # Push backend image to GHCR
       - name: Push backend image
-        run: docker push ghcr.io/${{ github.repository_owner }}/spotiscan-backend:latest
+        run: docker compose -f docker-compose.yml push spotiscan-backend
 
-      # Push frontend image
+      # Push frontend image to GHCR
       - name: Push frontend image
-        run: docker push ghcr.io/${{ github.repository_owner }}/spotiscan-frontend:latest
+        run: docker compose -f docker-compose.yml push spotiscan-frontend
