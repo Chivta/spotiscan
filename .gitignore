@@ -35,3 +35,5 @@ testdata/
 *.log
 
 bot_data.db
+
+.claude
