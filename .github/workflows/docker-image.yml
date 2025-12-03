@@ -1,4 +1,4 @@
-name: Docker Compose CI/CD
+name: Deploy to VPS
 
 on:
   push:
@@ -7,34 +7,43 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repository
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Set up Docker Buildx (includes modern docker compose CLI)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Log in to GHCR using a Personal Access Token (PAT) stored as secret GHCR_PAT
-      - name: Log in to GHCR
-        uses: docker/login-action@v2
+      - name: Build images
+        run: docker compose build
+
+      - name: Save images to tar files
+        run: |
+          docker save -o backend.tar spotiscan-backend:latest
+          docker save -o frontend.tar spotiscan-frontend:latest
+
+      - name: Copy images and compose file to VPS
+        uses: appleboy/scp-action@master
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "backend.tar,frontend.tar,docker-compose.yml"
+          target: "/home/${{ secrets.VPS_USER }}/app"
 
-      # Build all services defined in docker-compose.yml
-      - name: Build Docker Compose services
-        run: docker compose -f docker-compose.yml build
-
-      # Push backend image to GHCR
-      - name: Push backend image
-        run: docker compose -f docker-compose.yml push spotiscan-backend
-
-      # Push frontend image to GHCR
-      - name: Push frontend image
-        run: docker compose -f docker-compose.yml push spotiscan-frontend
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/${{ secrets.VPS_USER }}/app
+            docker load -i backend.tar
+            docker load -i frontend.tar
+            docker compose up -d --force-recreate
+            docker system prune -f
+            rm backend.tar frontend.tar
