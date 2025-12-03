@@ -4,6 +4,5 @@ COPY ./package*.json ./
 RUN npm ci
 COPY ./ ./
 RUN npm run build
-
-# Mount built files at /app/dist for host nginx to serve
+RUN cp -r dist /app/dist
 CMD ["sleep", "infinity"]

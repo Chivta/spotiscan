@@ -20,5 +20,5 @@ services:
     env_file:
       - .env
     volumes:
-      - frontend-dist:/build/dist
+      - ./frontend/dist:/app/dist
     restart: unless-stopped
