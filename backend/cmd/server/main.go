@@ -5,14 +5,14 @@ import (
 
 	"spotiscan/internal/config"
 	"spotiscan/internal/handlers"
-	"spotiscan/internal/middlewares"
 	"spotiscan/internal/services"
+	"spotiscan/internal/middlewares"
 	"spotiscan/pkg/db"
 	"spotiscan/pkg/spotify"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	// "spotiscan/pkg/db/sqlite_migration"
+	// "spotiscan/pkg/dbsqlite_migration"
 )
 
 func main() {
@@ -52,37 +52,16 @@ func main() {
 		c.Status(204)
 	})
 
-	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret, cfg.SpotifyRedirectURI)
+	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	spotifyService := services.NewSpotifyService(db, spotifyClient)
 	spotifyHandler := handlers.NewSpotifyHandler(spotifyService)
-
-	userService := services.NewUserService(db)
-	userHandler := handlers.NewUserHandler(userService)
-
-	authService := services.NewAuthService(db, spotifyClient)
-	authHandler := handlers.NewAuthHandler(authService, cfg.FrontendURL)
-
-	authMiddleware := middlewares.NewAuthMiddleware(userService, spotifyService)
-
+	
+	authMiddleware := middlewares.NewAuthMiddleware(spotifyService)
+	
 	api := r.Group("/api")
+	api.Use(authMiddleware.AttachSpotifyClientCreds())
 	{
-		auth := api.Group("/auth")
-		{
-			auth.GET("/start", authHandler.GetAuth)
-			auth.GET("/callback", authHandler.GetCallback)
-		}
-
-		protected := api.Group("/")
-		protected.Use(authMiddleware.RequireAuthentication())
-		{
-			protected.POST("/logout", authHandler.PostLogout)
-			protected.GET("/me", userHandler.GetMe)
-			protected.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
-			protected.DELETE("/playlist/:id/rucontent", spotifyHandler.DeletePlaylistRuContent)
-			protected.GET("/user/liked-songs/rucontent", spotifyHandler.GetLikedSongsRuContent)
-			protected.DELETE("/user/liked-songs/rucontent", spotifyHandler.DeleteLikedSongsRuContent)
-			protected.GET("/user/playlists", spotifyHandler.GetUserPlaylists)
-		}
+		api.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
 		// TODO: Add admin panel
 	}
 

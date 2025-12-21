@@ -13,7 +13,6 @@ type Config struct {
 	FrontendURL string
 	SpotifyClientID string
 	SpotifyClientSecret string
-	SpotifyRedirectURI string
 }
 
 func Load() (*Config, error) {
@@ -27,7 +26,6 @@ func Load() (*Config, error) {
 		FrontendURL: os.Getenv("FRONTEND_URL"),
 		SpotifyClientID: os.Getenv("SPOTIFY_CLIENT_ID"),
 		SpotifyClientSecret: os.Getenv("SPOTIFY_CLIENT_SECRET"),
-		SpotifyRedirectURI: os.Getenv("SPOTIFY_REDIRECT_URI"),
 	}
 
 	if config.DatabaseURL == "" {
@@ -44,10 +42,6 @@ func Load() (*Config, error) {
 
 	if config.SpotifyClientSecret == "" {
 		log.Println("Warning: SPOTIFY_CLIENT_SECRET is not set")
-	}
-
-	if config.SpotifyRedirectURI == "" {
-		log.Println("Warning: SPOTIFY_REDIRECT_URI is not set")
 	}
 
 	return config, nil

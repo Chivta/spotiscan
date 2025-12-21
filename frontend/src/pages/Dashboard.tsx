@@ -2,10 +2,7 @@ import * as React from "react";
 import { useState } from "react";
 import Aurora from "../components/react-bits/Aurora";
 import AnimatedList from "../components/react-bits/AnimatedList";
-import type { Artist, Track, Playlist, RuContent } from "../types/models";
-// Ensure JSX namespace is available for TS
-/// <reference types="react/next" />
-
+import type { Artist, Track, RuContent } from "../types/models";
 
 const SPOTIFY_PLAYLIST_BASE = "https://open.spotify.com/playlist/";
 
@@ -23,39 +20,12 @@ const extractPlaylistId = (input: string): string => {
 const Dashboard = () => {
   const [playlistId, setPlaylistId] = useState("");
   const [ruContent, setRuContent] = useState<RuContent | null>(null);
-  const [selected, setSelected] = useState(new Set<string>());
-  const [loading, setLoading] = useState<null | string>(null); // null | 'playlist' | 'liked'
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPlaylistId, setLastPlaylistId] = useState<string | null>(null);
-  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
-  const [playlistsLoading, setPlaylistsLoading] = useState(true);
-  const [playlistSearch, setPlaylistSearch] = useState("");
   const [resultTab, setResultTab] = useState<'tracks' | 'artists'>('tracks');
   const [tracksSearch, setTracksSearch] = useState("");
   const [artistsSearch, setArtistsSearch] = useState("");
-  const [scannedSource, setScannedSource] = useState<{ type: 'playlist' | 'liked'; playlistName?: string; imageURL?: string; description?: string } | null>(null);
-
-  // No longer needed: selectedPlaylist
-
-  // Fetch user's top playlists on mount
-  React.useEffect(() => {
-    const fetchPlaylists = async () => {
-      try {
-        const response = await fetch("/api/user/playlists", { credentials: "include" });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch playlists: ${response.status}`);
-        }
-        const data: Playlist[] = await response.json();
-        setUserPlaylists(data);
-      } catch (e: any) {
-        console.error("Error fetching playlists:", e.message);
-        setUserPlaylists([]);
-      } finally {
-        setPlaylistsLoading(false);
-      }
-    };
-    fetchPlaylists();
-  }, []);
 
   // Handle input change - auto-extract ID from pasted URLs
   const handlePlaylistInput = (value: string) => {
@@ -63,15 +33,10 @@ const Dashboard = () => {
     setPlaylistId(extracted);
   };
 
-  // Filter playlists based on search term
-  const filteredPlaylists = userPlaylists.filter(playlist =>
-    playlist.Name.toLowerCase().includes(playlistSearch.toLowerCase())
-  );
-
-  // Real fetch for playlist scan
+  // Fetch playlist scan
   const fetchPlaylistRuContent = async (id: string): Promise<RuContent> => {
     setError(null);
-    setLoading("playlist");
+    setLoading(true);
     if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
       throw new Error("Invalid playlist ID format");
     }
@@ -92,16 +57,8 @@ const Dashboard = () => {
       return;
     }
     try {
-      const playlist = userPlaylists.find(p => p.ID === playlistId);
-      setScannedSource({
-        type: 'playlist',
-        playlistName: playlist?.Name || 'Unknown Playlist',
-        imageURL: playlist?.ImageURL || '',
-        description: playlist?.Description || '',
-      });
       const data = await fetchPlaylistRuContent(playlistId);
       setRuContent(data);
-      setSelected(new Set());
       setLastPlaylistId(playlistId);
       setResultTab('tracks');
       setTracksSearch("");
@@ -109,86 +66,7 @@ const Dashboard = () => {
     } catch (e: any) {
       setError(e.message);
     } finally {
-      setLoading(null);
-    }
-  };
-  const handleScanLiked = async () => {
-    setError(null);
-    setLoading("liked");
-    setScannedSource({ type: 'liked' });
-    try {
-      const response = await fetch("/api/user/liked-songs/rucontent");
-      if (!response.ok) throw new Error(`HTTP error status: ${response.status}`);
-      const data: RuContent = await response.json();
-      setRuContent(data);
-      setSelected(new Set());
-      setLastPlaylistId(null);
-      setPlaylistId("");
-      setResultTab('tracks');
-      setTracksSearch("");
-      setArtistsSearch("");
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  // Track selection logic
-  const handleTrackToggle = (id: string) => {
-    setSelected((prev: Set<string>) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  const handleTrackSelectAll = (checked: boolean) => {
-    setSelected((prev: Set<string>) => {
-      const next = new Set(prev);
-      const filteredIds = new Set(filteredTracks.map((t: Track) => t.ID));
-      if (checked) {
-        // Add filtered tracks to current selection
-        filteredIds.forEach(id => next.add(id));
-      } else {
-        // Remove filtered tracks from current selection
-        filteredIds.forEach(id => next.delete(id));
-      }
-      return next;
-    });
-  };
-
-  // Delete selected tracks from playlist or liked songs
-  const handleDeleteTracks = async (from: 'playlist' | 'liked') => {
-    setLoading('delete');
-    setError(null);
-    try {
-      let endpoint = '';
-      let bodyTracks: Track[] = [];
-      if (from === 'playlist') {
-        if (!playlistId) throw new Error('No playlist selected');
-        endpoint = `/api/playlist/${encodeURIComponent(playlistId)}/rucontent`;
-      } else {
-        endpoint = '/api/user/liked-songs/rucontent';
-      }
-      // Find selected tracks
-      bodyTracks = (ruContent?.Tracks ?? []).filter((t: Track) => selected.has(t.ID));
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyTracks),
-      });
-      if (!response.ok) throw new Error(`HTTP error status: ${response.status}`);
-      // Remove deleted tracks from UI
-      if (ruContent) {
-        const filtered = (ruContent.Tracks ?? []).filter((t: Track) => !selected.has(t.ID));
-        setRuContent({ ...ruContent, Tracks: filtered });
-      }
-      setSelected(new Set());
-    } catch (e: any) {
-      setError(e.message || 'Failed to delete selected tracks.');
-    } finally {
-      setLoading(null);
+      setLoading(false);
     }
   };
 
@@ -241,12 +119,6 @@ const Dashboard = () => {
     transition: "all 0.2s ease",
   };
 
-  const deleteButtonStyle: React.CSSProperties = {
-    ...buttonStyle,
-    background: "#e74c3c",
-    color: "#fff",
-  };
-
   return (
     <div style={{ position: "relative", minHeight: "100vh", width: "100%", overflow: "hidden" }}>
       {/* Aurora Background */}
@@ -285,698 +157,376 @@ const Dashboard = () => {
           textAlign: "center",
           color: "#fff",
         }}>
-          Music Dashboard
+          SpotiScan
         </h1>
 
-        {/* Two Column Layout */}
+        {/* Centered single column layout */}
         <div style={{
-          display: "grid",
-          gridTemplateColumns: "340px 1fr",
+          maxWidth: 800,
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
           gap: 24,
-          alignItems: "start",
         }}>
-          {/* Left Column - Controls */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* Scan Controls */}
-            <div style={cardStyle}>
-              <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>Scan Playlist</h3>
+          {/* Scan Controls */}
+          <div style={cardStyle}>
+            <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>Scan Playlist</h3>
 
-              {/* Show selected playlist name */}
-              {playlistId && (() => {
-                const selectedPlaylist = userPlaylists.find(p => p.ID === playlistId);
-                return selectedPlaylist ? (
+            {/* URL prefix - shows only when ID is entered */}
+            {playlistId && (
+              <div style={{
+                color: "rgba(255, 255, 255, 0.5)",
+                fontSize: 12,
+                marginBottom: 6,
+                animation: "fadeIn 0.2s ease",
+              }}>
+                {SPOTIFY_PLAYLIST_BASE}
+              </div>
+            )}
+            <input
+              type="text"
+              placeholder="Paste playlist URL or ID..."
+              value={playlistId}
+              onChange={e => handlePlaylistInput((e.target as HTMLInputElement).value)}
+              style={{
+                ...inputStyle,
+                width: "100%",
+                marginBottom: 12,
+                borderColor: playlistId ? "#1DB954" : "rgba(255, 255, 255, 0.2)",
+                transition: "border-color 0.2s ease",
+              }}
+              disabled={loading}
+            />
+            <button
+              onClick={handleScanPlaylist}
+              disabled={loading || !playlistId}
+              style={{
+                ...buttonStyle,
+                width: "100%",
+                opacity: (loading || !playlistId) ? 0.5 : 1,
+                cursor: (loading || !playlistId) ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Scanning..." : "Scan Playlist"}
+            </button>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div style={{
+              ...cardStyle,
+              background: "rgba(231, 76, 60, 0.1)",
+              border: "1px solid rgba(231, 76, 60, 0.3)",
+              color: "#e74c3c",
+              textAlign: "center",
+            }}>
+              {error}
+            </div>
+          )}
+
+          {/* Results */}
+          {ruContent ? (
+            <div style={cardStyle}>
+              {/* Loading Animation */}
+              {loading && (
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 300,
+                  gap: 20,
+                }}>
+                  <style>{`
+                    @keyframes l1 {
+                      to { transform: rotate(0.5turn); }
+                    }
+                    .loader {
+                      width: 50px;
+                      aspect-ratio: 1;
+                      border-radius: 50%;
+                      border: 8px solid;
+                      border-color: #1DB954 #0000;
+                      animation: l1 1s infinite;
+                    }
+                  `}</style>
+                  <div className="loader" />
+                  <p style={{ color: "rgba(255, 255, 255, 0.6)" }}>Scanning...</p>
+                </div>
+              )}
+
+              {!loading && (
+                <>
+                  {/* Tab Navigation */}
                   <div style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    marginBottom: 12,
-                    background: "rgba(29, 185, 84, 0.15)",
-                    border: "1px solid rgba(29, 185, 84, 0.3)",
-                    borderRadius: 8,
-                    animation: "fadeIn 0.3s ease",
+                    gap: 12,
+                    marginBottom: 20,
+                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                   }}>
-                    {selectedPlaylist.ImageURL ? (
-                      <img
-                        src={selectedPlaylist.ImageURL}
-                        alt={selectedPlaylist.Name}
-                        style={{ width: 48, height: 48, borderRadius: 4, flexShrink: 0 }}
-                      />
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#666" style={{ borderRadius: 4, flexShrink: 0 }}>
-                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                      </svg>
-                    )}
-                    <div style={{ flex: 1, overflow: "hidden" }}>
-                      <div style={{ color: "#1DB954", fontSize: 12, fontWeight: 500 }}>Selected</div>
-                      <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {selectedPlaylist.Name}
-                      </div>
-                    </div>
                     <button
-                      onClick={() => setPlaylistId("")}
+                      onClick={() => setResultTab('tracks')}
                       style={{
+                        padding: "12px 16px",
                         background: "transparent",
                         border: "none",
-                        color: "rgba(255,255,255,0.5)",
+                        borderBottom: resultTab === 'tracks' ? "2px solid #1DB954" : "none",
+                        color: resultTab === 'tracks' ? "#1DB954" : "rgba(255, 255, 255, 0.6)",
                         cursor: "pointer",
-                        padding: 4,
-                        fontSize: 18,
-                        lineHeight: 1,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        transition: "all 0.2s ease",
                       }}
                     >
-                      ×
+                      Tracks ({(ruContent?.Tracks ?? []).length})
+                    </button>
+                    <button
+                      onClick={() => setResultTab('artists')}
+                      style={{
+                        padding: "12px 16px",
+                        background: "transparent",
+                        border: "none",
+                        borderBottom: resultTab === 'artists' ? "2px solid #1DB954" : "none",
+                        color: resultTab === 'artists' ? "#1DB954" : "rgba(255, 255, 255, 0.6)",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      Artists ({ruContent?.Artists?.length ?? 0})
                     </button>
                   </div>
-                ) : null;
-              })()}
 
-              {/* URL prefix - shows only when ID is entered */}
-              {playlistId && (
-                <div style={{
-                  color: "rgba(255, 255, 255, 0.5)",
-                  fontSize: 12,
-                  marginBottom: 6,
-                  animation: "fadeIn 0.2s ease",
-                }}>
-                  {SPOTIFY_PLAYLIST_BASE}
-                </div>
-              )}
-              <input
-                type="text"
-                placeholder="Paste playlist URL..."
-                value={playlistId}
-                onChange={e => handlePlaylistInput((e.target as HTMLInputElement).value)}
-                style={{
-                  ...inputStyle,
-                  width: "100%",
-                  marginBottom: 12,
-                  borderColor: playlistId ? "#1DB954" : "rgba(255, 255, 255, 0.2)",
-                  transition: "border-color 0.2s ease",
-                }}
-                disabled={loading === "playlist"}
-              />
-              <button
-                onClick={handleScanPlaylist}
-                disabled={loading === "playlist" || !playlistId}
-                style={{
-                  ...buttonStyle,
-                  width: "100%",
-                  opacity: (loading === "playlist" || !playlistId) ? 0.5 : 1,
-                  cursor: (loading === "playlist" || !playlistId) ? "not-allowed" : "pointer",
-                }}
-              >
-                {loading === "playlist" ? "Scanning..." : "Scan Playlist"}
-              </button>
+                  {/* Tracks Tab */}
+                  {resultTab === 'tracks' && (
+                    <div>
+                      {/* Tracks Search Bar */}
+                      {(ruContent?.Tracks ?? []).length > 0 && (
+                        <input
+                          type="text"
+                          placeholder="Search tracks..."
+                          value={tracksSearch}
+                          onChange={e => setTracksSearch(e.target.value)}
+                          style={{
+                            ...inputStyle,
+                            width: "100%",
+                            marginBottom: 12,
+                          }}
+                        />
+                      )}
 
-              <div style={{ textAlign: "center", margin: "16px 0" }}>
-                <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>or</span>
-              </div>
+                      <h3 style={{ color: "#fff", margin: "0 0 16px 0", fontSize: "1.1rem" }}>
+                        Tracks with Russian Artists ({filteredTracks.length})
+                      </h3>
 
-              <button
-                onClick={handleScanLiked}
-                disabled={loading === "liked"}
-                style={{
-                  ...buttonStyle,
-                  width: "100%",
-                  background: "transparent",
-                  border: "1px solid #1DB954",
-                  color: "#1DB954",
-                  opacity: loading === "liked" ? 0.5 : 1,
-                }}
-              >
-                {loading === "liked" ? "Scanning..." : "Scan Liked Songs"}
-              </button>
-            </div>
-
-            {/* Your Playlists */}
-            <div style={cardStyle}>
-              <h3 style={{ color: "#fff", marginBottom: 12, fontSize: "1.1rem" }}>Your Playlists</h3>
-              {!playlistsLoading && userPlaylists.length > 0 && (
-                <input
-                  type="text"
-                  placeholder="Search playlists..."
-                  value={playlistSearch}
-                  onChange={e => setPlaylistSearch(e.target.value)}
-                  style={{
-                    ...inputStyle,
-                    width: "100%",
-                    marginBottom: 12,
-                    fontSize: 13,
-                  }}
-                />
-              )}
-              {playlistsLoading ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
-                  Loading playlists...
-                </div>
-              ) : userPlaylists.length === 0 ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
-                  No playlists found
-                </div>
-              ) : filteredPlaylists.length === 0 ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "20px 0" }}>
-                  No playlists match "{playlistSearch}"
-                </div>
-              ) : (
-                <div style={{ marginLeft: "-16px" }}>
-                  <AnimatedList
-                    items={filteredPlaylists.map((p: Playlist) => p.ID)}
-                    showGradients={false}
-                    displayScrollbar={true}
-                    enableArrowNavigation={true}
-                    maxHeight={400}
-                    children={(itemId: string) => {
-                    const playlist = filteredPlaylists.find((p: Playlist) => p.ID === itemId);
-                    if (!playlist) return null;
-                    const isSelected = playlistId === itemId;
-                    return (
-                      <button
-                        onClick={() => setPlaylistId(playlist.ID)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          padding: 10,
-                          background: isSelected ? "rgba(29, 185, 84, 0.2)" : "rgba(255, 255, 255, 0.05)",
-                          border: isSelected ? "2px solid #1DB954" : "1px solid rgba(255, 255, 255, 0.1)",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          transition: "all 0.2s ease",
-                          textAlign: "left",
-                          width: "100%",
+                      <AnimatedList
+                        items={filteredTracks.map((t: Track) => t.ID)}
+                        showGradients={false}
+                        displayScrollbar={true}
+                        enableArrowNavigation={true}
+                        children={(trackId: string) => {
+                          const track = filteredTracks.find((t: Track) => t.ID === trackId);
+                          if (!track) return null;
+                          return (
+                            <div style={{
+                              padding: 16,
+                              background: "rgba(255, 255, 255, 0.03)",
+                              border: "1px solid rgba(255, 255, 255, 0.05)",
+                              borderRadius: 10,
+                              transition: "all 0.2s ease",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 12,
+                            }}>
+                              {track.ImageURL && (
+                                <img
+                                  src={track.ImageURL}
+                                  alt={track.Name}
+                                  style={{
+                                    width: 48,
+                                    height: 48,
+                                    borderRadius: 4,
+                                    objectFit: "cover",
+                                    flexShrink: 0,
+                                  }}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.Name}</div>
+                                <div style={{ marginTop: 4, fontSize: 13 }}>
+                                  {(track.Artists ?? []).map((artist: Artist, idx: number) => (
+                                    <span key={artist.ID}>
+                                      <span
+                                        style={{
+                                          color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
+                                          fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
+                                        }}
+                                      >
+                                        {artist.Name}
+                                      </span>
+                                      {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
                         }}
-                      >
-                        <img
-                          src={playlist.ImageURL}
-                          alt={playlist.Name}
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 6,
-                            objectFit: "cover",
-                            flexShrink: 0,
-                          }}
-                          onError={e => {
-                            (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E";
-                          }}
-                        />
-                        <div style={{ overflow: "hidden", flex: 1 }}>
-                          <div style={{
-                            color: "#fff",
-                            fontSize: 13,
-                            fontWeight: 500,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}>
-                            {playlist.Name}
-                          </div>
-                          <div style={{
-                            color: "rgba(255,255,255,0.5)",
-                            fontSize: 11,
-                            marginTop: 2,
-                          }}>
-                            {playlist.TrackCount} tracks
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
+                      />
 
-          {/* Right Column - Results */}
-          <div>
-            {/* Error Message */}
-            {error && (
-              <div style={{
-                ...cardStyle,
-                background: "rgba(231, 76, 60, 0.1)",
-                border: "1px solid rgba(231, 76, 60, 0.3)",
-                color: "#e74c3c",
-                marginBottom: 20,
-                textAlign: "center",
-              }}>
-                {error}
-              </div>
-            )}
-
-            {/* Results */}
-            {ruContent || scannedSource ? (
-              <div style={cardStyle}>
-                {/* Scan Source Header - Always visible */}
-                {scannedSource && (
-                  <div style={{
-                    marginBottom: 24,
-                    paddingBottom: 16,
-                    borderBottom: "2px solid rgba(29, 185, 84, 0.3)",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 16,
-                  }}>
-                    {/* Image or Heart Emoji */}
-                    {scannedSource.type === 'playlist' ? (
-                      scannedSource.imageURL ? (
-                        <img
-                          src={scannedSource.imageURL}
-                          alt={scannedSource.playlistName}
-                          style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: 8,
-                            objectFit: "cover",
-                            flexShrink: 0,
-                          }}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: 64,
-                          height: 64,
-                          borderRadius: 8,
-                          background: "rgba(29, 185, 84, 0.2)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          fontSize: 32,
-                        }}>
-                          📋
+                      {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length === 0 && (
+                        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
+                          No Russian tracks found. This playlist is clean!
                         </div>
-                      )
-                    ) : (
-                      <div style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 8,
-                        background: "rgba(231, 76, 60, 0.2)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                        fontSize: 32,
-                      }}>
-                        ❤️
-                      </div>
-                    )}
-
-                    {/* Text Content */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        marginBottom: 8,
-                      }}>
-                        <div style={{
-                          padding: "4px 10px",
-                          background: "#1DB954",
-                          color: "#000",
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                        }}>
-                          {scannedSource.type === 'playlist' ? 'Playlist' : 'Liked Songs'}
+                      )}
+                      {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length > 0 && (
+                        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
+                          No tracks match your search
                         </div>
-                      </div>
-                      <h4 style={{
-                        color: "#fff",
-                        margin: "0 0 6px 0",
-                        fontSize: 16,
-                        fontWeight: 600,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}>
-                        {scannedSource.type === 'playlist'
-                          ? scannedSource.playlistName
-                          : 'Your Liked Songs'}
-                      </h4>
-                      {scannedSource.type === 'playlist' && scannedSource.description && (
-                        <p style={{
-                          color: "rgba(255, 255, 255, 0.6)",
-                          margin: 0,
-                          fontSize: 13,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}>
-                          {scannedSource.description}
-                        </p>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Loading Animation */}
-                {(loading === 'playlist' || loading === 'liked') && (
-                  <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 300,
-                    gap: 20,
-                  }}>
-                    <style>{`
-                      @keyframes l1 {
-                        to { transform: rotate(0.5turn); }
-                      }
-                      .loader {
-                        width: 50px;
-                        aspect-ratio: 1;
-                        border-radius: 50%;
-                        border: 8px solid;
-                        border-color: #1DB954 #0000;
-                        animation: l1 1s infinite;
-                      }
-                    `}</style>
-                    <div className="loader" />
-                    <p style={{ color: "rgba(255, 255, 255, 0.6)" }}>Scanning...</p>
-                  </div>
-                )}
-
-                {!loading && ruContent && (
-                  <>
-                    {/* Tab Navigation */}
-                    <div style={{
-                      display: "flex",
-                      gap: 12,
-                      marginBottom: 20,
-                      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                    }}>
-                      <button
-                        onClick={() => setResultTab('tracks')}
-                        style={{
-                          padding: "12px 16px",
-                          background: "transparent",
-                          border: "none",
-                          borderBottom: resultTab === 'tracks' ? "2px solid #1DB954" : "none",
-                          color: resultTab === 'tracks' ? "#1DB954" : "rgba(255, 255, 255, 0.6)",
-                          cursor: "pointer",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        Tracks ({(ruContent?.Tracks ?? []).length})
-                      </button>
-                      <button
-                        onClick={() => setResultTab('artists')}
-                        style={{
-                          padding: "12px 16px",
-                          background: "transparent",
-                          border: "none",
-                          borderBottom: resultTab === 'artists' ? "2px solid #1DB954" : "none",
-                          color: resultTab === 'artists' ? "#1DB954" : "rgba(255, 255, 255, 0.6)",
-                          cursor: "pointer",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        Artists ({ruContent?.Artists?.length ?? 0})
-                      </button>
-                    </div>
-
-                    {/* Tracks Tab */}
-                    {resultTab === 'tracks' && (
-                      <div>
-                        {/* Tracks Search Bar */}
-                        {(ruContent?.Tracks ?? []).length > 0 && (
-                          <input
-                            type="text"
-                            placeholder="Search tracks..."
-                            value={tracksSearch}
-                            onChange={e => setTracksSearch(e.target.value)}
-                            style={{
-                              ...inputStyle,
-                              width: "100%",
-                              marginBottom: 12,
-                            }}
-                          />
-                        )}
-
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-                          <h3 style={{ color: "#fff", margin: 0, fontSize: "1.1rem" }}>
-                            Tracks with Russian Artists ({filteredTracks.length})
-                          </h3>
-                          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                            {/* Only show Select All if AbleToDelete is true and there are tracks */}
-                            {ruContent?.AbleToDelete && filteredTracks.length > 0 && (
-                              <label style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={filteredTracks.length > 0 && filteredTracks.every((t: Track) => selected.has(t.ID))}
-                                  onChange={e => handleTrackSelectAll((e.target as HTMLInputElement).checked)}
-                                  style={{ accentColor: "#1DB954" }}
-                                />
-                                Select All
-                              </label>
-                            )}
-                            {/* Only show delete button if AbleToDelete is true and there are tracks */}
-                            {ruContent?.AbleToDelete && (ruContent?.Tracks ?? []).length > 0 && (
-                              <button
-                                onClick={() => handleDeleteTracks(lastPlaylistId ? 'playlist' : 'liked')}
-                                disabled={selected.size === 0 || loading === 'delete'}
-                                style={{
-                                  ...deleteButtonStyle,
-                                  opacity: (selected.size === 0 || loading === 'delete') ? 0.5 : 1,
-                                  cursor: (selected.size === 0 || loading === 'delete') ? "not-allowed" : "pointer",
-                                }}
-                              >
-                                {loading === 'delete' ? 'Deleting...' : `Delete (${selected.size})`}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        <AnimatedList
-                          items={filteredTracks.map((t: Track) => t.ID)}
-                          showGradients={false}
-                          displayScrollbar={true}
-                          enableArrowNavigation={true}
-                          children={(trackId: string) => {
-                            const track = filteredTracks.find((t: Track) => t.ID === trackId);
-                            if (!track) return null;
-                            const isSelected = selected.has(track.ID);
-                            return (
-                              <div style={{
-                                padding: 16,
-                                background: isSelected ? "rgba(231, 76, 60, 0.15)" : "rgba(255, 255, 255, 0.03)",
-                                border: isSelected ? "1px solid rgba(231, 76, 60, 0.3)" : "1px solid rgba(255, 255, 255, 0.05)",
-                                borderRadius: 10,
-                                transition: "all 0.2s ease",
-                              }}>
-                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
-                                  {ruContent?.AbleToDelete && (
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        e.stopPropagation();
-                                        handleTrackToggle(track.ID);
-                                      }}
-                                      style={{ accentColor: "#1DB954", width: 18, height: 18, flexShrink: 0 }}
-                                    />
-                                  )}
-                                  {track.ImageURL && (
-                                    <img
-                                      src={track.ImageURL}
-                                      alt={track.Name}
-                                      style={{
-                                        width: 48,
-                                        height: 48,
-                                        borderRadius: 4,
-                                        objectFit: "cover",
-                                        flexShrink: 0,
-                                      }}
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                      }}
-                                    />
-                                  )}
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.Name}</div>
-                                    <div style={{ marginTop: 4, fontSize: 13 }}>
-                                      {(track.Artists ?? []).map((artist: Artist, idx: number) => (
-                                        <span key={artist.ID}>
-                                          <span
-                                            style={{
-                                              color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
-                                              fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
-                                            }}
-                                          >
-                                            {artist.Name}
-                                          </span>
-                                          {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </label>
-                              </div>
-                            );
+                  {/* Artists Tab */}
+                  {resultTab === 'artists' && (
+                    <div>
+                      {/* Artists Search Bar */}
+                      {(ruContent?.Artists ?? []).length > 0 && (
+                        <input
+                          type="text"
+                          placeholder="Search artists..."
+                          value={artistsSearch}
+                          onChange={e => setArtistsSearch(e.target.value)}
+                          style={{
+                            ...inputStyle,
+                            width: "100%",
+                            marginBottom: 12,
                           }}
                         />
+                      )}
 
-                        {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length === 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length === 0 && (
                           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
-                            No Russian tracks found. Your library is clean!
+                            No artists found
                           </div>
                         )}
-                        {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length > 0 && (
+                        {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length > 0 && (
                           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
-                            No tracks match your search
+                            No artists match your search
                           </div>
                         )}
-                      </div>
-                    )}
-
-                    {/* Artists Tab */}
-                    {resultTab === 'artists' && (
-                      <div>
-                        {/* Artists Search Bar */}
-                        {(ruContent?.Artists ?? []).length > 0 && (
-                          <input
-                            type="text"
-                            placeholder="Search artists..."
-                            value={artistsSearch}
-                            onChange={e => setArtistsSearch(e.target.value)}
-                            style={{
-                              ...inputStyle,
-                              width: "100%",
-                              marginBottom: 12,
-                            }}
-                          />
-                        )}
-
-                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                          {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length === 0 && (
-                            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
-                              No artists found
-                            </div>
-                          )}
-                          {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length > 0 && (
-                            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
-                              No artists match your search
-                            </div>
-                          )}
-                          {filteredArtists
-                            .map((artist: Artist) => ({
-                              artist,
-                              trackCount: (ruContent?.Tracks ?? []).filter((t: Track) =>
-                                (t.Artists ?? []).some(a => a.ID === artist.ID)
-                              ).length,
-                            }))
-                            .sort((a, b) => b.trackCount - a.trackCount)
-                            .map(({ artist, trackCount }) => {
-                            return (
-                              <div
-                                key={artist.ID}
+                        {filteredArtists
+                          .map((artist: Artist) => ({
+                            artist,
+                            trackCount: (ruContent?.Tracks ?? []).filter((t: Track) =>
+                              (t.Artists ?? []).some(a => a.ID === artist.ID)
+                            ).length,
+                          }))
+                          .sort((a, b) => b.trackCount - a.trackCount)
+                          .map(({ artist, trackCount }) => {
+                          return (
+                            <div
+                              key={artist.ID}
+                              style={{
+                                padding: 16,
+                                background: "rgba(255, 255, 255, 0.03)",
+                                border: "1px solid rgba(255, 255, 255, 0.05)",
+                                borderRadius: 10,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 12,
+                              }}
+                            >
+                              <a
+                                href={artist.URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 style={{
-                                  padding: 16,
-                                  background: "rgba(255, 255, 255, 0.03)",
-                                  border: "1px solid rgba(255, 255, 255, 0.05)",
-                                  borderRadius: 10,
+                                  flex: 1,
+                                  color: "#fff",
+                                  textDecoration: "none",
+                                  fontWeight: 600,
+                                  fontSize: 16,
+                                  cursor: "pointer",
+                                  transition: "all 0.2s ease",
                                   display: "flex",
                                   alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: 12,
+                                  gap: 8,
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = "#1DB954";
+                                  e.currentTarget.style.textDecoration = "underline";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = "#fff";
+                                  e.currentTarget.style.textDecoration = "none";
                                 }}
                               >
-                                <a
-                                  href={artist.URL}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{
-                                    flex: 1,
-                                    color: "#fff",
-                                    textDecoration: "none",
-                                    fontWeight: 600,
-                                    fontSize: 16,
-                                    cursor: "pointer",
-                                    transition: "all 0.2s ease",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.color = "#1DB954";
-                                    e.currentTarget.style.textDecoration = "underline";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.color = "#fff";
-                                    e.currentTarget.style.textDecoration = "none";
-                                  }}
-                                >
-                                  {artist.Name}
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                  </svg>
-                                </a>
-                                <button
-                                  onClick={() => {
-                                    setResultTab('tracks');
-                                    setTracksSearch(artist.Name);
-                                  }}
-                                  style={{
-                                    padding: "6px 12px",
-                                    background: "rgba(29, 185, 84, 0.2)",
-                                    border: "1px solid rgba(29, 185, 84, 0.4)",
-                                    borderRadius: 6,
-                                    color: "#1DB954",
-                                    cursor: "pointer",
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    whiteSpace: "nowrap",
-                                    transition: "all 0.2s ease",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)";
-                                  }}
-                                >
-                                  {trackCount} track{trackCount !== 1 ? 's' : ''}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
+                                {artist.Name}
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                  <polyline points="15 3 21 3 21 9"></polyline>
+                                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                              </a>
+                              <button
+                                onClick={() => {
+                                  setResultTab('tracks');
+                                  setTracksSearch(artist.Name);
+                                }}
+                                style={{
+                                  padding: "6px 12px",
+                                  background: "rgba(29, 185, 84, 0.2)",
+                                  border: "1px solid rgba(29, 185, 84, 0.4)",
+                                  borderRadius: 6,
+                                  color: "#1DB954",
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  whiteSpace: "nowrap",
+                                  transition: "all 0.2s ease",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)";
+                                }}
+                              >
+                                {trackCount} track{trackCount !== 1 ? 's' : ''}
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ) : (
-              <div style={{
-                ...cardStyle,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 400,
-                color: "rgba(255,255,255,0.5)",
-              }}>
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.3, marginBottom: 16 }}>
-                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                </svg>
-                <p style={{ fontSize: 16, marginBottom: 8 }}>No scan results yet</p>
-                <p style={{ fontSize: 13, opacity: 0.7 }}>Select a playlist or scan your liked songs to get started</p>
-              </div>
-            )}
-          </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              ...cardStyle,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 400,
+              color: "rgba(255,255,255,0.5)",
+            }}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.3, marginBottom: 16 }}>
+                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+              </svg>
+              <p style={{ fontSize: 16, marginBottom: 8 }}>No scan results yet</p>
+              <p style={{ fontSize: 13, opacity: 0.7 }}>Enter a playlist ID or URL to get started</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

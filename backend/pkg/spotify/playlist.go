@@ -7,18 +7,18 @@ import (
 
 	"github.com/zmb3/spotify/v2"
 	"golang.org/x/oauth2"
+	"github.com/zmb3/spotify/v2/auth"
 )
 
 
 func (c *SpotifyClient) GetPlaylistWithTracks(playlistId string, token *oauth2.Token) (*models.Playlist, error) {
 	ctx := context.Background()
-	client := spotify.New(c.auth.Client(ctx, token))
+	
 
-	userId, err := c.FetchSpotifyUserId(token)
-	if err != nil {
-		log.Println("couldn't fetch user id:", err)
-		userId = "" // ignoring error, will set Owned to false
-	}
+	httpClient := spotifyauth.New().Client(ctx, token)
+	client := spotify.New(httpClient)
+
+
 	spotifyPlaylist, err := client.GetPlaylist(ctx, spotify.ID(playlistId))
 	if err != nil {
 		log.Printf("couldn't fetch playlist: %v", err)
@@ -27,14 +27,13 @@ func (c *SpotifyClient) GetPlaylistWithTracks(playlistId string, token *oauth2.T
 	var playlist models.Playlist
 	playlist.ID = string(spotifyPlaylist.ID)
 	playlist.Name = spotifyPlaylist.Name
-	playlist.Owned = spotifyPlaylist.Owner.ID == userId
 	// Fill in tracks
 	tracks, err := c.getAllPlaylistTracks(client, spotifyPlaylist.ID)
 	if err != nil {
 		log.Printf("couldn't fetch playlist tracks: %v", err)
 		return nil, err
 	}
-	// remove duplicate tracks
+	// Remove duplicate tracks
 	trackMap := make(map[string]models.Track)
 	for _, track := range tracks {
 		trackMap[track.ID] = track
@@ -43,7 +42,8 @@ func (c *SpotifyClient) GetPlaylistWithTracks(playlistId string, token *oauth2.T
 	for _, track := range trackMap {
 		uniqueTracks = append(uniqueTracks, track)
 	}
-	playlist.Tracks = tracks
+	playlist.Tracks = uniqueTracks
+	playlist.Owned = spotifyPlaylist.Owner.ID != ""
 
 	return &playlist, nil
 }
@@ -91,68 +91,4 @@ func (c *SpotifyClient) getAllPlaylistTracks(client *spotify.Client, playlistId 
 		offset += limit
 	}
 	return allTracks, nil
-}
-
-func (c *SpotifyClient) DeletePlaylistRuContent(token *oauth2.Token, playlistId string, tracks []models.Track) error {
-	ctx := context.Background()
-	client := spotify.New(c.auth.Client(ctx, token))
-
-	trackIDs := make([]spotify.ID, 0, len(tracks))
-	for _, track := range tracks {
-		trackIDs = append(trackIDs, spotify.ID(track.ID))
-	}
-	var limit = 100
-	var offset = 0
-
-	for offset < len(trackIDs) {
-		end := offset + limit
-		if end > len(trackIDs) {
-			end = len(trackIDs)
-		}
-		_, err := client.RemoveTracksFromPlaylist(ctx, spotify.ID(playlistId), trackIDs[offset:end]...)
-		if err != nil {
-			log.Printf("couldn't remove tracks from playlist: %v", err)
-			return err
-		}
-		offset += limit
-	}
-
-	return nil
-}
-
-func (c *SpotifyClient) GetUserPlaylists(token *oauth2.Token) ([]models.Playlist, error) {
-	ctx := context.Background()
-	client := spotify.New(c.auth.Client(ctx, token))
-
-	limit := 50
-	offset := 0
-	var playlists []models.Playlist
-	for {
-		page, err := client.CurrentUsersPlaylists(ctx, spotify.Limit(limit), spotify.Offset(offset))
-		if err != nil {
-			log.Printf("couldn't fetch user playlists: %v", err)
-			return nil, err
-		}
-
-		for _, p := range page.Playlists {
-			imageURL := ""
-			if len(p.Images) > 0 {
-				imageURL = p.Images[0].URL
-			}
-			playlists = append(playlists, models.Playlist{
-				ID:          string(p.ID),
-				Name:        p.Name,
-				Description: p.Description,
-				ImageURL:    imageURL,
-				TrackCount:  int(p.Tracks.Total),
-			})
-		}
-
-		if len(page.Playlists) < limit {
-			break
-		}
-		offset += limit
-	}
-
-	return playlists, nil
 }

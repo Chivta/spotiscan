@@ -2,29 +2,24 @@ package db
 
 import (
 	"database/sql"
+
 	"golang.org/x/oauth2"
 )
 
-func (db *DB) StoreSpotifyTokens(userId int, token *oauth2.Token) error {
+func (db *DB) StoreSpotifyTokens(token *oauth2.Token) error {
 	accessToken := token.AccessToken
-	refreshToken := token.RefreshToken
 	expiresAt := token.Expiry.UTC()
-
 	_, err := db.conn.Exec(
-		`INSERT INTO spotify_tokens (user_id, access_token, refresh_token, expires_at) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (user_id) DO UPDATE SET access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token, expires_at = EXCLUDED.expires_at`,
-		userId, accessToken, refreshToken, expiresAt,
+		`INSERT INTO spotify_tokens (access_token, expires_at) VALUES ($1, $2)`,
+		accessToken, expiresAt,
 	)
 	return err
 }
 
-func (db *DB) GetSpotifyTokensByUserId(userId int) (*oauth2.Token, error) {
-	var accessToken, refreshToken string
+func (db *DB) GetSpotifyTokens() (*oauth2.Token, error) {
+	var accessToken string
 	var expiresAt sql.NullTime
-	err := db.conn.QueryRow(`
-		      SELECT access_token, refresh_token, expires_at FROM spotify_tokens 
-		      WHERE user_id=$1
-	      `, userId).Scan(&accessToken, &refreshToken, &expiresAt)
+	err := db.conn.QueryRow(`SELECT access_token, expires_at FROM spotify_tokens`).Scan(&accessToken, &expiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -32,8 +27,7 @@ func (db *DB) GetSpotifyTokensByUserId(userId int) (*oauth2.Token, error) {
 		return nil, err
 	}
 	token := oauth2.Token{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		AccessToken: accessToken,
 	}
 	if expiresAt.Valid {
 		token.Expiry = expiresAt.Time
