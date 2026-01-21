@@ -1,0 +1,162 @@
+name: Go CI
+
+on:
+  pull_request:
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/go.yml"
+  push:
+    branches:
+      - main
+
+env:
+  GO_VERSION: "1.24"
+
+jobs:
+  golangci-lint:
+    name: Run golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.8.0
+          args: --output.code-climate.path gl-code-quality-report.json ./cmd/... ./internal/...
+
+      - name: Upload code quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-report
+          path: gl-code-quality-report.json
+          retention-days: 30
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@v1.13.0
+
+      - name: Run tests
+        run: gotestsum --junitfile report.xml --format standard-verbose ./...
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: report.xml
+          retention-days: 30
+
+  test-with-coverage:
+    name: Run tests with coverage
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install tools
+        run: |
+          go install gotest.tools/gotestsum@v1.13.0
+          go install github.com/boumenot/gocover-cobertura@v1.4.0
+
+      - name: Run tests with coverage
+        run: |
+          gotestsum --junitfile report.xml --format standard-verbose -- -coverprofile=coverage.txt -covermode=atomic ./...
+          gocover-cobertura < coverage.txt > coverage.xml
+          go tool cover -func coverage.txt
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-with-coverage
+          path: |
+            report.xml
+            coverage.xml
+            coverage.txt
+          retention-days: 30
+
+  gofmt-check:
+    name: Check gofmt
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Run gofmt
+        run: gofmt -l ./cmd ./internal
+
+  govulncheck:
+    name: Run govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  go-mod-tidy-check:
+    name: Check go mod tidy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Run go mod tidy
+        run: go mod tidy -v -e -go=${{ env.GO_VERSION }}
+
+      - name: Check for changes
+        run: git diff --exit-code go.mod go.sum
