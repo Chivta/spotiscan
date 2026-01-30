@@ -6,32 +6,32 @@ import (
 	"time"
 	"golang.org/x/oauth2"
 
-	"github.com/chivta/spotiscan/internal/db"
+	"github.com/chivta/spotiscan/internal/repo"
 	"github.com/chivta/spotiscan/internal/models"
 	spotifyClient "github.com/chivta/spotiscan/internal/spotify_client"
 )
 
-func NewSpotifyService(db *db.DB, spotifyClient *spotifyClient.SpotifyClient) *SpotifyService {
+func NewSpotifyService(repo repo.Repo, spotifyClient *spotifyClient.SpotifyClient) *SpotifyService {
 	return &SpotifyService{
-		db:            db,
+		repo:            repo,
 		spotifyClient: spotifyClient,
 	}
 }
 
 type SpotifyService struct {
-	db            *db.DB
+	repo            repo.Repo
 	spotifyClient *spotifyClient.SpotifyClient
 }
 
 func (s *SpotifyService) GetValidSpotifyToken() (*oauth2.Token, error) {
-	spotifyToken, err := s.db.GetSpotifyTokens()
-	if err == db.ErrNotFound || spotifyToken.Expiry.UTC().Before(time.Now().UTC()) {
+	spotifyToken, err := s.repo.GetSpotifyTokens()
+	if err == repo.ErrNotFound || spotifyToken.Expiry.UTC().Before(time.Now().UTC()) {
 		newToken, err := s.spotifyClient.GetToken()
 		if err != nil {
 			log.Println("Failed to refresh tokens:", err)
 			return nil, ErrSpotifyAPIError
 		}
-		err = s.db.StoreSpotifyTokens(newToken)
+		err = s.repo.StoreSpotifyTokens(newToken)
 		if err != nil {
 			log.Println("Failed to store refreshed tokens:", err)
 			return nil, ErrDatabaseFailure
@@ -55,7 +55,7 @@ func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent
 		}
 	}
 
-	ruArtistsMap, err := s.db.FilterRussian(artistMap)
+	ruArtistsMap, err := s.repo.FilterRussian(artistMap)
 	if err != nil {
 		log.Println("Failed to filter Russian artists:", err)
 		return nil, ErrDatabaseFailure
