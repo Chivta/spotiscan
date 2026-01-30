@@ -1,39 +1,10 @@
-# Go binaries and test files
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
+.env
 
-# Go workspace
-go.work
-
-# Node.js dependencies and build output
-node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 dist/
-
-# Environment variables
-.env*
-
-# IDE files
-.vscode/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# air specific stuff
-tmp/
 testdata/
-
-# Logs
-*.log
-
 bot_data.db
-
+bot_data.db
 .claude
