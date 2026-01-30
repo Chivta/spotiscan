@@ -1,0 +1,8 @@
+server
+spotiscan
+main
+.env
+config.json
+config.yaml
+*.md
+!README.md
