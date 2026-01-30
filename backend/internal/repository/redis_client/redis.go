@@ -1,8 +1,7 @@
-package redis
+package redis_client
 
 import (
 	"context"
-	
 	"github.com/redis/go-redis/v9"
 )
 

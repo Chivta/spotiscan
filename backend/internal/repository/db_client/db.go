@@ -1,23 +1,24 @@
-package db
+package db_client
 
 import (
+	"context"
 	"database/sql"
 	"log"
-	"golang.org/x/oauth2"
+
 	"github.com/lib/pq"
+	"golang.org/x/oauth2"
 
 	"github.com/chivta/spotiscan/internal/models"
 )
 
-type DB interface {
+type DBClient interface {
 	Close() error
-	FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error)
-	StoreSpotifyTokens(token *oauth2.Token) error
-	GetSpotifyTokens() (*oauth2.Token, error)
+	FilterRussian(ctx context.Context,artists map[string]models.Artist) (map[string]models.Artist, error)
+	StoreSpotifyTokens(ctx context.Context,token *oauth2.Token) error
+	GetSpotifyTokens(ctx context.Context) (*oauth2.Token, error)
 }
 
-
-func NewDBConnection(DatabaseURL string) (DB, error) {
+func NewDBConnection(DatabaseURL string) (DBClient, error) {
 	db, err := sql.Open("postgres", DatabaseURL)
 
 	if err != nil {
@@ -28,14 +29,14 @@ func NewDBConnection(DatabaseURL string) (DB, error) {
 		return nil, err
 	}
 
-	return &dbConn{db}, nil
+	return &dbClient{db}, nil
 }
 
-type dbConn struct {
+type dbClient struct {
 	conn *sql.DB
 }
 
-func (db *dbConn) Close() error {
+func (db *dbClient) Close() error {
 	err := db.conn.Close()
 	if err != nil {
 		log.Println("Error closing database connection:", err)
@@ -43,8 +44,7 @@ func (db *dbConn) Close() error {
 	return err
 }
 
-
-func (db *dbConn) StoreSpotifyTokens(token *oauth2.Token) error {
+func (db *dbClient) StoreSpotifyTokens(ctx context.Context,token *oauth2.Token) error {
 	accessToken := token.AccessToken
 	expiresAt := token.Expiry.UTC()
 	_, err := db.conn.Exec(
@@ -54,7 +54,7 @@ func (db *dbConn) StoreSpotifyTokens(token *oauth2.Token) error {
 	return err
 }
 
-func (db *dbConn) GetSpotifyTokens() (*oauth2.Token, error) {
+func (db *dbClient) GetSpotifyTokens(ctx context.Context) (*oauth2.Token, error) {
 	var accessToken string
 	var expiresAt sql.NullTime
 	err := db.conn.QueryRow(`SELECT access_token, expires_at FROM spotify_tokens`).Scan(&accessToken, &expiresAt)
@@ -73,8 +73,7 @@ func (db *dbConn) GetSpotifyTokens() (*oauth2.Token, error) {
 	return &token, nil
 }
 
-
-func (db *dbConn) FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error) {
+func (db *dbClient) FilterRussian(ctx context.Context,artists map[string]models.Artist) (map[string]models.Artist, error) {
 	var names []string
 	for name := range artists {
 		names = append(names, name)

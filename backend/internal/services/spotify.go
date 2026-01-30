@@ -6,27 +6,24 @@ import (
 	"time"
 	"golang.org/x/oauth2"
 
-	"github.com/chivta/spotiscan/internal/repo"
+	"github.com/chivta/spotiscan/internal/repository"
 	"github.com/chivta/spotiscan/internal/models"
-	spotifyClient "github.com/chivta/spotiscan/internal/spotify_client"
 )
 
-func NewSpotifyService(repo repo.Repo, spotifyClient *spotifyClient.SpotifyClient) *SpotifyService {
+func NewSpotifyService(repo repository.Repo) *SpotifyService {
 	return &SpotifyService{
 		repo:            repo,
-		spotifyClient: spotifyClient,
 	}
 }
 
 type SpotifyService struct {
-	repo            repo.Repo
-	spotifyClient *spotifyClient.SpotifyClient
+	repo            repository.Repo
 }
 
 func (s *SpotifyService) GetValidSpotifyToken() (*oauth2.Token, error) {
 	spotifyToken, err := s.repo.GetSpotifyTokens()
-	if err == repo.ErrNotFound || spotifyToken.Expiry.UTC().Before(time.Now().UTC()) {
-		newToken, err := s.spotifyClient.GetToken()
+	if err == repository.ErrNotFound || spotifyToken.Expiry.UTC().Before(time.Now().UTC()) {
+		newToken, err := s.repo.GetToken()
 		if err != nil {
 			log.Println("Failed to refresh tokens:", err)
 			return nil, ErrSpotifyAPIError
@@ -84,7 +81,7 @@ func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent
 }
 
 func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oauth2.Token) (*models.RuContent, error) {
-	playlist, err := s.spotifyClient.GetPlaylistWithTracks(playlistId, oathToken)
+	playlist, err := s.repo.GetPlaylistWithTracks(playlistId, oathToken)
 	if err != nil {
 		log.Println(err)
 		return nil, ErrSpotifyAPIError
