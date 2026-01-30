@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"net/http"
-
-	"github.com/chivta/spotiscan/internal/services"
-
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
+	
+	"github.com/chivta/spotiscan/internal/services"
 )
 
 func NewSpotifyHandler(service *services.SpotifyService) *SpotifyHandler {

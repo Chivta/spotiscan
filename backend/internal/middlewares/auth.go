@@ -2,10 +2,9 @@ package middlewares
 
 import (
 	"net/http"
-
-	"github.com/chivta/spotiscan/internal/services"
-
 	"github.com/gin-gonic/gin"
+	
+	"github.com/chivta/spotiscan/internal/services"
 )
 
 type AuthMiddleware struct {

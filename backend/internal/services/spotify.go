@@ -4,12 +4,11 @@ import (
 	"log"
 	"strings"
 	"time"
+	"golang.org/x/oauth2"
 
 	"github.com/chivta/spotiscan/internal/db"
 	"github.com/chivta/spotiscan/internal/models"
 	spotifyClient "github.com/chivta/spotiscan/internal/spotify_client"
-
-	"golang.org/x/oauth2"
 )
 
 func NewSpotifyService(db *db.DB, spotifyClient *spotifyClient.SpotifyClient) *SpotifyService {

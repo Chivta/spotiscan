@@ -1,9 +1,9 @@
 package db
 
 import (
-	"github.com/chivta/spotiscan/internal/models"
-
 	"github.com/lib/pq"
+	
+	"github.com/chivta/spotiscan/internal/models"
 )
 
 func (db *DB) FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error) {
