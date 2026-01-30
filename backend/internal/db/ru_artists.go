@@ -1,26 +1,24 @@
 package db
 
 import (
-	"log"
-	"spotiscan/models"
+	"github.com/chivta/spotiscan/internal/models"
 
 	"github.com/lib/pq"
 )
 
-func (db *DB) FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error) {	
+func (db *DB) FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error) {
 	var names []string
 	for name := range artists {
-		names = append(names, name) 
+		names = append(names, name)
 	}
-	log.Println(names)
-	
+
 	rows, err := db.conn.Query(`
         SELECT name FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
 	var ruNames []string
 
@@ -31,7 +29,6 @@ func (db *DB) FilterRussian(artists map[string]models.Artist) (map[string]models
 		}
 		ruNames = append(ruNames, name)
 	}
-	log.Println(ruNames)
 	ruArtists := make(map[string]models.Artist, len(ruNames))
 
 	for _, name := range ruNames {

@@ -1,4 +1,4 @@
-module spotiscan
+module github.com/chivta/spotiscan
 
 go 1.25.3
 

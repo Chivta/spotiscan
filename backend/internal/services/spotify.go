@@ -2,11 +2,12 @@ package services
 
 import (
 	"log"
-	"spotiscan/models"
-	"spotiscan/pkg/db"
-	spotifyClient "spotiscan/pkg/spotify"
 	"strings"
 	"time"
+
+	"github.com/chivta/spotiscan/internal/db"
+	"github.com/chivta/spotiscan/internal/models"
+	spotifyClient "github.com/chivta/spotiscan/internal/spotify_client"
 
 	"golang.org/x/oauth2"
 )
@@ -23,26 +24,23 @@ type SpotifyService struct {
 	spotifyClient *spotifyClient.SpotifyClient
 }
 
-func (s *SpotifyService) GetValidUserSpotifyToken(userId int) (*oauth2.Token, error) {
-	spotifyToken, err := s.db.GetSpotifyTokensByUserId(userId)
-	if err != nil {
-		log.Println(err)
-		return nil, ErrDatabaseFailure
-	}
-
-	expired := spotifyToken.Expiry.UTC().Before(time.Now().UTC())
-	if expired {
-		newToken, err := s.spotifyClient.RefreshToken(spotifyToken)
+func (s *SpotifyService) GetValidSpotifyToken() (*oauth2.Token, error) {
+	spotifyToken, err := s.db.GetSpotifyTokens()
+	if err == db.ErrNotFound || spotifyToken.Expiry.UTC().Before(time.Now().UTC()) {
+		newToken, err := s.spotifyClient.GetToken()
 		if err != nil {
 			log.Println("Failed to refresh tokens:", err)
 			return nil, ErrSpotifyAPIError
 		}
-		err = s.db.StoreSpotifyTokens(userId, newToken)
+		err = s.db.StoreSpotifyTokens(newToken)
 		if err != nil {
 			log.Println("Failed to store refreshed tokens:", err)
 			return nil, ErrDatabaseFailure
 		}
 		spotifyToken = newToken
+	} else if err != nil {
+		log.Println("Failed to get tokens from DB:", err)
+		return nil, ErrDatabaseFailure
 	}
 
 	return spotifyToken, nil
@@ -51,21 +49,20 @@ func (s *SpotifyService) GetValidUserSpotifyToken(userId int) (*oauth2.Token, er
 func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent, error) {
 	var ruContent models.RuContent
 
-	
 	artistMap := make(map[string]models.Artist)
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
 			artistMap[strings.ToLower(artist.Name)] = artist
 		}
 	}
-	
+
 	ruArtistsMap, err := s.db.FilterRussian(artistMap)
 	if err != nil {
 		log.Println("Failed to filter Russian artists:", err)
 		return nil, ErrDatabaseFailure
 	}
 
-	trackMap := make(map[string]models.Track)	
+	trackMap := make(map[string]models.Track)
 
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
@@ -75,7 +72,7 @@ func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent
 			}
 		}
 	}
-	
+
 	for _, track := range trackMap {
 		ruContent.Tracks = append(ruContent.Tracks, track)
 	}
@@ -87,33 +84,6 @@ func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent
 	return &ruContent, nil
 }
 
-func (s *SpotifyService) GetUserLikedSongsRuContent(oathToken *oauth2.Token) (*models.RuContent, error) {
-	tracks, err := s.spotifyClient.GetUserSavedTracks(oathToken)
-	if err != nil {
-		log.Println(err)
-		return nil, ErrSpotifyAPIError
-	}
-
-	ruContent, err := s.formRuContent(tracks)
-	if err != nil {
-		log.Println(err)
-		return nil, ErrSpotifyAPIError
-	}
-
-	ruContent.AbleToDelete = true
-	
-	return ruContent, nil
-}
-
-func (s *SpotifyService) DeletePlaylistRuContent(oathToken *oauth2.Token, playlistId string, tracks []models.Track) error {
-	err := s.spotifyClient.DeletePlaylistRuContent(oathToken, playlistId, tracks)
-	if err != nil {
-		log.Println(err)
-		return ErrSpotifyAPIError
-	}
-	return nil
-}
-
 func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oauth2.Token) (*models.RuContent, error) {
 	playlist, err := s.spotifyClient.GetPlaylistWithTracks(playlistId, oathToken)
 	if err != nil {
@@ -121,7 +91,7 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 		return nil, ErrSpotifyAPIError
 	}
 
-	ruContent,err := s.formRuContent(playlist.Tracks)
+	ruContent, err := s.formRuContent(playlist.Tracks)
 	if err != nil {
 		log.Println(err)
 		return nil, ErrSpotifyAPIError
@@ -129,13 +99,4 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 	ruContent.AbleToDelete = playlist.Owned
 
 	return ruContent, nil
-}
-
-func (s *SpotifyService) GetUserPlaylists(oathToken *oauth2.Token) ([]models.Playlist, error) {
-	playlists, err := s.spotifyClient.GetUserPlaylists(oathToken)
-	if err != nil {
-		log.Println(err)
-		return nil, ErrSpotifyAPIError
-	}
-	return playlists, nil
 }
