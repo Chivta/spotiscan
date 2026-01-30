@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"net/http"
-	"spotiscan/internal/services"
+
+	"github.com/chivta/spotiscan/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"

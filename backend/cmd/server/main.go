@@ -3,16 +3,16 @@ package main
 import (
 	"log"
 
-	"spotiscan/internal/config"
-	"spotiscan/internal/handlers"
-	"spotiscan/internal/services"
-	"spotiscan/internal/middlewares"
-	"spotiscan/pkg/db"
-	"spotiscan/pkg/spotify"
+	"github.com/chivta/spotiscan/internal/config"
+	"github.com/chivta/spotiscan/internal/db"
+	"github.com/chivta/spotiscan/internal/handlers"
+	"github.com/chivta/spotiscan/internal/middlewares"
+	"github.com/chivta/spotiscan/internal/services"
+	"github.com/chivta/spotiscan/internal/spotify_client"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	// "spotiscan/pkg/dbsqlite_migration"
+	// "github.com/chivta/spotiscan/internal/dbsqlite_migration"
 )
 
 func main() {
@@ -52,12 +52,12 @@ func main() {
 		c.Status(204)
 	})
 
-	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	spotifyClient := spotify_client.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	spotifyService := services.NewSpotifyService(db, spotifyClient)
 	spotifyHandler := handlers.NewSpotifyHandler(spotifyService)
-	
+
 	authMiddleware := middlewares.NewAuthMiddleware(spotifyService)
-	
+
 	api := r.Group("/api")
 	api.Use(authMiddleware.AttachSpotifyClientCreds())
 	{

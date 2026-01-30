@@ -1,4 +1,4 @@
-package spotify
+package spotify_client
 
 func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
 	return &SpotifyClient{

@@ -1,23 +1,21 @@
-package spotify
+package spotify_client
 
 import (
 	"context"
 	"log"
-	"spotiscan/models"
+
+	"github.com/chivta/spotiscan/internal/models"
 
 	"github.com/zmb3/spotify/v2"
+	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2"
-	"github.com/zmb3/spotify/v2/auth"
 )
-
 
 func (c *SpotifyClient) GetPlaylistWithTracks(playlistId string, token *oauth2.Token) (*models.Playlist, error) {
 	ctx := context.Background()
-	
 
 	httpClient := spotifyauth.New().Client(ctx, token)
 	client := spotify.New(httpClient)
-
 
 	spotifyPlaylist, err := client.GetPlaylist(ctx, spotify.ID(playlistId))
 	if err != nil {
@@ -47,7 +45,6 @@ func (c *SpotifyClient) GetPlaylistWithTracks(playlistId string, token *oauth2.T
 
 	return &playlist, nil
 }
-
 
 func (c *SpotifyClient) getAllPlaylistTracks(client *spotify.Client, playlistId spotify.ID) ([]models.Track, error) {
 	var limit = 50

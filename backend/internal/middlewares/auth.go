@@ -2,7 +2,8 @@ package middlewares
 
 import (
 	"net/http"
-	"spotiscan/internal/services"
+
+	"github.com/chivta/spotiscan/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,7 +46,7 @@ func (m *AuthMiddleware) AttachSpotifyClientCreds() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Set("spotify_tokens", spotifyToken)
 
 		c.Next()

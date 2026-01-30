@@ -2,11 +2,12 @@ package services
 
 import (
 	"log"
-	"spotiscan/models"
-	"spotiscan/pkg/db"
-	spotifyClient "spotiscan/pkg/spotify"
 	"strings"
 	"time"
+
+	"github.com/chivta/spotiscan/internal/db"
+	"github.com/chivta/spotiscan/internal/models"
+	spotifyClient "github.com/chivta/spotiscan/internal/spotify_client"
 
 	"golang.org/x/oauth2"
 )
@@ -48,21 +49,20 @@ func (s *SpotifyService) GetValidSpotifyToken() (*oauth2.Token, error) {
 func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent, error) {
 	var ruContent models.RuContent
 
-	
 	artistMap := make(map[string]models.Artist)
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
 			artistMap[strings.ToLower(artist.Name)] = artist
 		}
 	}
-	
+
 	ruArtistsMap, err := s.db.FilterRussian(artistMap)
 	if err != nil {
 		log.Println("Failed to filter Russian artists:", err)
 		return nil, ErrDatabaseFailure
 	}
 
-	trackMap := make(map[string]models.Track)	
+	trackMap := make(map[string]models.Track)
 
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
@@ -72,7 +72,7 @@ func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent
 			}
 		}
 	}
-	
+
 	for _, track := range trackMap {
 		ruContent.Tracks = append(ruContent.Tracks, track)
 	}
@@ -91,7 +91,7 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 		return nil, ErrSpotifyAPIError
 	}
 
-	ruContent,err := s.formRuContent(playlist.Tracks)
+	ruContent, err := s.formRuContent(playlist.Tracks)
 	if err != nil {
 		log.Println(err)
 		return nil, ErrSpotifyAPIError
@@ -100,4 +100,3 @@ func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oaut
 
 	return ruContent, nil
 }
-

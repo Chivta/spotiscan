@@ -5,7 +5,8 @@ package sqlite_migration
 import (
 	"database/sql"
 	"log"
-	"spotiscan/internal/config"
+
+	"github.com/chivta/spotiscan/internal/config"
 
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
