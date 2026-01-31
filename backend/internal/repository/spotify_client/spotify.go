@@ -2,18 +2,17 @@ package spotify_client
 
 import (
 	"context"
-	"log"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
-	
+
 	"github.com/chivta/spotiscan/internal/models"
 )
 
 type SpotifyClient interface {
-	GetPlaylistWithTracks(ctx context.Context, playlistId string, token *oauth2.Token) (*models.Playlist, error)
-	GetToken(ctx context.Context) (*oauth2.Token, error)
+	GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
+	GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 }
 
 func NewSpotifyClient(spotifyId, spotifySecret string) SpotifyClient {
@@ -29,13 +28,15 @@ type spotifyClient struct {
 }
 
 
-func (c *spotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId string, token *oauth2.Token) (*models.Playlist, error) {
-	httpClient := spotifyauth.New().Client(ctx, token)
+func (c *spotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
+	httpClient := spotifyauth.New().Client(ctx, ctx.Value("spotify_token").(*oauth2.Token))
 	client := spotify.New(httpClient)
 
 	spotifyPlaylist, err := client.GetPlaylist(ctx, spotify.ID(playlistId))
 	if err != nil {
-		log.Printf("couldn't fetch playlist: %v", err)
+		if spotifyErr, ok := err.(spotify.Error); ok && spotifyErr.Status == 404 {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	var playlist models.Playlist
@@ -44,7 +45,6 @@ func (c *spotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId st
 	// Fill in tracks
 	tracks, err := c.getAllPlaylistTracks(ctx, client, spotifyPlaylist.ID)
 	if err != nil {
-		log.Printf("couldn't fetch playlist tracks: %v", err)
 		return nil, err
 	}
 	// Remove duplicate tracks
@@ -69,7 +69,6 @@ func (c *spotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotif
 	for {
 		page, err := client.GetPlaylistItems(ctx, playlistId, spotify.Limit(limit), spotify.Offset(offset))
 		if err != nil {
-			log.Printf("couldn't fetch playlist items: %v", err)
 			return nil, err
 		}
 
@@ -107,7 +106,7 @@ func (c *spotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotif
 }
 
 
-func (c *spotifyClient) GetToken(ctx context.Context) (*oauth2.Token, error) {	
+func (c *spotifyClient) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {	
 	config := &clientcredentials.Config{
 		ClientID:     c.spotifyId,
 		ClientSecret: c.spotifySecret,
@@ -116,7 +115,6 @@ func (c *spotifyClient) GetToken(ctx context.Context) (*oauth2.Token, error) {
 	
 	token, err := config.Token(ctx)
 	if err != nil {
-		log.Printf("couldn't get token: %v", err)
 		return nil, err
 	}
 	// Ensure the token's expiry is in UTC

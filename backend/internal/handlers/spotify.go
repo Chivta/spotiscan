@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
+
 	"github.com/gin-gonic/gin"
-	"golang.org/x/oauth2"
-	
+
 	"github.com/chivta/spotiscan/internal/services"
 )
 
@@ -17,15 +18,16 @@ type SpotifyHandler struct {
 }
 
 func (h *SpotifyHandler) GetPlaylistRuContent(c *gin.Context) {
+	ctx := context.WithValue(c.Request.Context(),"spotify_token",c.Value("spotify_token"))
+	
 	playlistId := c.Params.ByName("id")
 	if playlistId == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "empty id"})
 		return
 	}
-	tokens := c.MustGet("spotify_tokens").(*oauth2.Token)
-	ruContent, err := h.svc.GetPlaylistRuContent(playlistId, tokens)
+	ruContent, err := h.svc.GetPlaylistRuContent(ctx, playlistId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "spotify api error"})
+		RespondWithError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, ruContent)

@@ -1,48 +1,60 @@
 package services
 
 import (
-	"log"
+	"context"
 	"strings"
 	"time"
 	"golang.org/x/oauth2"
 
-	"github.com/chivta/spotiscan/internal/repository"
+	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/spotiscan/internal/repository"
 )
 
-func NewSpotifyService(repo repository.Repo) *SpotifyService {
+func NewSpotifyService(logger *logger.Logger, repo repository.Repo) *SpotifyService {
 	return &SpotifyService{
-		repo:            repo,
+		log:  logger,
+		repo: repo,
 	}
 }
 
 type SpotifyService struct {
-	repo            repository.Repo
+	log  *logger.Logger
+	repo repository.Repo
 }
 
-func (s *SpotifyService) GetValidSpotifyToken() (*oauth2.Token, error) {
-	spotifyToken, err := s.repo.GetSpotifyTokens()
-	if err == repository.ErrNotFound || spotifyToken.Expiry.UTC().Before(time.Now().UTC()) {
-		newToken, err := s.repo.GetToken()
-		if err != nil {
-			log.Println("Failed to refresh tokens:", err)
-			return nil, ErrSpotifyAPIError
-		}
-		err = s.repo.StoreSpotifyTokens(newToken)
-		if err != nil {
-			log.Println("Failed to store refreshed tokens:", err)
-			return nil, ErrDatabaseFailure
-		}
-		spotifyToken = newToken
-	} else if err != nil {
-		log.Println("Failed to get tokens from DB:", err)
+func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
+	s.log.Debugf("getting valid spotify token")
+	token, err := s.repo.GetStoredSpotifyToken(ctx)
+	if err != nil && err != repository.ErrNotFound {
+		s.log.Errorf("failed to get stored spotify token: %v", err)
 		return nil, ErrDatabaseFailure
 	}
 
-	return spotifyToken, nil
+	if token != nil && token.Expiry.UTC().After(time.Now().UTC()) {
+		s.log.Debugf("using cached valid token")
+		return token, nil
+	}
+
+	s.log.Debugf("token expired or not found, refreshing")
+	newToken, err := s.repo.GetRefreshedSpotifyToken(ctx)
+	if err != nil || newToken == nil {
+		s.log.Errorf("failed to refresh spotify token: %v", err)
+		return nil, ErrSpotifyAPIError
+	}
+
+	err = s.repo.SetSpotifyToken(ctx, newToken)
+	if err != nil {
+		s.log.Errorf("failed to store refreshed spotify token: %v", err)
+		return nil, ErrDatabaseFailure
+	}
+
+	s.log.Debugf("successfully refreshed and stored new token")
+	return newToken, nil
 }
 
-func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent, error) {
+func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Track) (*models.RuContent, error) {
+	s.log.Debugf("forming RU content for %d tracks", len(tracks))
 	var ruContent models.RuContent
 
 	artistMap := make(map[string]models.Artist)
@@ -52,9 +64,9 @@ func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent
 		}
 	}
 
-	ruArtistsMap, err := s.repo.FilterRussian(artistMap)
+	ruArtistsMap, err := s.repo.FilterRussian(ctx, artistMap)
 	if err != nil {
-		log.Println("Failed to filter Russian artists:", err)
+		s.log.Errorf("failed to filter Russian artists: %v", err)
 		return nil, ErrDatabaseFailure
 	}
 
@@ -77,22 +89,29 @@ func (s *SpotifyService) formRuContent(tracks []models.Track) (*models.RuContent
 		ruContent.Artists = append(ruContent.Artists, artist)
 	}
 
+	s.log.Debugf("formed RU content with %d tracks and %d artists", len(ruContent.Tracks), len(ruContent.Artists))
 	return &ruContent, nil
 }
 
-func (s *SpotifyService) GetPlaylistRuContent(playlistId string, oathToken *oauth2.Token) (*models.RuContent, error) {
-	playlist, err := s.repo.GetPlaylistWithTracks(playlistId, oathToken)
+func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId string) (*models.RuContent, error) {
+	s.log.Debugf("getting RU content for playlist %s", playlistId)
+	playlist, err := s.repo.GetPlaylistWithTracks(ctx, playlistId)
 	if err != nil {
-		log.Println(err)
+		if err == repository.ErrNotFound {
+			s.log.Errorf("playlist %s not found", playlistId)
+			return nil, ErrPlaylistNotFound
+		}
+		s.log.Errorf("failed to get playlist with tracks: %v", err)
 		return nil, ErrSpotifyAPIError
 	}
 
-	ruContent, err := s.formRuContent(playlist.Tracks)
+	ruContent, err := s.formRuContent(ctx, playlist.Tracks)
 	if err != nil {
-		log.Println(err)
+		s.log.Errorf("failed to form RU content: %v", err)
 		return nil, ErrSpotifyAPIError
 	}
 	ruContent.AbleToDelete = playlist.Owned
 
+	s.log.Debugf("successfully retrieved RU content for playlist %s", playlistId)
 	return ruContent, nil
 }

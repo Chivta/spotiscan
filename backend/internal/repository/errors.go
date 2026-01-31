@@ -3,5 +3,7 @@ package repository
 import "errors"
 
 var (
-	ErrNotFound = errors.New("repository not initialized")
+	ErrNotFound = errors.New("")
+	ErrSpotifyAPIError = errors.New("")
+    ErrDatabaseError   = errors.New("")
 )

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"golang.org/x/oauth2"
 
 	"github.com/chivta/spotiscan/internal/logger"
@@ -12,16 +13,16 @@ import (
 )
 
 type Repo interface {
-	InitDB(DatabaseURL string) error
+	InitDB(databaseURL string) error
 	InitRedis(redisURL string) error
 	InitSpotifyClient(clientID, clientSecret string)
 	Close() error
 
-	FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error)
-	StoreSpotifyTokens(token *oauth2.Token) error
-	GetSpotifyTokens() (*oauth2.Token, error)
-	GetToken() (*oauth2.Token, error)
-	GetPlaylistWithTracks(playlistId string, token *oauth2.Token) (*models.Playlist, error)
+	FilterRussian(ctx context.Context, artists map[string]models.Artist) (map[string]models.Artist, error)
+	GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
+	SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
+	GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
+	GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 }
 
 func NewRepo(logger *logger.Logger) Repo {
@@ -35,10 +36,12 @@ type repo struct {
 	db            db_client.DBClient
 	spotifyClient spotify_client.SpotifyClient
 	redis         redis_client.RedisClient
+
+	token *oauth2.Token
 }
 
-func (r *repo) InitDB(DatabaseURL string) error {
-	database, err := db_client.NewDBConnection(DatabaseURL)
+func (r *repo) InitDB(databaseURL string) error {
+	database, err := db_client.NewDBConnection(databaseURL)
 	if err != nil {
 		return err
 	}
@@ -76,22 +79,51 @@ func (r *repo) Close() error {
 	return nil
 }
 
-func (r *repo) FilterRussian(artists map[string]models.Artist) (map[string]models.Artist, error) {
-	return r.db.FilterRussian(context.Background(), artists)
+func (r *repo) FilterRussian(ctx context.Context, artists map[string]models.Artist) (map[string]models.Artist, error) {
+	result, err := r.db.FilterRussian(ctx, artists)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		return nil, ErrDatabaseError
+	}
+	return result, nil
 }
 
-func (r *repo) StoreSpotifyTokens(token *oauth2.Token) error {
-	return r.db.StoreSpotifyTokens(context.Background(), token)
+func (r *repo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
+	playlist, err := r.spotifyClient.GetPlaylistWithTracks(ctx, playlistId)
+	if err != nil {
+		if err == spotify_client.ErrNotFound {
+			return nil, ErrNotFound
+		}
+		r.logger.Errorf("spotify error: %T: %v", err, err)
+		return nil, ErrSpotifyAPIError
+	}
+	return playlist, nil
 }
 
-func (r *repo) GetSpotifyTokens() (*oauth2.Token, error) {
-	return r.db.GetSpotifyTokens(context.Background())
+func (r *repo) SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error {
+	err := r.db.SetSpotifyToken(ctx, newToken)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		return ErrDatabaseError
+	}
+	r.token = newToken
+	return nil
 }
 
-func (r *repo) GetPlaylistWithTracks(playlistId string, token *oauth2.Token) (*models.Playlist, error) {
-	return r.spotifyClient.GetPlaylistWithTracks(context.Background(), playlistId, token)
+func (r *repo) GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
+	token, err := r.db.GetSpotifyToken(ctx)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		return nil, ErrDatabaseError
+	}
+	return token, nil
 }
 
-func (r *repo) GetToken() (*oauth2.Token, error) {
-	return r.spotifyClient.GetToken(context.Background())
+func (r *repo) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
+	token, err := r.spotifyClient.GetRefreshedSpotifyToken(ctx)
+	if err != nil {
+		r.logger.Errorf("spotify error: %T: %v", err, err)
+		return nil, ErrSpotifyAPIError
+	}
+	return token, nil
 }

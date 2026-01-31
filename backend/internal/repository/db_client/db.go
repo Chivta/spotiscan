@@ -14,8 +14,8 @@ import (
 type DBClient interface {
 	Close() error
 	FilterRussian(ctx context.Context,artists map[string]models.Artist) (map[string]models.Artist, error)
-	StoreSpotifyTokens(ctx context.Context,token *oauth2.Token) error
-	GetSpotifyTokens(ctx context.Context) (*oauth2.Token, error)
+	SetSpotifyToken(ctx context.Context, token *oauth2.Token) error
+	GetSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 }
 
 func NewDBConnection(DatabaseURL string) (DBClient, error) {
@@ -44,7 +44,7 @@ func (db *dbClient) Close() error {
 	return err
 }
 
-func (db *dbClient) StoreSpotifyTokens(ctx context.Context,token *oauth2.Token) error {
+func (db *dbClient) SetSpotifyToken(ctx context.Context, token *oauth2.Token) error {
 	accessToken := token.AccessToken
 	expiresAt := token.Expiry.UTC()
 	_, err := db.conn.Exec(
@@ -54,7 +54,7 @@ func (db *dbClient) StoreSpotifyTokens(ctx context.Context,token *oauth2.Token) 
 	return err
 }
 
-func (db *dbClient) GetSpotifyTokens(ctx context.Context) (*oauth2.Token, error) {
+func (db *dbClient) GetSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
 	var accessToken string
 	var expiresAt sql.NullTime
 	err := db.conn.QueryRow(`SELECT access_token, expires_at FROM spotify_tokens`).Scan(&accessToken, &expiresAt)
