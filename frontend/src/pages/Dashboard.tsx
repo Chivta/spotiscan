@@ -26,6 +26,8 @@ const Dashboard = () => {
   const [resultTab, setResultTab] = useState<'tracks' | 'artists'>('tracks');
   const [tracksSearch, setTracksSearch] = useState("");
   const [artistsSearch, setArtistsSearch] = useState("");
+  const [scanCache, setScanCache] = useState<Record<string, RuContent>>({});
+  const [fromCache, setFromCache] = useState(false);
 
   // Handle input change - auto-extract ID from pasted URLs
   const handlePlaylistInput = (value: string) => {
@@ -35,8 +37,6 @@ const Dashboard = () => {
 
   // Fetch playlist scan
   const fetchPlaylistRuContent = async (id: string): Promise<RuContent> => {
-    setError(null);
-    setLoading(true);
     if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
       throw new Error("Invalid playlist ID format");
     }
@@ -47,19 +47,34 @@ const Dashboard = () => {
     return await response.json();
   };
 
-  const handleScanPlaylist = async () => {
-    if (!playlistId || !/^[A-Za-z0-9]+$/.test(playlistId)) {
+  const handleScanPlaylist = async (targetId?: string, forceRefresh = false) => {
+    const id = targetId || playlistId;
+    if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
       setError("Invalid playlist ID format");
       return;
     }
-    if (playlistId === lastPlaylistId) {
-      setError("This playlist has already been scanned.");
+
+    setError(null);
+
+    // Show cached results unless forcing refresh
+    if (!forceRefresh && scanCache[id]) {
+      setRuContent(scanCache[id]);
+      setLastPlaylistId(id);
+      setFromCache(true);
+      setResultTab('tracks');
+      setTracksSearch("");
+      setArtistsSearch("");
       return;
     }
+
+    setRuContent(null);
+    setFromCache(false);
+    setLoading(true);
     try {
-      const data = await fetchPlaylistRuContent(playlistId);
+      const data = await fetchPlaylistRuContent(id);
       setRuContent(data);
-      setLastPlaylistId(playlistId);
+      setLastPlaylistId(id);
+      setScanCache(prev => ({ ...prev, [id]: data }));
       setResultTab('tracks');
       setTracksSearch("");
       setArtistsSearch("");
@@ -198,7 +213,7 @@ const Dashboard = () => {
               disabled={loading}
             />
             <button
-              onClick={handleScanPlaylist}
+              onClick={() => handleScanPlaylist()}
               disabled={loading || !playlistId}
               style={{
                 ...buttonStyle,
@@ -221,6 +236,29 @@ const Dashboard = () => {
               textAlign: "center",
             }}>
               {error}
+            </div>
+          )}
+
+          {/* Cache Info Banner */}
+          {fromCache && !loading && ruContent && (
+            <div style={{
+              ...cardStyle,
+              background: "rgba(52, 152, 219, 0.1)",
+              border: "1px solid rgba(52, 152, 219, 0.3)",
+              color: "#3498db",
+              textAlign: "center",
+            }}>
+              Showing results from a previous scan.{" "}
+              <span
+                onClick={() => handleScanPlaylist(lastPlaylistId ?? undefined, true)}
+                style={{
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Rescan?
+              </span>
             </div>
           )}
 
