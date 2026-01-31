@@ -2,6 +2,7 @@ package spotify_client
 
 import (
 	"context"
+
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2"
@@ -27,16 +28,12 @@ type spotifyClient struct {
 	spotifySecret string
 }
 
-
 func (c *spotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
 	httpClient := spotifyauth.New().Client(ctx, ctx.Value("spotify_token").(*oauth2.Token))
 	client := spotify.New(httpClient)
 
 	spotifyPlaylist, err := client.GetPlaylist(ctx, spotify.ID(playlistId))
 	if err != nil {
-		if spotifyErr, ok := err.(spotify.Error); ok && spotifyErr.Status == 404 {
-			return nil, ErrNotFound
-		}
 		return nil, err
 	}
 	var playlist models.Playlist

@@ -59,9 +59,6 @@ func (db *dbClient) GetSpotifyToken(ctx context.Context) (*oauth2.Token, error) 
 	var expiresAt sql.NullTime
 	err := db.conn.QueryRow(`SELECT access_token, expires_at FROM spotify_tokens`).Scan(&accessToken, &expiresAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
-		}
 		return nil, err
 	}
 	token := oauth2.Token{
