@@ -21,7 +21,7 @@ const Dashboard = () => {
   const [playlistId, setPlaylistId] = useState("");
   const [ruContent, setRuContent] = useState<RuContent | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; type: 'warning' | 'error' } | null>(null);
   const [lastPlaylistId, setLastPlaylistId] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<'tracks' | 'artists'>('tracks');
   const [tracksSearch, setTracksSearch] = useState("");
@@ -42,7 +42,10 @@ const Dashboard = () => {
     }
     const response = await fetch(`/api/playlist/${encodeURIComponent(id)}/rucontent`);
     if (!response.ok) {
-      throw new Error(`HTTP error status: ${response.status}`);
+      const body = await response.json().catch(() => null);
+      const err = new Error(body?.error || "Something went wrong") as Error & { code?: string };
+      err.code = body?.code;
+      throw err;
     }
     return await response.json();
   };
@@ -50,7 +53,7 @@ const Dashboard = () => {
   const handleScanPlaylist = async (targetId?: string, forceRefresh = false) => {
     const id = targetId || playlistId;
     if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
-      setError("Invalid playlist ID format");
+      setError({ message: "Invalid playlist ID format", type: "warning" });
       return;
     }
 
@@ -79,7 +82,19 @@ const Dashboard = () => {
       setTracksSearch("");
       setArtistsSearch("");
     } catch (e: any) {
-      setError(e.message);
+      const code = e.code as string | undefined;
+      const messages: Record<string, string> = {
+        PLAYLIST_NOT_FOUND: "Playlist not found. Check the URL or ID and try again.",
+        BAD_REQUEST: "Invalid request. Please check your input.",
+        DATABASE_ERROR: "A server error occurred. Please try again later.",
+        SPOTIFY_API_ERROR: "Failed to communicate with Spotify. Please try again later.",
+        INTERNAL_ERROR: "An unexpected error occurred. Please try again later.",
+      };
+      const isWarning = code === "PLAYLIST_NOT_FOUND" || code === "BAD_REQUEST";
+      setError({
+        message: code && messages[code] ? messages[code] : (e.message || "Something went wrong"),
+        type: isWarning ? "warning" : "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -226,16 +241,20 @@ const Dashboard = () => {
             </button>
           </div>
 
-          {/* Error Message */}
+          {/* Error / Warning Message */}
           {error && (
             <div style={{
               ...cardStyle,
-              background: "rgba(231, 76, 60, 0.1)",
-              border: "1px solid rgba(231, 76, 60, 0.3)",
-              color: "#e74c3c",
+              background: error.type === 'warning'
+                ? "rgba(241, 196, 15, 0.1)"
+                : "rgba(231, 76, 60, 0.1)",
+              border: error.type === 'warning'
+                ? "1px solid rgba(241, 196, 15, 0.3)"
+                : "1px solid rgba(231, 76, 60, 0.3)",
+              color: error.type === 'warning' ? "#f1c40f" : "#e74c3c",
               textAlign: "center",
             }}>
-              {error}
+              {error.message}
             </div>
           )}
 
