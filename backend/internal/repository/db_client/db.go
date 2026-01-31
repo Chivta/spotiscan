@@ -7,13 +7,12 @@ import (
 
 	"github.com/lib/pq"
 	"golang.org/x/oauth2"
-
-	"github.com/chivta/spotiscan/internal/models"
 )
 
 type DBClient interface {
 	Close() error
-	FilterRussian(ctx context.Context,artists map[string]models.Artist) (map[string]models.Artist, error)
+	GetRussianArtistNames(ctx context.Context, names []string) ([]string, error)
+	GetAllRussianArtistNames(ctx context.Context) ([]string, error)
 	SetSpotifyToken(ctx context.Context, token *oauth2.Token) error
 	GetSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 }
@@ -70,22 +69,14 @@ func (db *dbClient) GetSpotifyToken(ctx context.Context) (*oauth2.Token, error) 
 	return &token, nil
 }
 
-func (db *dbClient) FilterRussian(ctx context.Context,artists map[string]models.Artist) (map[string]models.Artist, error) {
-	var names []string
-	for name := range artists {
-		names = append(names, name)
-	}
-
-	rows, err := db.conn.Query(`
-        SELECT name FROM ru_artists WHERE name = ANY($1)
-    `, pq.Array(names))
+func (db *dbClient) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
+	rows, err := db.conn.Query(`SELECT name FROM ru_artists`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var ruNames []string
-
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
@@ -93,11 +84,25 @@ func (db *dbClient) FilterRussian(ctx context.Context,artists map[string]models.
 		}
 		ruNames = append(ruNames, name)
 	}
-	ruArtists := make(map[string]models.Artist, len(ruNames))
+	return ruNames, nil
+}
 
-	for _, name := range ruNames {
-		ruArtists[name] = artists[name]
-	}
+func (db *dbClient) GetRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
+    rows, err := db.conn.Query(`
+        SELECT name FROM ru_artists WHERE name = ANY($1)
+    `, pq.Array(names))
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
-	return ruArtists, nil
+    var ruNames []string
+    for rows.Next() {
+        var name string
+        if err := rows.Scan(&name); err != nil {
+            return nil, err
+        }
+        ruNames = append(ruNames, name)
+    }
+    return ruNames, nil
 }

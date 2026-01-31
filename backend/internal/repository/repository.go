@@ -21,11 +21,12 @@ type Repo interface {
 	InitSpotifyClient(clientID, clientSecret string)
 	Close() error
 
-	FilterRussian(ctx context.Context, artists map[string]models.Artist) (map[string]models.Artist, error)
+	FilterRussian(ctx context.Context, names []string) ([]string, error)
 	GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
 	SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
 	GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 	GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
+	LoadRussianArtistsToRedis(ctx context.Context)
 }
 
 func NewRepo(logger *logger.Logger) Repo {
@@ -81,6 +82,9 @@ func (r *repo) InitRedis(redisURL string) error {
 		return err
 	}
 	r.redis = redisClient
+
+	go r.LoadRussianArtistsToRedis(context.Background())
+
 	return nil
 }
 
@@ -105,13 +109,48 @@ func (r *repo) Close() error {
 	return nil
 }
 
-func (r *repo) FilterRussian(ctx context.Context, artists map[string]models.Artist) (map[string]models.Artist, error) {
-	result, err := r.db.FilterRussian(ctx, artists)
+func (r *repo) LoadRussianArtistsToRedis(ctx context.Context) {
+	if r.db == nil {
+		r.logger.Warnf("db client is not initialized, cannot load ru artists to redis")
+		return
+	}
+	
+	r.logger.Infof("lazy loading ru_artists set from DB")
+	allNames, err := r.db.GetAllRussianArtistNames(ctx)
+	if err != nil {
+		r.logger.Warnf("failed to load all ru artists from DB: %v", err)
+		return 
+	}
+	err = r.redis.SetRussianArtistNames(ctx, allNames)
+	if err != nil {
+		r.logger.Warnf("failed to set ru artists in redis: %v", err)
+		return 
+	}
+	r.logger.Infof("successfully loaded %d ru artists into redis", len(allNames))
+}
+
+func (r *repo) FilterRussian(ctx context.Context, names []string) ([]string, error) {
+	ruNames, err := r.redis.FilterRussianArtistNames(ctx, names)
+	if err != nil {
+		r.logger.Warnf("redis error: %T: %v", err, err)
+
+		// fallback to db
+		ruNames, err = r.filterRussianWithDB(ctx, names)
+		if err != nil {
+			r.logger.Errorf("db error: %T: %v", err, err)
+			return nil, ErrDatabaseError
+		}
+	}
+	return ruNames, nil
+}
+
+func (r *repo) filterRussianWithDB(ctx context.Context, names []string) ([]string, error) {
+	ruNames, err := r.db.GetRussianArtistNames(ctx, names)
 	if err != nil {
 		r.logger.Errorf("db error: %T: %v", err, err)
 		return nil, ErrDatabaseError
 	}
-	return result, nil
+	return ruNames, nil
 }
 
 func (r *repo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
