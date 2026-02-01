@@ -3,19 +3,20 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	DatabaseURL         string
-	RedisURL            string
-	FrontendURL         string
-	SpotifyClientID     string
-	SpotifyClientSecret string
-	Log                 LogConfig
+	DatabaseURL         string          `validate:"required,uri"`
+	RedisURL            string          `validate:"required,uri"`
+	FrontendURL         string          `validate:"required,uri"`
+	SpotifyClientID     string          `validate:"required,alphanum,min=1"`
+	SpotifyClientSecret string          `validate:"required,min=1"`
+	Log                 LogConfig       `json:"log" validate:"required"`
+	RateLimit           RateLimitConfig `json:"rate_limit" validate:"required"`
 }
 
 type LogConfig struct {
@@ -24,6 +25,12 @@ type LogConfig struct {
 	ErrorOutput string `json:"error_output"`
 	InfoOutput  string `json:"info_output"`
 	DebugOutput string `json:"debug_output"`
+}
+
+type RateLimitConfig struct {
+	RequestLimit    int    `json:"request_limit" validate:"required,gt=0"`
+	WindowSeconds   int    `json:"window_seconds" validate:"required,gt=0"`
+	RedisScriptFile string `json:"redis_script_file" validate:"required,filepath"`
 }
 
 func Load() (*Config, error) {
@@ -39,33 +46,30 @@ func Load() (*Config, error) {
 	}
 	defer file.Close()
 
-	var jsonConfig struct {
-		Log LogConfig `json:"log"`
-	}
-	if err := json.NewDecoder(file).Decode(&jsonConfig); err != nil {
-		return nil, fmt.Errorf("failed to decode config.json: %w", err)
-	}
-
 	config := &Config{
 		DatabaseURL:         os.Getenv("DB_URL"),
 		RedisURL:            os.Getenv("REDIS_URL"),
 		FrontendURL:         os.Getenv("FRONTEND_URL"),
 		SpotifyClientID:     os.Getenv("SPOTIFY_CLIENT_ID"),
 		SpotifyClientSecret: os.Getenv("SPOTIFY_CLIENT_SECRET"),
-		Log:                 jsonConfig.Log,
 	}
 
-	if config.DatabaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required")
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode config.json: %w", err)
 	}
-	if config.FrontendURL == "" {
-		return nil, fmt.Errorf("FRONTEND_URL is required")
+
+	// Validate the configuration
+	validate := validator.New()
+	err = validate.Struct(config)
+	if err != nil {
+		var validationErrors []string
+		for _, err := range err.(validator.ValidationErrors) {
+			validationErrors = append(validationErrors, fmt.Sprintf("field '%s' failed validation: %s", err.Field(), err.Tag()))
+		}
+		return nil, fmt.Errorf("configuration validation failed: %v", validationErrors)
 	}
-	if config.SpotifyClientID == "" {
-		log.Println("Warning: SPOTIFY_CLIENT_ID is not set")
-	}
-	if config.SpotifyClientSecret == "" {
-		log.Println("Warning: SPOTIFY_CLIENT_SECRET is not set")
-	}
+
 	return config, nil
 }

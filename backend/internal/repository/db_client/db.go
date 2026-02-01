@@ -17,7 +17,7 @@ type DBClient interface {
 	GetSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 }
 
-func NewDBConnection(DatabaseURL string) (DBClient, error) {
+func NewDBClient(DatabaseURL string) (DBClient, error) {
 	db, err := sql.Open("postgres", DatabaseURL)
 
 	if err != nil {
@@ -88,21 +88,21 @@ func (db *dbClient) GetAllRussianArtistNames(ctx context.Context) ([]string, err
 }
 
 func (db *dbClient) GetRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
-    rows, err := db.conn.Query(`
+	rows, err := db.conn.Query(`
         SELECT name FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    var ruNames []string
-    for rows.Next() {
-        var name string
-        if err := rows.Scan(&name); err != nil {
-            return nil, err
-        }
-        ruNames = append(ruNames, name)
-    }
-    return ruNames, nil
+	var ruNames []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		ruNames = append(ruNames, name)
+	}
+	return ruNames, nil
 }

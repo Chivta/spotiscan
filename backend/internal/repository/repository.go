@@ -16,9 +16,6 @@ import (
 )
 
 type Repo interface {
-	InitDB(databaseURL string) error
-	InitRedis(redisURL string) error
-	InitSpotifyClient(clientID, clientSecret string)
 	Close() error
 
 	FilterRussian(ctx context.Context, names []string) ([]string, error)
@@ -29,16 +26,19 @@ type Repo interface {
 	LoadRussianArtistsToRedis(ctx context.Context)
 }
 
-func NewRepo(logger *logger.Logger) Repo {
+func NewRepo(logger *logger.Logger, db db_client.DBClient, redis redis_client.RedisClient, spotify spotify_client.SpotifyClient) Repo {
 	return &repo{
 		logger: logger,
+		db:     db,
+		redis:  redis,
+		spotify: spotify,
 	}
 }
 
 type repo struct {
 	logger        *logger.Logger
 	db            db_client.DBClient
-	spotifyClient spotify_client.SpotifyClient
+	spotify spotify_client.SpotifyClient
 	redis         redis_client.RedisClient
 
 	token *oauth2.Token
@@ -65,31 +65,6 @@ func (r *repo) translateSpotifyError(err error) error {
 	}
 	r.logger.Errorf("unknown spotify error: %T: %v", err, err)
 	return ErrSpotifyAPIError
-}
-
-func (r *repo) InitDB(databaseURL string) error {
-	database, err := db_client.NewDBConnection(databaseURL)
-	if err != nil {
-		return err
-	}
-	r.db = database
-	return nil
-}
-
-func (r *repo) InitRedis(redisURL string) error {
-	redisClient, err := redis_client.NewRedisClient(redisURL)
-	if err != nil {
-		return err
-	}
-	r.redis = redisClient
-
-	go r.LoadRussianArtistsToRedis(context.Background())
-
-	return nil
-}
-
-func (r *repo) InitSpotifyClient(clientID, clientSecret string) {
-	r.spotifyClient = spotify_client.NewSpotifyClient(clientID, clientSecret)
 }
 
 func (r *repo) Close() error {
@@ -154,7 +129,7 @@ func (r *repo) filterRussianWithDB(ctx context.Context, names []string) ([]strin
 }
 
 func (r *repo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
-	playlist, err := r.spotifyClient.GetPlaylistWithTracks(ctx, playlistId)
+	playlist, err := r.spotify.GetPlaylistWithTracks(ctx, playlistId)
 	if err != nil {
 		return nil, r.translateSpotifyError(err)
 	}
@@ -185,7 +160,7 @@ func (r *repo) GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 }
 
 func (r *repo) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
-	token, err := r.spotifyClient.GetRefreshedSpotifyToken(ctx)
+	token, err := r.spotify.GetRefreshedSpotifyToken(ctx)
 	if err != nil {
 		return nil, r.translateSpotifyError(err)
 	}

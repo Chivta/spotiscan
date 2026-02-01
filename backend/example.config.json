@@ -5,5 +5,10 @@
         "error_output": "stderr",
         "info_output": "stdout",
         "debug_output": "stdout"
+    },
+    "rate_limit": {
+        "request_limit": 60,
+        "window_seconds": 60,
+        "redis_script_file": "./scripts/ratelimit.lua"
     }
 }

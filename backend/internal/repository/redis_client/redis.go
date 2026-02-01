@@ -1,19 +1,24 @@
 package redis_client
 
 import (
+    "os"
 	"context"
 	"github.com/redis/go-redis/v9"
 )
 
 type RedisClient interface {
+    Allow(ctx context.Context, key string, limit int, windowSeconds int) (bool, error)
+    LoadRateLimitScript(ctx context.Context, scriptFile string) error
+
 	Close() error
-	RussianArtistsLoaded(ctx context.Context) (bool, error)
 	SetRussianArtistNames(ctx context.Context, names []string) error
 	FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error)
 }
 
 type redisClient struct {
 	client *redis.Client
+
+    rateLimitScriptSHA string
 }
 
 func NewRedisClient(redisURL string) (RedisClient, error) {
@@ -36,13 +41,33 @@ func (r *redisClient) Close() error {
 	return r.client.Close()
 }
 
-func (r *redisClient) RussianArtistsLoaded(ctx context.Context) (bool, error) {
-	key := "ru_artists"
-	count, err := r.client.SCard(ctx, key).Result()
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
+func (r *redisClient) LoadRateLimitScript(ctx context.Context, scriptFile string) error {
+    scriptContent, err := os.ReadFile(scriptFile)
+    if err != nil {
+        return err
+    }
+    script := redis.NewScript(string(scriptContent))
+    sha, err := script.Load(ctx, r.client).Result()
+    if err != nil {
+        return err
+    }
+
+    r.rateLimitScriptSHA = sha
+    return nil
+}
+
+func (r *redisClient) Allow(ctx context.Context, key string, limit int, windowSeconds int) (bool, error) {
+    result, err := r.client.EvalSha(ctx, r.rateLimitScriptSHA, []string{key}, limit, windowSeconds).Result()
+    if err != nil {
+        return false, err
+    }
+
+    allowed, ok := result.(int64)
+    if !ok {
+        return false, nil
+    }
+
+    return allowed == 1, nil
 }
 
 // SetRussianArtistNames: Store the list as a Redis set
