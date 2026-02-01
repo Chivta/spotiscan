@@ -39,7 +39,7 @@ func Migrate() {
 	}
 	defer postgres_db.Close()
 
-	var artists []string
+	artists := make(map[string]struct{}, 25138) // known number of russian artists in old db
 
 	rows, err := sqlite_db.Query("SELECT name FROM artists")
 	if err != nil {
@@ -52,13 +52,21 @@ func Migrate() {
 		if err := rows.Scan(&name); err != nil {
 			panic(err)
 		}
-		artists = append(artists, name)
+		artists[name] = struct{}{}
 	}
-	log.Println("len artists", len(artists))
-	if len(artists) > 0 {
+
+	artistsSlice := make([]string, 0, len(artists))
+	for name := range artists {
+		artistsSlice = append(artistsSlice, name)
+	}
+	
+	artists = nil // free memory
+
+	log.Println("len artists", len(artistsSlice))
+	if len(artistsSlice) > 0 {
 		// Use PostgreSQL array and unnest for bulk insert
 		query := "INSERT INTO ru_artists (name) SELECT unnest($1::text[])"
-		_, err := postgres_db.Exec(query, pq.Array(artists))
+		_, err := postgres_db.Exec(query, pq.Array(artistsSlice))
 		if err != nil {
 			panic(err)
 		}

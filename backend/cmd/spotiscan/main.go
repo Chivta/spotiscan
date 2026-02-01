@@ -17,6 +17,7 @@ import (
 	"github.com/chivta/spotiscan/internal/repository/redis_client"
 	"github.com/chivta/spotiscan/internal/repository/spotify_client"
 	"github.com/chivta/spotiscan/internal/services"
+
 )
 
 func main() {

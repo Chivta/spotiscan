@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS spotify_tokens (
 
 CREATE TABLE IF NOT EXISTS ru_artists (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(256) NOT NULL
+    name VARCHAR(256) NOT NULL UNIQUE
 );
 -- +goose StatementEnd
 
