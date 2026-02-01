@@ -1,0 +1,9 @@
+{
+    "log": {
+        "enable_debug": true,
+        "enable_info": true,
+        "error_output": "stderr",
+        "info_output": "stdout",
+        "debug_output": "stdout"
+    }
+}
