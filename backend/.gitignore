@@ -26,7 +26,6 @@ testdata/
 
 # Logs
 *.logserver
-spotiscan
 .env
 config.json
 config.yaml
