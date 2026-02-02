@@ -84,6 +84,11 @@ func (db *dbClient) GetAllRussianArtistNames(ctx context.Context) ([]string, err
 		}
 		ruNames = append(ruNames, name)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return ruNames, nil
 }
 
@@ -104,5 +109,10 @@ func (db *dbClient) GetRussianArtistNames(ctx context.Context, names []string) (
 		}
 		ruNames = append(ruNames, name)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	
 	return ruNames, nil
 }

@@ -61,7 +61,7 @@ func (r *repo) translateSpotifyError(err error) error {
 	}
 	if urlErr, ok := err.(*url.Error); ok {
 		r.logger.Infof("spotify network error: %T: %v", urlErr, urlErr)
-		return ErrBadRequest
+		return ErrSpotifyAPIError
 	}
 	r.logger.Errorf("unknown spotify error: %T: %v", err, err)
 	return ErrSpotifyAPIError
