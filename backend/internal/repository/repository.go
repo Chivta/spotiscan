@@ -147,6 +147,10 @@ func (r *repo) SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) erro
 }
 
 func (r *repo) GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
+	if r.token != nil {
+		return r.token, nil
+	}
+
 	token, err := r.db.GetSpotifyToken(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -156,6 +160,7 @@ func (r *repo) GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 		r.logger.Errorf("db error: %T: %v", err, err)
 		return nil, ErrDatabaseError
 	}
+	r.token = token
 	return token, nil
 }
 
