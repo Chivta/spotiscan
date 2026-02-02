@@ -21,11 +21,13 @@ const Dashboard = () => {
   const [playlistId, setPlaylistId] = useState("");
   const [ruContent, setRuContent] = useState<RuContent | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; type: 'warning' | 'error' } | null>(null);
   const [lastPlaylistId, setLastPlaylistId] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<'tracks' | 'artists'>('tracks');
   const [tracksSearch, setTracksSearch] = useState("");
   const [artistsSearch, setArtistsSearch] = useState("");
+  const [scanCache, setScanCache] = useState<Record<string, RuContent>>({});
+  const [fromCache, setFromCache] = useState(false);
 
   // Handle input change - auto-extract ID from pasted URLs
   const handlePlaylistInput = (value: string) => {
@@ -35,36 +37,64 @@ const Dashboard = () => {
 
   // Fetch playlist scan
   const fetchPlaylistRuContent = async (id: string): Promise<RuContent> => {
-    setError(null);
-    setLoading(true);
     if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
       throw new Error("Invalid playlist ID format");
     }
     const response = await fetch(`/api/playlist/${encodeURIComponent(id)}/rucontent`);
     if (!response.ok) {
-      throw new Error(`HTTP error status: ${response.status}`);
+      const body = await response.json().catch(() => null);
+      const err = new Error(body?.error || "Something went wrong") as Error & { code?: string };
+      err.code = body?.code;
+      throw err;
     }
     return await response.json();
   };
 
-  const handleScanPlaylist = async () => {
-    if (!playlistId || !/^[A-Za-z0-9]+$/.test(playlistId)) {
-      setError("Invalid playlist ID format");
+  const handleScanPlaylist = async (targetId?: string, forceRefresh = false) => {
+    const id = targetId || playlistId;
+    if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
+      setError({ message: "Invalid playlist ID format", type: "warning" });
       return;
     }
-    if (playlistId === lastPlaylistId) {
-      setError("This playlist has already been scanned.");
+
+    setError(null);
+
+    // Show cached results unless forcing refresh
+    if (!forceRefresh && scanCache[id]) {
+      setRuContent(scanCache[id]);
+      setLastPlaylistId(id);
+      setFromCache(true);
+      setResultTab('tracks');
+      setTracksSearch("");
+      setArtistsSearch("");
       return;
     }
+
+    setRuContent(null);
+    setFromCache(false);
+    setLoading(true);
     try {
-      const data = await fetchPlaylistRuContent(playlistId);
+      const data = await fetchPlaylistRuContent(id);
       setRuContent(data);
-      setLastPlaylistId(playlistId);
+      setLastPlaylistId(id);
+      setScanCache(prev => ({ ...prev, [id]: data }));
       setResultTab('tracks');
       setTracksSearch("");
       setArtistsSearch("");
     } catch (e: any) {
-      setError(e.message);
+      const code = e.code as string | undefined;
+      const messages: Record<string, string> = {
+        PLAYLIST_NOT_FOUND: "Playlist not found. Check the URL or ID and try again.",
+        BAD_REQUEST: "Invalid request. Please check your input.",
+        DATABASE_ERROR: "A server error occurred. Please try again later.",
+        SPOTIFY_API_ERROR: "Failed to communicate with Spotify. Please try again later.",
+        INTERNAL_ERROR: "An unexpected error occurred. Please try again later.",
+      };
+      const isWarning = code === "PLAYLIST_NOT_FOUND" || code === "BAD_REQUEST";
+      setError({
+        message: code && messages[code] ? messages[code] : (e.message || "Something went wrong"),
+        type: isWarning ? "warning" : "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -198,7 +228,7 @@ const Dashboard = () => {
               disabled={loading}
             />
             <button
-              onClick={handleScanPlaylist}
+              onClick={() => handleScanPlaylist()}
               disabled={loading || !playlistId}
               style={{
                 ...buttonStyle,
@@ -211,16 +241,43 @@ const Dashboard = () => {
             </button>
           </div>
 
-          {/* Error Message */}
+          {/* Error / Warning Message */}
           {error && (
             <div style={{
               ...cardStyle,
-              background: "rgba(231, 76, 60, 0.1)",
-              border: "1px solid rgba(231, 76, 60, 0.3)",
-              color: "#e74c3c",
+              background: error.type === 'warning'
+                ? "rgba(241, 196, 15, 0.1)"
+                : "rgba(231, 76, 60, 0.1)",
+              border: error.type === 'warning'
+                ? "1px solid rgba(241, 196, 15, 0.3)"
+                : "1px solid rgba(231, 76, 60, 0.3)",
+              color: error.type === 'warning' ? "#f1c40f" : "#e74c3c",
               textAlign: "center",
             }}>
-              {error}
+              {error.message}
+            </div>
+          )}
+
+          {/* Cache Info Banner */}
+          {fromCache && !loading && ruContent && (
+            <div style={{
+              ...cardStyle,
+              background: "rgba(52, 152, 219, 0.1)",
+              border: "1px solid rgba(52, 152, 219, 0.3)",
+              color: "#3498db",
+              textAlign: "center",
+            }}>
+              Showing results from a previous scan.{" "}
+              <span
+                onClick={() => handleScanPlaylist(lastPlaylistId ?? undefined, true)}
+                style={{
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Rescan?
+              </span>
             </div>
           )}
 

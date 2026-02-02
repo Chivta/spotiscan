@@ -29,7 +29,6 @@ type Playlist struct {
 }
 
 type RuContent struct {
-	AbleToDelete 	bool    	`json:"AbleToDelete"`
 	Tracks  		[]Track  	`json:"Tracks"`
 	Artists 		[]Artist 	`json:"Artists"`
 }

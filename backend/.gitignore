@@ -1,6 +1,31 @@
-server
-spotiscan
-main
+# Go binaries and test files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace
+go.work
+
+# Environment variables
+.env*
+
+# IDE files
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# air specific stuff
+tmp/
+testdata/
+
+# Logs
+*.logserver
 .env
 config.json
 config.yaml
