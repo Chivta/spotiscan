@@ -1,4 +1,4 @@
-package services
+package errors
 
 import "errors"
 
@@ -10,4 +10,8 @@ var (
 	ErrSpotifyAPIError  = errors.New("spotify api error")
 	ErrResourceNotFound = errors.New("playlist not found")
 	ErrBadRequest       = errors.New("bad request")
+)
+
+var (
+	ErrNotFound        = errors.New("not found")
 )

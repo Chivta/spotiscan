@@ -1,18 +1,22 @@
 package middlewares
 
 import (
-	"github.com/chivta/spotiscan/internal/repository/redis_client"
+	"context"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRateLimitMiddleware(redisClient redis_client.RedisClient) *RateLimitMiddleware {
+type Cache interface {
+	Allow(ctx context.Context, key string, limit int, windowSeconds int) (bool, error)
+}
+
+func NewRateLimitMiddleware(redisClient Cache) *RateLimitMiddleware {
 	return &RateLimitMiddleware{
 		redisClient: redisClient,
 	}
 }
 
 type RateLimitMiddleware struct {
-	redisClient redis_client.RedisClient
+	redisClient Cache
 }
 
 const (

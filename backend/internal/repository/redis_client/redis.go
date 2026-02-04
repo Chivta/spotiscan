@@ -6,22 +6,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisClient interface {
-    Allow(ctx context.Context, key string, limit int, windowSeconds int) (bool, error)
-    LoadRateLimitScript(ctx context.Context, scriptFile string) error
-
-	Close() error
-	SetRussianArtistNames(ctx context.Context, names []string) error
-	FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error)
-}
-
-type redisClient struct {
+type RedisClient struct {
 	client *redis.Client
 
     rateLimitScriptSHA string
 }
 
-func NewRedisClient(redisURL string) (RedisClient, error) {
+func NewRedisClient(redisURL string) (*RedisClient, error) {
 	options, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
@@ -34,14 +25,14 @@ func NewRedisClient(redisURL string) (RedisClient, error) {
 		return nil, err
 	}
 
-	return &redisClient{client: client}, nil
+	return &RedisClient{client: client}, nil
 }
 
-func (r *redisClient) Close() error {
+func (r *RedisClient) Close() error {
 	return r.client.Close()
 }
 
-func (r *redisClient) LoadRateLimitScript(ctx context.Context, scriptFile string) error {
+func (r *RedisClient) LoadRateLimitScript(ctx context.Context, scriptFile string) error {
     scriptContent, err := os.ReadFile(scriptFile)
     if err != nil {
         return err
@@ -56,7 +47,7 @@ func (r *redisClient) LoadRateLimitScript(ctx context.Context, scriptFile string
     return nil
 }
 
-func (r *redisClient) Allow(ctx context.Context, key string, limit int, windowSeconds int) (bool, error) {
+func (r *RedisClient) Allow(ctx context.Context, key string, limit int, windowSeconds int) (bool, error) {
     result, err := r.client.EvalSha(ctx, r.rateLimitScriptSHA, []string{key}, limit, windowSeconds).Result()
     if err != nil {
         return false, err
@@ -71,7 +62,7 @@ func (r *redisClient) Allow(ctx context.Context, key string, limit int, windowSe
 }
 
 // SetRussianArtistNames: Store the list as a Redis set
-func (r *redisClient) SetRussianArtistNames(ctx context.Context, names []string) error {
+func (r *RedisClient) SetRussianArtistNames(ctx context.Context, names []string) error {
     key := "ru_artists"
     // Clear existing set and add new names
     pipe := r.client.Pipeline()
@@ -83,7 +74,7 @@ func (r *redisClient) SetRussianArtistNames(ctx context.Context, names []string)
     return err
 }
 
-func (r *redisClient) FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
+func (r *RedisClient) FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
     key := "ru_artists"
     if len(names) == 0 {
         return []string{}, nil

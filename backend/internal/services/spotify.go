@@ -9,10 +9,18 @@ import (
 
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository"
+	"github.com/chivta/spotiscan/internal/errors"
 )
 
-func NewSpotifyService(logger *logger.Logger, repo repository.Repo) *SpotifyService {
+type Repo interface {
+	FilterRussian(ctx context.Context, names []string) ([]string, error)
+	GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
+	SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
+	GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
+	GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
+}
+
+func NewSpotifyService(logger *logger.Logger, repo Repo) *SpotifyService {
 	return &SpotifyService{
 		log:  logger,
 		repo: repo,
@@ -21,15 +29,15 @@ func NewSpotifyService(logger *logger.Logger, repo repository.Repo) *SpotifyServ
 
 type SpotifyService struct {
 	log  *logger.Logger
-	repo repository.Repo
+	repo Repo
 }
 
 func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
 	s.log.Debugf("getting valid spotify token")
 	token, err := s.repo.GetStoredSpotifyToken(ctx)
-	if err != nil && err != repository.ErrNotFound {
+	if err != nil && err != errors.ErrNotFound {
 		s.log.Errorf("failed to get stored spotify token: %v", err)
-		return nil, s.translateRepositoryError(err)
+		return nil, err
 	}
 
 	if token != nil && token.Expiry.UTC().After(time.Now().UTC()) {
@@ -40,13 +48,13 @@ func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Toke
 	newToken, err := s.repo.GetRefreshedSpotifyToken(ctx)
 	if err != nil || newToken == nil {
 		s.log.Errorf("failed to refresh spotify token: %v", err)
-		return nil, s.translateRepositoryError(err)
+		return nil, err
 	}
 
 	err = s.repo.SetSpotifyToken(ctx, newToken)
 	if err != nil {
 		s.log.Errorf("failed to store refreshed spotify token: %v", err)
-		return nil, s.translateRepositoryError(err)
+		return nil, err
 	}
 
 	s.log.Debugf("successfully refreshed and stored new token")
@@ -82,7 +90,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	ruArtistNames, err := s.repo.FilterRussian(ctx, artistNames)
 	if err != nil {
 		s.log.Errorf("failed to filter Russian artists: %v", err)
-		return nil, ErrDatabaseFailure
+		return nil, errors.ErrDatabaseFailure
 	}
 
 	// names should all be in lowercase at this point
@@ -118,33 +126,16 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	return &ruContent, nil
 }
 
-func (s *SpotifyService) translateRepositoryError(err error) error {
-	switch err {
-	case nil:
-		return nil
-	case repository.ErrNotFound:
-		return ErrResourceNotFound
-	case repository.ErrBadRequest:
-		return ErrBadRequest
-	case repository.ErrSpotifyAPIError:
-		return ErrSpotifyAPIError
-	case repository.ErrDatabaseError:
-		return ErrDatabaseFailure
-	default:
-		return ErrInternal
-	}
-}
-
 func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId string) (*models.RuContent, error) {
 	s.log.Debugf("getting RU content for playlist %s", playlistId)
 	playlist, err := s.repo.GetPlaylistWithTracks(ctx, playlistId)
 	if err != nil {
-		return nil, s.translateRepositoryError(err)
+		return nil, err
 	}
 
 	ruContent, err := s.formRuContent(ctx, playlist.Tracks)
 	if err != nil {
-		return nil, s.translateRepositoryError(err)
+		return nil, err
 	}
 
 	s.log.Debugf("successfully retrieved RU content for playlist %s", playlistId)
