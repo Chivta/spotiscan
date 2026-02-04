@@ -1,5 +1,8 @@
 # SpotiScan
 
+[![Go CI](https://github.com/arvlas/spotiscan/actions/workflows/ci.yml/badge.svg)](https://github.com/arvlas/spotiscan/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/arvlas/spotiscan/branch/main/graph/badge.svg)](https://codecov.io/gh/arvlas/spotiscan)
+
 Take control of your Spotify library. SpotiScan scans your playlists and liked songs to identify tracks by Russian artists and remove them with one click.
 
 ## Features
