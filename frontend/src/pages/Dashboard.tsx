@@ -418,14 +418,29 @@ const Dashboard = () => {
                                 <div style={{ marginTop: 4, fontSize: 13 }}>
                                   {(track.Artists ?? []).map((artist: Artist, idx: number) => (
                                     <span key={artist.ID}>
-                                      <span
-                                        style={{
-                                          color: ruArtistIds.has(artist.ID) ? "#e74c3c" : "rgba(255,255,255,0.6)",
-                                          fontWeight: ruArtistIds.has(artist.ID) ? 600 : 400,
-                                        }}
-                                      >
-                                        {artist.Name}
-                                      </span>
+                                      {ruArtistIds.has(artist.ID) ? (
+                                        <a
+                                          href={artist.URL}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{
+                                            color: "#e74c3c",
+                                            fontWeight: 600,
+                                            textDecoration: "underline",
+                                            textUnderlineOffset: 2,
+                                            cursor: "pointer",
+                                            transition: "color 0.2s ease",
+                                          }}
+                                          onMouseEnter={(e) => { e.currentTarget.style.color = "#ff6b5a"; }}
+                                          onMouseLeave={(e) => { e.currentTarget.style.color = "#e74c3c"; }}
+                                        >
+                                          {artist.Name}
+                                        </a>
+                                      ) : (
+                                        <span style={{ color: "rgba(255,255,255,0.6)" }}>
+                                          {artist.Name}
+                                        </span>
+                                      )}
                                       {idx < (track.Artists ?? []).length - 1 && <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>}
                                     </span>
                                   ))}
