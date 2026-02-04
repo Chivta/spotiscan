@@ -9,15 +9,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type DBClient interface {
-	Close() error
-	GetRussianArtistNames(ctx context.Context, names []string) ([]string, error)
-	GetAllRussianArtistNames(ctx context.Context) ([]string, error)
-	SetSpotifyToken(ctx context.Context, token *oauth2.Token) error
-	GetSpotifyToken(ctx context.Context) (*oauth2.Token, error)
-}
-
-func NewDBClient(DatabaseURL string) (DBClient, error) {
+func NewDBClient(DatabaseURL string) (*DBClient, error) {
 	db, err := sql.Open("postgres", DatabaseURL)
 
 	if err != nil {
@@ -28,14 +20,14 @@ func NewDBClient(DatabaseURL string) (DBClient, error) {
 		return nil, err
 	}
 
-	return &dbClient{db}, nil
+	return &DBClient{db}, nil
 }
 
-type dbClient struct {
+type DBClient struct {
 	conn *sql.DB
 }
 
-func (db *dbClient) Close() error {
+func (db *DBClient) Close() error {
 	err := db.conn.Close()
 	if err != nil {
 		log.Println("Error closing database connection:", err)
@@ -43,7 +35,7 @@ func (db *dbClient) Close() error {
 	return err
 }
 
-func (db *dbClient) SetSpotifyToken(ctx context.Context, token *oauth2.Token) error {
+func (db *DBClient) SetSpotifyToken(ctx context.Context, token *oauth2.Token) error {
 	accessToken := token.AccessToken
 	expiresAt := token.Expiry.UTC()
 	_, err := db.conn.Exec(
@@ -53,7 +45,7 @@ func (db *dbClient) SetSpotifyToken(ctx context.Context, token *oauth2.Token) er
 	return err
 }
 
-func (db *dbClient) GetSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
+func (db *DBClient) GetSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
 	var accessToken string
 	var expiresAt sql.NullTime
 	err := db.conn.QueryRow(`SELECT access_token, expires_at FROM spotify_tokens`).Scan(&accessToken, &expiresAt)
@@ -69,7 +61,7 @@ func (db *dbClient) GetSpotifyToken(ctx context.Context) (*oauth2.Token, error) 
 	return &token, nil
 }
 
-func (db *dbClient) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
+func (db *DBClient) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
 	rows, err := db.conn.Query(`SELECT name FROM ru_artists`)
 	if err != nil {
 		return nil, err
@@ -92,7 +84,7 @@ func (db *dbClient) GetAllRussianArtistNames(ctx context.Context) ([]string, err
 	return ruNames, nil
 }
 
-func (db *dbClient) GetRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
+func (db *DBClient) GetRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
 	rows, err := db.conn.Query(`
         SELECT name FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))

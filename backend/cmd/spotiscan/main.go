@@ -43,12 +43,15 @@ func runApp() int {
 		appLogger.Errorf("Failed to initialize database: %v", err)
 		return 1
 	}
+	defer db.Close()
 
 	redis, err := redis_client.NewRedisClient(cfg.RedisURL)
 	if err != nil {
 		appLogger.Errorf("Failed to initialize redis: %v", err)
 		return 1
 	}
+	defer redis.Close()
+		
 	err = redis.LoadRateLimitScript(context.Background(), cfg.RateLimit.RedisScriptFile)
 	if err != nil {
 		appLogger.Errorf("Failed to load rate limit script to redis: %v", err)
@@ -58,7 +61,6 @@ func runApp() int {
 	spotifyClient := spotify_client.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	repo := repository.NewRepo(appLogger, db, redis, spotifyClient)
 	repo.LoadRussianArtistsToRedis(context.Background())
-	defer repo.Close()
 
 	r := gin.New()
 	r.SetTrustedProxies([]string{"172.16.0.0/12"})

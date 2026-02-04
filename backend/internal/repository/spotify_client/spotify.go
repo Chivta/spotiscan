@@ -11,24 +11,19 @@ import (
 	"github.com/chivta/spotiscan/internal/models"
 )
 
-type SpotifyClient interface {
-	GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
-	GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
-}
-
-func NewSpotifyClient(spotifyId, spotifySecret string) SpotifyClient {
-	return &spotifyClient{
+func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
+	return &SpotifyClient{
 		spotifyId:     spotifyId,
 		spotifySecret: spotifySecret,
 	}
 }
 
-type spotifyClient struct {
+type SpotifyClient struct {
 	spotifyId     string
 	spotifySecret string
 }
 
-func (c *spotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
+func (c *SpotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
 	httpClient := spotifyauth.New().Client(ctx, ctx.Value("spotify_token").(*oauth2.Token))
 	client := spotify.New(httpClient)
 
@@ -59,7 +54,7 @@ func (c *spotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId st
 	return &playlist, nil
 }
 
-func (c *spotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotify.Client, playlistId spotify.ID) ([]models.Track, error) {
+func (c *SpotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotify.Client, playlistId spotify.ID) ([]models.Track, error) {
 	var limit = 50
 	var offset = 0
 	var allTracks []models.Track
@@ -103,7 +98,7 @@ func (c *spotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotif
 }
 
 
-func (c *spotifyClient) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {	
+func (c *SpotifyClient) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {	
 	config := &clientcredentials.Config{
 		ClientID:     c.spotifyId,
 		ClientSecret: c.spotifySecret,
