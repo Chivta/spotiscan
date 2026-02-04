@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/chivta/spotiscan/internal/errors"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/errors"
 )
 
 type Repo interface {
@@ -80,7 +80,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		}
 	}
 
-	// create list of unique artist names 
+	// create list of unique artist names
 	artistNames := make([]string, 0, len(artistsMap))
 	for name := range artistsMap {
 		artistNames = append(artistNames, name)
@@ -110,7 +110,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 			}
 		}
 	}
-	
+
 	// fill ruContent.Tracks and ruContent.Artists
 	ruContent.Tracks = make([]models.Track, 0, len(ruTracksMap))
 	for _, track := range ruTracksMap {

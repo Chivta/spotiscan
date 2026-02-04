@@ -10,7 +10,7 @@ func RespondWithError(c *gin.Context, err error) {
 	switch err {
 	case nil:
 		// no error, do nothing
-	case errors.ErrResourceNotFound:
+	case errors.ErrNotFound:
 		c.JSON(404, gin.H{"error": "playlist not found", "code": "PLAYLIST_NOT_FOUND"})
 	case errors.ErrBadRequest:
 		c.JSON(400, gin.H{"error": "bad request", "code": "BAD_REQUEST"})
