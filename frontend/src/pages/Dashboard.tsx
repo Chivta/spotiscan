@@ -5,15 +5,16 @@ import AnimatedList from "../components/react-bits/AnimatedList";
 import type { Artist, Track, RuContent } from "../types/models";
 
 const SPOTIFY_PLAYLIST_BASE = "https://open.spotify.com/playlist/";
+const BASE62_ID_REGEX = /^[A-Za-z0-9]{22}$/;
 
 // Helper to extract playlist ID from various formats
 const extractPlaylistId = (input: string): string => {
-  // If it's already just an ID (alphanumeric, typically 22 chars)
-  if (/^[A-Za-z0-9]{22}$/.test(input.trim())) {
+  // If it's already just an ID (base62, 22 chars)
+  if (BASE62_ID_REGEX.test(input.trim())) {
     return input.trim();
   }
   // Extract from full URL or URI
-  const match = /(?:playlist\/|spotify:playlist:)([A-Za-z0-9]+)/.exec(input);
+  const match = /(?:playlist\/|spotify:playlist:)([A-Za-z0-9]{22})/.exec(input);
   return match ? match[1] : input.trim();
 };
 
@@ -37,8 +38,8 @@ const Dashboard = () => {
 
   // Fetch playlist scan
   const fetchPlaylistRuContent = async (id: string): Promise<RuContent> => {
-    if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
-      throw new Error("Invalid playlist ID format");
+    if (!id || !BASE62_ID_REGEX.test(id)) {
+      throw new Error("Invalid playlist ID");
     }
     const response = await fetch(`/api/playlist/${encodeURIComponent(id)}/rucontent`);
     if (!response.ok) {
@@ -52,8 +53,8 @@ const Dashboard = () => {
 
   const handleScanPlaylist = async (targetId?: string, forceRefresh = false) => {
     const id = targetId || playlistId;
-    if (!id || !/^[A-Za-z0-9]+$/.test(id)) {
-      setError({ message: "Invalid playlist ID format", type: "warning" });
+    if (!id || !BASE62_ID_REGEX.test(id)) {
+      setError({ message: "Invalid playlist ID. Check the URL or ID and try again.", type: "warning" });
       return;
     }
 
