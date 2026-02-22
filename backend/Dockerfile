@@ -21,7 +21,7 @@ RUN apk --no-cache add ca-certificates && \
 
 WORKDIR /home/appuser
 COPY --from=builder --chown=appuser:appuser /build/server .
-COPY --from=builder --chown=appuser:appuser /build/bot_data.db .
+
 USER appuser
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
