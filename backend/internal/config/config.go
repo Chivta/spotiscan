@@ -27,17 +27,13 @@ type LogConfig struct {
 }
 
 type RateLimitConfig struct {
-	RequestLimit    int    `json:"request_limit" validate:"required,gt=0"`
-	WindowSeconds   int    `json:"window_seconds" validate:"required,gt=0"`
-	RedisScriptFile string `json:"redis_script_file" validate:"required,filepath"`
+	RequestLimit  int `json:"request_limit" validate:"required,gt=0"`
+	WindowSeconds int `json:"window_seconds" validate:"required,gt=0"`
 }
 
 func Load() (*Config, error) {
-	err := godotenv.Load("./.env")
-	if err != nil {
-		fmt.Println("No .env file found, reading configuration from environment variables")
-	}
-
+	godotenv.Load("./.env")
+		
 	// Load log config from config.json
 	file, err := os.Open("./config.json")
 	if err != nil {

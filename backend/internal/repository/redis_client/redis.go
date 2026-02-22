@@ -1,7 +1,6 @@
 package redis_client
 
 import (
-    "os"
 	"context"
 	"github.com/redis/go-redis/v9"
 )
@@ -32,12 +31,8 @@ func (r *RedisClient) Close() error {
 	return r.client.Close()
 }
 
-func (r *RedisClient) LoadRateLimitScript(ctx context.Context, scriptFile string) error {
-    scriptContent, err := os.ReadFile(scriptFile)
-    if err != nil {
-        return err
-    }
-    script := redis.NewScript(string(scriptContent))
+func (r *RedisClient) LoadRateLimitScript(ctx context.Context, scriptContent string) error {
+    script := redis.NewScript(scriptContent)
     sha, err := script.Load(ctx, r.client).Result()
     if err != nil {
         return err

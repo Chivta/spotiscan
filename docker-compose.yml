@@ -1,20 +1,40 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: spotiscan
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d spotiscan"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
       target: dev
     volumes:
-      - ./backend:/app
+      - ./backend:/app          # dev-only: includes bot_data.db (triggers SQLite migration on startup)
       - backend_tmp:/app/tmp
     env_file:
       - ./backend/.env
     environment:
       - REDIS_URL=redis://redis:6379
       - FRONTEND_URL=http://localhost:5173
+      - DB_URL=postgres://postgres:postgres@postgres:5432/spotiscan?sslmode=disable
     ports:
       - "8080:8080"
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   frontend:
     build:
@@ -38,6 +58,7 @@ services:
       - redis_data:/data
 
 volumes:
+  postgres_data:
   backend_tmp:
   frontend_node_modules:
   redis_data:
