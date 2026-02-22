@@ -74,6 +74,10 @@ func (r *Repo) translateSpotifyError(err error) error {
 }
 
 func (r *Repo) LoadRussianArtistsToRedis(ctx context.Context) {
+	if r.redis == nil {
+		r.logger.Infof("redis not available, skipping artist cache load")
+		return
+	}
 	if r.db == nil {
 		r.logger.Warnf("db client is not initialized, cannot load ru artists to redis")
 		return
@@ -94,16 +98,19 @@ func (r *Repo) LoadRussianArtistsToRedis(ctx context.Context) {
 }
 
 func (r *Repo) FilterRussian(ctx context.Context, names []string) ([]string, error) {
-	ruNames, err := r.redis.FilterRussianArtistNames(ctx, names)
-	if err != nil {
-		r.logger.Warnf("redis error: %T: %v", err, err)
-
-		// fallback to db
-		ruNames, err = r.filterRussianWithDB(ctx, names)
+	if r.redis != nil {
+		ruNames, err := r.redis.FilterRussianArtistNames(ctx, names)
 		if err != nil {
-			r.logger.Errorf("db error: %T: %v", err, err)
-			return nil, errors.ErrDatabaseFailure
+			r.logger.Warnf("redis error: %T: %v", err, err)
+		} else {
+			return ruNames, nil
 		}
+	}
+	// fallback to db
+	ruNames, err := r.filterRussianWithDB(ctx, names)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		return nil, errors.ErrDatabaseFailure
 	}
 	return ruNames, nil
 }

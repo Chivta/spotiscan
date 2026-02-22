@@ -10,8 +10,8 @@ import (
 	"github.com/lib/pq"
 	_ "modernc.org/sqlite"
 
-	"github.com/pressly/goose/v3"
 	"github.com/gin-gonic/gin"
+	"github.com/pressly/goose/v3"
 
 	"github.com/chivta/spotiscan/internal/config"
 	"github.com/chivta/spotiscan/internal/handlers"
@@ -156,23 +156,24 @@ func runApp() int {
 
 	migrateFromSQLite(appLogger, db)
 
-	redis, err := redis_client.NewRedisClient(cfg.RedisURL)
+	var cacheClient repository.CacheClient
+	redisClient, err := redis_client.NewRedisClient(cfg.RedisURL)
 	if err != nil {
-		appLogger.Errorf("Failed to initialize redis: %v", err)
-		return 1
-	}
-	defer redis.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	err = redis.LoadRateLimitScript(ctx, scripts.RateLimitScript)
-	cancel()
-	if err != nil {
-		appLogger.Errorf("Failed to load rate limit script to redis: %v", err)
-		return 1
+		appLogger.Warnf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
+	} else {
+		defer redisClient.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		scriptErr := redisClient.LoadRateLimitScript(ctx, scripts.RateLimitScript)
+		cancel()
+		if scriptErr != nil {
+			appLogger.Warnf("Failed to load rate limit script to redis (rate limiting disabled): %v", scriptErr)
+		} else {
+			cacheClient = redisClient
+		}
 	}
 
 	spotifyClient := spotify_client.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
-	repo := repository.NewRepo(appLogger, db, redis, spotifyClient)
+	repo := repository.NewRepo(appLogger, db, cacheClient, spotifyClient)
 	repo.LoadRussianArtistsToRedis(context.Background())
 
 	r := gin.New()
@@ -188,7 +189,12 @@ func runApp() int {
 	spotifyHandler := handlers.NewSpotifyHandler(spotifyService)
 
 	authMiddleware := middlewares.NewAuthMiddleware(spotifyService)
-	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(redis)
+
+	var rateLimitCache middlewares.Cache
+	if redisClient != nil {
+		rateLimitCache = redisClient
+	}
+	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(rateLimitCache)
 
 	api := r.Group("/api")
 	api.Use(authMiddleware.AttachSpotifyClientCreds())

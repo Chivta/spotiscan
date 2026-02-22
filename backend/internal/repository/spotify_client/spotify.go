@@ -2,6 +2,7 @@ package spotify_client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
@@ -24,7 +25,11 @@ type SpotifyClient struct {
 }
 
 func (c *SpotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
-	httpClient := spotifyauth.New().Client(ctx, ctx.Value("spotify_token").(*oauth2.Token))
+	token, ok := ctx.Value("spotify_token").(*oauth2.Token)
+	if !ok || token == nil {
+		return nil, fmt.Errorf("missing or invalid spotify token in context")
+	}
+	httpClient := spotifyauth.New().Client(ctx, token)
 	client := spotify.New(httpClient)
 
 	spotifyPlaylist, err := client.GetPlaylist(ctx, spotify.ID(playlistId))
@@ -97,20 +102,19 @@ func (c *SpotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotif
 	return allTracks, nil
 }
 
-
-func (c *SpotifyClient) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {	
+func (c *SpotifyClient) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
 	config := &clientcredentials.Config{
 		ClientID:     c.spotifyId,
 		ClientSecret: c.spotifySecret,
 		TokenURL:     spotifyauth.TokenURL,
 	}
-	
+
 	token, err := config.Token(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// Ensure the token's expiry is in UTC
 	token.Expiry = token.Expiry.UTC()
-	
+
 	return token, nil
 }
