@@ -144,7 +144,7 @@ func (r *Repo) GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			r.logger.Infof("no stored spotify token found: %T: %v", err, err)
-			return nil, err
+			return nil, errors.ErrNotFound
 		}
 		r.logger.Errorf("db error: %T: %v", err, err)
 		return nil, errors.ErrDatabaseFailure

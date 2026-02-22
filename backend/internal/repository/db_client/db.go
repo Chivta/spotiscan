@@ -11,7 +11,6 @@ import (
 
 func NewDBClient(DatabaseURL string) (*DBClient, error) {
 	db, err := sql.Open("postgres", DatabaseURL)
-
 	if err != nil {
 		return nil, err
 	}
@@ -33,6 +32,10 @@ func (db *DBClient) Close() error {
 		log.Println("Error closing database connection:", err)
 	}
 	return err
+}
+
+func (db *DBClient) GetConnection() *sql.DB {
+	return db.conn
 }
 
 func (db *DBClient) SetSpotifyToken(ctx context.Context, token *oauth2.Token) error {
