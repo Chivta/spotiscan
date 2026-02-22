@@ -48,7 +48,9 @@ const Dashboard = () => {
       err.code = body?.code;
       throw err;
     }
-    return await response.json();
+    return await response.json().catch(() => {
+      throw new Error("Invalid response from server");
+    });
   };
 
   const handleScanPlaylist = async (targetId?: string, forceRefresh = false) => {

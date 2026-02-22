@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,10 +26,15 @@ const (
 
 func (rl *RateLimitMiddleware) LimitRequests(limit int, windowSeconds int) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if rl.redisClient == nil {
+			c.Next()
+			return
+		}
 		clientIP := c.ClientIP()
 		allowed, err := rl.redisClient.Allow(c.Request.Context(), RateLimitContextKey+clientIP, limit, windowSeconds)
 		if err != nil {
-			c.AbortWithStatusJSON(500, gin.H{"error": "Internal server error"})
+			// Redis error: let the request through rather than blocking all traffic
+			c.Next()
 			return
 		}
 		if !allowed {

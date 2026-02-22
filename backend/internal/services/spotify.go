@@ -46,9 +46,13 @@ func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Toke
 
 	s.log.Debugf("token expired or not found, refreshing")
 	newToken, err := s.repo.GetRefreshedSpotifyToken(ctx)
-	if err != nil || newToken == nil {
+	if err != nil {
 		s.log.Errorf("failed to refresh spotify token: %v", err)
 		return nil, err
+	}
+	if newToken == nil {
+		s.log.Errorf("refreshed spotify token is nil")
+		return nil, errors.ErrInternal
 	}
 
 	err = s.repo.SetSpotifyToken(ctx, newToken)
