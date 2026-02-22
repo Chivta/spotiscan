@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"github.com/chivta/spotiscan/internal/config"
@@ -63,15 +62,7 @@ func runApp() int {
 	repo.LoadRussianArtistsToRedis(context.Background())
 
 	r := gin.New()
-	r.SetTrustedProxies([]string{"172.16.0.0/12"})
-
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.FrontendURL},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-		MaxAge:           12 * 3600,
-	}))
+	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
 
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: []string{"/", "/api/me"},
