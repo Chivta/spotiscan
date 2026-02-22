@@ -12,7 +12,6 @@ import (
 type Config struct {
 	DatabaseURL         string          `validate:"required,uri"`
 	RedisURL            string          `validate:"required,uri"`
-	FrontendURL         string          `validate:"required,uri"`
 	SpotifyClientID     string          `validate:"required,alphanum,min=1"`
 	SpotifyClientSecret string          `validate:"required,min=1"`
 	Log                 LogConfig       `json:"log" validate:"required"`
@@ -49,7 +48,6 @@ func Load() (*Config, error) {
 	config := &Config{
 		DatabaseURL:         os.Getenv("DB_URL"),
 		RedisURL:            os.Getenv("REDIS_URL"),
-		FrontendURL:         os.Getenv("FRONTEND_URL"),
 		SpotifyClientID:     os.Getenv("SPOTIFY_CLIENT_ID"),
 		SpotifyClientSecret: os.Getenv("SPOTIFY_CLIENT_SECRET"),
 	}
