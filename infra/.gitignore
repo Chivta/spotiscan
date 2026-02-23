@@ -5,10 +5,6 @@
 # Terraform directory
 .terraform/
 
-# Variable files (may contain sensitive values)
-*.tfvars
-*.tfvars.json
-
 # Crash logs
 crash.log
 crash.*.log
