@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  config.json: |
+    {
+      "log": {
+        "enable_debug": false,
+        "enable_info": true,
+        "error_output": "stderr",
+        "info_output": "stdout",
+        "debug_output": "stdout"
+      },
+      "rate_limit": {
+        "request_limit": 60,
+        "window_seconds": 60,
+        "redis_script_file": "./scripts/ratelimit.lua"
+      }
+    }

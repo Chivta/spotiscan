@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-app 
+  labels:
+    app: backend-app
+spec:
+  replicas: 1
+  selector: 
+    matchLabels:
+      app: backend-app 
+  template:
+    metadata:
+      labels:
+        app: backend-app
+    spec:
+      containers:
+        - name: backend-app
+          volumeMounts:
+          - name: config
+            mountPath: /home/appuser/config.json
+            subPath: config.json     
+          image: ghcr.io/chivta/spotiscan/spotiscan-backend:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: GIN_MODE
+              value: "release"
+      imagePullSecrets:
+        - name: ghcr-secret
+      volumes:
+      - name: config
+        configMap:
+          name: backend-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  labels:
+    app: backend-app
+spec:
+  selector:
+    app: backend-app  
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
