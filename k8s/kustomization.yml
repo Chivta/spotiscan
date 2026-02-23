@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - backend/deployment.yml
+  - backend/configmap.yml
+  - frontend/deployment.yml
+  - postgres/statefulset.yml
+  - redis/deployment.yml
+  - ingress.yml
+images:
+  - name: ghcr.io/chivta/spotiscan/spotiscan-backend
+    newTag: latest
+  - name: ghcr.io/chivta/spotiscan/spotiscan-frontend
+    newTag: latest
