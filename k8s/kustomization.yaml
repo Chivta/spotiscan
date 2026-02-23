@@ -9,6 +9,6 @@ resources:
 - ingress.yaml
 images:
 - name: ghcr.io/chivta/spotiscan/spotiscan-backend
-  newTag: 646907f6ae26483ff26173d7e5e3405375cab42f
+  newTag: a7b5160be2b2a902b94b9ff67365dba5f7b0023b
 - name: ghcr.io/chivta/spotiscan/spotiscan-frontend
-  newTag: 646907f6ae26483ff26173d7e5e3405375cab42f
+  newTag: a7b5160be2b2a902b94b9ff67365dba5f7b0023b
