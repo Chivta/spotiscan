@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -17,16 +17,18 @@ jobs:
         with:
           go-version: '1.25.3'
           cache: true
+          cache-dependency-path: backend/go.sum
 
       - name: Download dependencies
         run: go mod download
         working-directory: ./backend
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: go test -v -race ${{ github.event_name == 'push' && '-coverprofile=coverage.out' || '' }} ./...
         working-directory: ./backend
 
       - name: Upload coverage
+        if: github.event_name == 'push'
         uses: codecov/codecov-action@v4
         with:
           file: ./backend/coverage.out
@@ -40,8 +42,35 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      backend_built: ${{ steps.changed.outputs.backend }}
+      frontend_built: ${{ steps.changed.outputs.frontend }}
+      tag: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: changed
+        run: |
+          BEFORE="${{ github.event.before }}"
+          # On initial push to a branch, before is all zeros — build everything
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -q '^backend/'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+          if git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -q '^frontend/'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -54,6 +83,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
+        if: steps.changed.outputs.backend == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -61,10 +91,11 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/spotiscan-backend:latest
             ghcr.io/${{ github.repository }}/spotiscan-backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
 
       - name: Build and push frontend
+        if: steps.changed.outputs.frontend == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -72,13 +103,18 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/spotiscan-frontend:latest
             ghcr.io/${{ github.repository }}/spotiscan-frontend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Only run when at least one image was actually rebuilt
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      (needs.build-and-push.outputs.backend_built == 'true' ||
+       needs.build-and-push.outputs.frontend_built == 'true')
     permissions:
       contents: write
     steps:
@@ -87,13 +123,19 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Update image tags
+      - name: Update image tags in kustomization.yaml
         working-directory: ./k8s
         run: |
-          kustomize edit set image ghcr.io/${{ github.repository }}/spotiscan-backend:${{ github.sha }}
-          kustomize edit set image ghcr.io/${{ github.repository }}/spotiscan-frontend:${{ github.sha }}
+          if [ "${{ needs.build-and-push.outputs.backend_built }}" = "true" ]; then
+            kustomize edit set image \
+              ghcr.io/${{ github.repository }}/spotiscan-backend:${{ needs.build-and-push.outputs.tag }}
+          fi
+          if [ "${{ needs.build-and-push.outputs.frontend_built }}" = "true" ]; then
+            kustomize edit set image \
+              ghcr.io/${{ github.repository }}/spotiscan-frontend:${{ needs.build-and-push.outputs.tag }}
+          fi
 
-      - name: Commit and push
+      - name: Commit and push to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
