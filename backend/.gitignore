@@ -1,4 +1,4 @@
-# Go binaries and test files
+# Go binaries
 *.exe
 *.exe~
 *.dll
@@ -10,24 +10,18 @@
 # Go workspace
 go.work
 
-# Environment variables
+# Environment
 .env*
 
-# IDE files
-.vscode/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# air specific stuff
+# Air hot-reload
 tmp/
+
+# Test data
 testdata/
 
-# Logs
-*.logserver
-.env
+# Config (may contain secrets)
 config.json
 config.yaml
-*.md
-!README.md
+
+# SQLite migration source
+bot_data.db
