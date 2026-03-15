@@ -7,11 +7,11 @@ Take control of your Spotify library. SpotiScan scans your playlists and liked s
 
 ## Features
 
-- **Scan playlists** - Analyze any playlist for Russian artists
-- **Scan liked songs** - Find Russian tracks in your saved music
-- **Filter & browse** - View Russian artists and tracks separately
-- **Selective deletion** - Choose individual tracks to remove or select all filtered results
-- **Spotify integration** - Secure OAuth login, no data stored
+- **Scan playlists** - Paste any Spotify playlist URL or ID to find tracks by Russian artists
+- **Tracks tab** - Browse flagged tracks with album art and highlighted Russian artist names linked to Spotify
+- **Artists tab** - See all Russian artists sorted by track count, with a one-click filter to their tracks
+- **Search within results** - Filter tracks or artists by name inside scan results
+- **Result caching** - Re-opening a scanned playlist is instant; rescan on demand to refresh
 
 ## Tech Stack
 
