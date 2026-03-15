@@ -1,7 +1,7 @@
 # SpotiScan
 
-[![Go CI](https://github.com/arvlas/spotiscan/actions/workflows/ci.yml/badge.svg)](https://github.com/arvlas/spotiscan/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/arvlas/spotiscan/branch/main/graph/badge.svg)](https://codecov.io/gh/arvlas/spotiscan)
+[![CI](https://github.com/chivta/spotiscan/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/chivta/spotiscan/actions/workflows/ci-cd.yaml)
+[![codecov](https://codecov.io/gh/chivta/spotiscan/branch/main/graph/badge.svg)](https://codecov.io/gh/chivta/spotiscan)
 
 Take control of your Spotify library. SpotiScan scans your playlists and liked songs to identify tracks by Russian artists and remove them with one click.
 
@@ -16,8 +16,9 @@ Take control of your Spotify library. SpotiScan scans your playlists and liked s
 ## Tech Stack
 
 **Frontend:** React 19 + TypeScript + Vite\
-**Backend:** Go + Gin + PostgreSQL\
-**Deployment:** Docker & Docker Compose
+**Backend:** Go + Gin\
+**Storage:** PostgreSQL + Redis\
+**Deployment:** Docker Compose / Kubernetes (ArgoCD)
 
 ## Quick Start
 
@@ -25,7 +26,7 @@ Take control of your Spotify library. SpotiScan scans your playlists and liked s
 ```bash
 docker-compose up
 ```
-Frontend: http://localhost:3000
+Frontend: http://localhost:3000\
 Backend: http://localhost:8080
 
 ### Local Development
@@ -47,8 +48,9 @@ npm run dev  # Dev server (port 5173)
 
 - Docker & Docker Compose (for containerized setup)
 - Node.js 18+ (for local frontend dev)
-- Go 1.21+ (for local backend dev)
+- Go 1.25+ (for local backend dev)
 - PostgreSQL 14+ (for local database)
+- Redis (optional — used for artist name caching and rate limiting; app falls back to DB if unavailable)
 
 ## Setup
 
@@ -73,17 +75,22 @@ goose -dir migrations postgres "$DB_URL" up
 
 ```
 spotiscan/
-├── frontend/          # React app
-│   ├── src/
-│   │   ├── pages/     # Dashboard, Landing
-│   │   ├── components/# Reusable UI components
-│   │   └── types/     # TypeScript interfaces
-│   └── package.json
-└── backend/           # Go API server
-    ├── cmd/           # Entry point
-    ├── internal/      # Handlers, services, middleware
-    ├── pkg/           # Database, Spotify API client
-    └── migrations/    # Database schema
+├── frontend/              # React app
+│   └── src/
+│       ├── pages/         # Dashboard, Landing
+│       ├── components/    # Header, AnimatedList, Aurora, GradientText
+│       └── types/         # TypeScript interfaces
+├── backend/               # Go API server
+│   ├── cmd/               # Entry point
+│   ├── internal/
+│   │   ├── handlers/      # HTTP handlers
+│   │   ├── services/      # Business logic
+│   │   ├── middlewares/   # Auth, rate limiting
+│   │   ├── repository/    # DB, Redis, Spotify API clients
+│   │   ├── models/        # Domain types
+│   │   └── config/        # Config loading & validation
+│   └── migrations/        # Database schema
+└── k8s/                   # Kubernetes manifests (kustomize)
 ```
 
 ## API Endpoints
