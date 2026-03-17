@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
+  namespace: spotiscan
   labels:
     app: redis 
 spec:
@@ -27,6 +28,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-svc
+  namespace: spotiscan
   labels:
     app: redis
 spec:
