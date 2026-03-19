@@ -1,1 +1,5 @@
 react-bits/* linguist-vendored
+
+# Frontend is mostly vibecoded, don't want TS be top 1 language in the repo
+*.ts linguist-detectable=false
+*.tsx linguist-detectable=false
