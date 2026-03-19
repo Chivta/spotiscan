@@ -2,22 +2,22 @@ package middlewares
 
 import (
 	"github.com/gin-gonic/gin"
-	
-	"github.com/chivta/spotiscan/internal/services"
+
 	"github.com/chivta/spotiscan/internal/handlers"
+	"github.com/chivta/spotiscan/internal/services"
 )
 
-type AuthMiddleware struct {
+type SpotifyMiddleware struct {
 	spotifyService *services.SpotifyService
 }
 
-func NewAuthMiddleware(spotifyService *services.SpotifyService) *AuthMiddleware {
-	return &AuthMiddleware{
+func NewSpotifyMiddleware(spotifyService *services.SpotifyService) *SpotifyMiddleware {
+	return &SpotifyMiddleware{
 		spotifyService: spotifyService,
 	}
 }
 
-func (m *AuthMiddleware) AttachSpotifyClientCreds() gin.HandlerFunc {
+func (m *SpotifyMiddleware) AttachSpotifyClientCreds() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		spotifyToken, err := m.spotifyService.GetValidSpotifyToken(c.Request.Context())
 		if err != nil {

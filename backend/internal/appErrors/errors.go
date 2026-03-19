@@ -1,4 +1,4 @@
-package errors
+package appErrors
 
 import "errors"
 
@@ -10,4 +10,10 @@ var (
 	ErrSpotifyAPIError = errors.New("spotify api error")
 	ErrNotFound        = errors.New("playlist not found")
 	ErrBadRequest      = errors.New("bad request")
+	ErrUnauthorized    = errors.New("unauthorized")
+)
+
+var (
+	ErrEmailExists = errors.New("email already exists")
+	ErrInvalidCredentials = errors.New("invalid email or password")
 )

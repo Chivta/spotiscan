@@ -14,6 +14,7 @@ type Config struct {
 	RedisURL            string          `validate:"required,uri"`
 	SpotifyClientID     string          `validate:"required,alphanum,min=1"`
 	SpotifyClientSecret string          `validate:"required,min=1"`
+	JWTSecret           string          `validate:"required,min=32"`
 	Log                 LogConfig       `json:"log" validate:"required"`
 	RateLimit           RateLimitConfig `json:"rate_limit" validate:"required"`
 }
@@ -46,6 +47,7 @@ func Load() (*Config, error) {
 		RedisURL:            os.Getenv("REDIS_URL"),
 		SpotifyClientID:     os.Getenv("SPOTIFY_CLIENT_ID"),
 		SpotifyClientSecret: os.Getenv("SPOTIFY_CLIENT_SECRET"),
+		JWTSecret:           os.Getenv("JWT_SECRET"),
 	}
 
 	decoder := json.NewDecoder(file)

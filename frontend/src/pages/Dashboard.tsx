@@ -178,21 +178,10 @@ const Dashboard = () => {
         zIndex: 1,
         width: "100%",
         height: "100%",
-        padding: "40px 24px",
+        padding: "56px 24px 40px",
         boxSizing: "border-box",
         overflow: "auto",
       }}>
-        <h1 style={{
-          fontSize: "2.5rem",
-          fontFamily: "'Outfit', sans-serif",
-          fontWeight: 800,
-          marginBottom: 32,
-          textAlign: "center",
-          color: "#fff",
-        }}>
-          SpotiScan
-        </h1>
-
         {/* Centered single column layout */}
         <div style={{
           maxWidth: 800,

@@ -1,6 +1,7 @@
 export interface User {
-  ID: number;
-  SpotifyID: string;
+  ID: string;
+  Email: string;
+  Role: "user" | "admin";
 }
 
 export interface Artist {

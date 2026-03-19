@@ -11,6 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/pressly/goose/v3"
 
 	"github.com/chivta/spotiscan/internal/config"
@@ -185,10 +186,16 @@ func runApp() int {
 
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
 
-	spotifyService := services.NewSpotifyService(appLogger, repo)
-	spotifyHandler := handlers.NewSpotifyHandler(spotifyService)
+	validate := validator.New()
 
-	authMiddleware := middlewares.NewAuthMiddleware(spotifyService)
+	spotifyService := services.NewSpotifyService(appLogger, repo)
+	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
+
+	authService := services.NewAuthService(repo, []byte(cfg.JWTSecret))
+	authHandler := handlers.NewAuthHandler(authService, validate)
+	_ = authHandler // ready for use on auth routes
+	spotifyMiddleware := middlewares.NewSpotifyMiddleware(spotifyService)
+	jwtMiddleware := middlewares.NewJWTMiddleware(authService)
 
 	var rateLimitCache middlewares.Cache
 	if redisClient != nil {
@@ -196,11 +203,27 @@ func runApp() int {
 	}
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(rateLimitCache)
 
+	_ = jwtMiddleware // ready for use on protected routes
+
 	api := r.Group("/api")
-	api.Use(authMiddleware.AttachSpotifyClientCreds())
+	api.Use(spotifyMiddleware.AttachSpotifyClientCreds())
 	api.Use(rateLimitMiddleware.LimitRequests(cfg.RateLimit.RequestLimit, cfg.RateLimit.WindowSeconds))
-	{
-		api.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
+	{	
+		auth := api.Group("/auth")
+		{
+			auth.POST("/signup", authHandler.Signup)
+			auth.POST("/login", authHandler.Login)
+		}
+
+		prot := api.Group("")
+		prot.Use(jwtMiddleware.ProtectRoutes())
+		{
+			prot.POST("/auth/logout", authHandler.Logout)
+			prot.GET("/me", authHandler.Me)
+			prot.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
+
+		}
+
 		// TODO: Add admin panel
 	}
 

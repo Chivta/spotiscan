@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"time"
 
+	"github.com/chivta/spotiscan/internal/models"
 	"github.com/lib/pq"
 	"golang.org/x/oauth2"
 )
@@ -108,6 +110,83 @@ func (db *DBClient) GetRussianArtistNames(ctx context.Context, names []string) (
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	
+
 	return ruNames, nil
+}
+
+func (db *DBClient) GetUserByID(ctx context.Context, id int) (*models.User, error) {
+	var user models.User
+	err := db.conn.QueryRowContext(
+		ctx,
+		`SELECT id, email, password_hash FROM users WHERE id = $1`,
+		id,
+	).Scan(&user.ID, &user.Email, &user.PasswordHash)
+	if err != nil {
+		return nil, err
+	}
+	user.Role = models.RoleUser
+	return &user, nil
+}
+
+func (db *DBClient) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
+	err := db.conn.QueryRowContext(
+		ctx,
+		`SELECT id, email, password_hash FROM users WHERE email = $1`,
+		email,
+	).Scan(&user.ID, &user.Email, &user.PasswordHash)
+	if err != nil {
+		return nil, err
+	}
+	user.Role = models.RoleUser
+	return &user, nil
+}
+
+func (db *DBClient) StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error {
+	_, err := db.conn.ExecContext(
+		ctx,
+		`INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+		userID,
+		tokenHash,
+		expiresAt.UTC(),
+	)
+	return err
+}
+
+func (db *DBClient) CreateUser(ctx context.Context, user *models.User) (int, error) {
+	var userID int
+	err := db.conn.QueryRowContext(
+		ctx,
+		`INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id`,
+		user.Email,
+		user.PasswordHash,
+	).Scan(&userID)
+
+	if err != nil {
+		return 0, err
+	}
+	return userID, nil
+}
+
+func (db *DBClient) GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error) {
+	var tokenHash string
+	var expiresAt time.Time
+	err := db.conn.QueryRowContext(
+		ctx,
+		`SELECT token_hash, expires_at FROM refresh_tokens WHERE user_id = $1 ORDER BY id DESC LIMIT 1`,
+		userID,
+	).Scan(&tokenHash, &expiresAt)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return tokenHash, expiresAt, nil
+}
+
+func (db *DBClient) DeleteRefreshTokenHash(ctx context.Context, userID int) error {
+	_, err := db.conn.ExecContext(
+		ctx,
+		`DELETE FROM refresh_tokens WHERE user_id = $1`,
+		userID,
+	)
+	return err
 }
