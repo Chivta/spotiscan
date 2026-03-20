@@ -35,8 +35,28 @@ jobs:
           flags: unittests
           fail_ci_if_error: false
 
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Build (type-check + bundling)
+        run: npm run build
+        working-directory: ./frontend
+
   build-and-push:
-    needs: test
+    needs: [test, build-frontend]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -128,11 +148,11 @@ jobs:
         run: |
           if [ "${{ needs.build-and-push.outputs.backend_built }}" = "true" ]; then
             kustomize edit set image \
-              ghcr.io/${{ github.repository }}/spotiscan-backend:${{ needs.build-and-push.outputs.tag }}
+              ghcr.io/${{ github.repository }}/spotiscan-backend=ghcr.io/${{ github.repository }}/spotiscan-backend:${{ needs.build-and-push.outputs.tag }}
           fi
           if [ "${{ needs.build-and-push.outputs.frontend_built }}" = "true" ]; then
             kustomize edit set image \
-              ghcr.io/${{ github.repository }}/spotiscan-frontend:${{ needs.build-and-push.outputs.tag }}
+              ghcr.io/${{ github.repository }}/spotiscan-frontend=ghcr.io/${{ github.repository }}/spotiscan-frontend:${{ needs.build-and-push.outputs.tag }}
           fi
 
       - name: Commit and push to main
