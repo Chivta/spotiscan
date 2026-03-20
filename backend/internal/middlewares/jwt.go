@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/handlers"
+	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/services"
 )
@@ -17,12 +17,14 @@ import (
 type JWTMiddleware struct {
 	authService   *services.AuthService
 	secureCookies bool
+	log           *logger.Logger
 }
 
-func NewJWTMiddleware(authService *services.AuthService, secureCookies bool) *JWTMiddleware {
+func NewJWTMiddleware(authService *services.AuthService, secureCookies bool, appLogger *logger.Logger) *JWTMiddleware {
 	return &JWTMiddleware{
 		authService:   authService,
 		secureCookies: secureCookies,
+		log:           appLogger,
 	}
 }
 
@@ -30,7 +32,7 @@ func (m *JWTMiddleware) ProtectRoutes() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jwtStr, err := c.Cookie(models.CookieJWT)
 		if err != nil {
-			log.Printf("JWT cookie error: %v:%T", err, err)
+			m.log.Debugf("JWT cookie error: %v:%T", err, err)
 			handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 			c.Abort()
 			return
@@ -47,7 +49,7 @@ func (m *JWTMiddleware) ProtectRoutes() gin.HandlerFunc {
 			// JWT expired — attempt refresh
 			refreshStr, err := c.Cookie(models.CookieRefreshToken)
 			if err != nil {
-				log.Printf("Refresh token cookie error: %v:%T", err, err)
+				m.log.Debugf("Refresh token cookie error: %v:%T", err, err)
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
 				return

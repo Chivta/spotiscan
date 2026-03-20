@@ -194,13 +194,13 @@ func runApp() int {
 	authService := services.NewAuthService(repo, []byte(cfg.JWTSecret))
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
 	spotifyMiddleware := middlewares.NewSpotifyMiddleware(spotifyService)
-	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
+	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies, appLogger)
 
 	var rateLimitCache middlewares.Cache
 	if redisClient != nil {
 		rateLimitCache = redisClient
 	}
-	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(rateLimitCache)
+	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(rateLimitCache, appLogger)
 
 	api := r.Group("/api")
 	api.Use(spotifyMiddleware.AttachSpotifyClientCreds())
