@@ -20,7 +20,6 @@ type SpotifyHandler struct {
 }
 
 func (h *SpotifyHandler) GetPlaylistRuContent(c *gin.Context) {
-	// TODO: use h.validate for input validation
 	ctx := context.WithValue(c.Request.Context(), "spotify_token", c.Value("spotify_token"))
 
 	playlistId := c.Params.ByName("id")

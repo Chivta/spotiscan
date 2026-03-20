@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -12,13 +12,14 @@ import (
 	"github.com/chivta/spotiscan/internal/services"
 )
 
-func NewAuthHandler(authService *services.AuthService, validate *validator.Validate) *AuthHandler {
-	return &AuthHandler{authService: authService, validate: validate}
+func NewAuthHandler(authService *services.AuthService, validate *validator.Validate, secureCookies bool) *AuthHandler {
+	return &AuthHandler{authService: authService, validate: validate, secureCookies: secureCookies}
 }
 
 type AuthHandler struct {
-	authService *services.AuthService
-	validate    *validator.Validate
+	authService   *services.AuthService
+	validate      *validator.Validate
+	secureCookies bool
 }
 
 func (h *AuthHandler) Signup(c *gin.Context) {
@@ -45,8 +46,9 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", false, true)
-	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", false, true)
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", h.secureCookies, true)
+	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", h.secureCookies, true)
 	c.JSON(200, gin.H{"message": "signup successful"})
 }
 
@@ -74,8 +76,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", false, true)
-	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", false, true)
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", h.secureCookies, true)
+	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", h.secureCookies, true)
 	c.JSON(200, gin.H{"message": "login successful"})
 }
 
@@ -86,8 +89,6 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	// TODO: remove
-	log.Println(userID)
 	userIDInt, err := strconv.Atoi(userID.(string))
 	if err != nil {
 		RespondWithError(c, appErrors.ErrInternal)
@@ -99,8 +100,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(models.CookieJWT, "", -1, "/", "", false, true)
-	c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", false, true)
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(models.CookieJWT, "", -1, "/", "", h.secureCookies, true)
+	c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", h.secureCookies, true)
 	c.JSON(200, gin.H{"message": "logout successful"})
 }
 

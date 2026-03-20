@@ -2,8 +2,8 @@ package models
 
 const (
 	// TODO: make sure in prod values are correct
-	JWTDuration          = 15 // 15 minutes
-	RefreshTokenDuration = 30 * 24 * 60 * 60 // 30 days
+	JWTDuration          = 15 * 60             // 15 minutes
+	RefreshTokenDuration = 30 * 24 * 60 * 60   // 30 days
 	JWTCookieAge          = 30 * 24 * 60 * 60 // 30 days
 	RefreshTokenCookieAge = 30 * 24 * 60 * 60 // 30 days
 	CookieJWT             = "jwt"
@@ -19,12 +19,12 @@ const (
 
 type LoginDTO struct {
 	Email    string `json:"Email" validate:"required,email"`
-	Password string `json:"Password" validate:"required,min=8,max=64,alphanum"`
+	Password string `json:"Password" validate:"required,min=8,max=64"`
 }
 
 type SignupDTO struct {
 	Email    string `json:"Email" validate:"required,email"`
-	Password string `json:"Password" validate:"required,min=8,max=64,alphanum"`
+	Password string `json:"Password" validate:"required,min=8,max=64"`
 }
 
 type Track struct {

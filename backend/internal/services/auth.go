@@ -164,6 +164,7 @@ func (s *AuthService) ExchangeRefreshToken(ctx context.Context, expiredJWTStr, r
 	if subtle.ConstantTimeCompare([]byte(storedHash), []byte(incomingHash)) != 1 {
 		return nil, appErrors.ErrUnauthorized
 	}
+
 	if !time.Now().Before(expiresAt) {
 		return nil, appErrors.ErrUnauthorized
 	}

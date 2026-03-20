@@ -3,6 +3,7 @@ package middlewares
 import (
 	"errors"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -14,12 +15,14 @@ import (
 )
 
 type JWTMiddleware struct {
-	authService *services.AuthService
+	authService   *services.AuthService
+	secureCookies bool
 }
 
-func NewJWTMiddleware(authService *services.AuthService) *JWTMiddleware {
+func NewJWTMiddleware(authService *services.AuthService, secureCookies bool) *JWTMiddleware {
 	return &JWTMiddleware{
-		authService: authService,
+		authService:   authService,
+		secureCookies: secureCookies,
 	}
 }
 
@@ -35,33 +38,36 @@ func (m *JWTMiddleware) ProtectRoutes() gin.HandlerFunc {
 
 		claims, err := m.authService.ParseJWT(jwtStr)
 		if err != nil {
-			log.Printf("JWT parsing error: %v:%T", err, err)
-			if errors.Is(err, jwt.ErrTokenExpired) {
-				// JWT refresh flow
-				refreshStr, err := c.Cookie(models.CookieRefreshToken)
-				if err != nil {
-					log.Printf("Refresh token cookie error: %v:%T", err, err)
-					handlers.RespondWithError(c, appErrors.ErrUnauthorized)
-					c.Abort()
-					return
-				}
-
-				session, err := m.authService.ExchangeRefreshToken(c.Request.Context(), jwtStr, refreshStr)
-				if err != nil {
-					log.Printf("Refresh token exchange error: %v:%T", err, err)
-					handlers.RespondWithError(c, appErrors.ErrUnauthorized)
-					c.Abort()
-					return
-				}
-
-				c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", false, true)
-				c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", false, true)
-				log.Println("successfully refreshed jwt")
-			} else {
+			if !errors.Is(err, jwt.ErrTokenExpired) {
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
 				return
 			}
+
+			// JWT expired — attempt refresh
+			refreshStr, err := c.Cookie(models.CookieRefreshToken)
+			if err != nil {
+				log.Printf("Refresh token cookie error: %v:%T", err, err)
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.Abort()
+				return
+			}
+
+			session, err := m.authService.ExchangeRefreshToken(c.Request.Context(), jwtStr, refreshStr)
+			if err != nil {
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.Abort()
+				return
+			}
+
+			c.SetSameSite(http.SameSiteLaxMode)
+			c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", m.secureCookies, true)
+			c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", m.secureCookies, true)
+
+			c.Set("userID", session.UserID)
+			c.Set("userRole", session.Role)
+			c.Next()
+			return
 		}
 
 		c.Set("userID", claims.UserID)
