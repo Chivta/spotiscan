@@ -44,7 +44,6 @@ type Playlist struct {
 	ID          string  `json:"ID"`
 	Name        string  `json:"Name"`
 	Description string  `json:"Description"`
-	Owned       bool    `json:"Owned"`
 	ImageURL    string  `json:"ImageURL"`
 	TrackCount  int     `json:"TrackCount"`
 	Tracks      []Track `json:"Tracks"`
