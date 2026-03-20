@@ -15,7 +15,6 @@ data:
       },
       "rate_limit": {
         "request_limit": 60,
-        "window_seconds": 60,
-        "redis_script_file": "./scripts/ratelimit.lua"
+        "window_seconds": 60
       }
     }
