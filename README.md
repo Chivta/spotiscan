@@ -59,8 +59,6 @@ npm run dev  # Dev server (port 5173)
 DB_URL=postgres://user:password@localhost:5432/spotiscan
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-SPOTIFY_REDIRECT_URI=http://localhost:3000/callback
-FRONTEND_URL=http://localhost:3000
 ```
 
 2. Set up Spotify OAuth at https://developer.spotify.com/dashboard

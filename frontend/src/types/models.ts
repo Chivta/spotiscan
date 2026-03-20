@@ -1,6 +1,7 @@
 export interface User {
-  ID: number;
-  SpotifyID: string;
+  ID: string;
+  Email: string;
+  Role: "user" | "admin";
 }
 
 export interface Artist {
@@ -20,14 +21,12 @@ export interface Playlist {
   ID: string;
   Name: string;
   Description?: string;
-  Owned: boolean;
   ImageURL: string;
   TrackCount: number;
   Tracks?: Track[];
 }
 
 export interface RuContent {
-	AbleToDelete: boolean;
   Tracks: Track[];
   Artists: Artist[];
 }

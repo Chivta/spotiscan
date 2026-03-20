@@ -54,7 +54,6 @@ func (c *SpotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId st
 		uniqueTracks = append(uniqueTracks, track)
 	}
 	playlist.Tracks = uniqueTracks
-	playlist.Owned = spotifyPlaylist.Owner.ID != ""
 
 	return &playlist, nil
 }

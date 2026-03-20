@@ -101,7 +101,6 @@ DB_URL                  # PostgreSQL connection string
 FRONTEND_URL            # Frontend origin (CORS + OAuth redirect)
 SPOTIFY_CLIENT_ID       # Spotify app credentials
 SPOTIFY_CLIENT_SECRET   # Spotify app credentials
-SPOTIFY_REDIRECT_URI    # Must match Spotify app config
 ```
 
 ## Key Implementation Notes

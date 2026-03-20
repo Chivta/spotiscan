@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"net/url"
+	"time"
 
+	"github.com/lib/pq"
 	"github.com/zmb3/spotify/v2"
 	"golang.org/x/oauth2"
 
-	"github.com/chivta/spotiscan/internal/errors"
+	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 )
@@ -24,6 +26,12 @@ type (
 		GetAllRussianArtistNames(ctx context.Context) ([]string, error)
 		GetSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 		SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
+		GetUserByID(ctx context.Context, id int) (*models.User, error)
+		GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+		CreateUser(ctx context.Context, user *models.User) (int, error)
+		GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
+		StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error
+		DeleteRefreshTokenHash(ctx context.Context, userID int) error
 	}
 
 	SpotifyClient interface {
@@ -56,21 +64,21 @@ func (r *Repo) translateSpotifyError(err error) error {
 		switch spotifyErr.Status {
 		case 404:
 			r.logger.Infof("spotify not found: %T: %v", spotifyErr, spotifyErr)
-			return errors.ErrNotFound
+			return appErrors.ErrNotFound
 		case 400:
 			r.logger.Infof("spotify bad request: %T: %v", spotifyErr, spotifyErr)
-			return errors.ErrBadRequest
+			return appErrors.ErrBadRequest
 		default:
 			r.logger.Errorf("spotify error: %T: %v", spotifyErr, spotifyErr)
-			return errors.ErrSpotifyAPIError
+			return appErrors.ErrSpotifyAPIError
 		}
 	}
 	if urlErr, ok := err.(*url.Error); ok {
 		r.logger.Infof("spotify network error: %T: %v", urlErr, urlErr)
-		return errors.ErrSpotifyAPIError
+		return appErrors.ErrSpotifyAPIError
 	}
 	r.logger.Errorf("unknown spotify error: %T: %v", err, err)
-	return errors.ErrSpotifyAPIError
+	return appErrors.ErrSpotifyAPIError
 }
 
 func (r *Repo) LoadRussianArtistsToRedis(ctx context.Context) {
@@ -110,7 +118,7 @@ func (r *Repo) FilterRussian(ctx context.Context, names []string) ([]string, err
 	ruNames, err := r.filterRussianWithDB(ctx, names)
 	if err != nil {
 		r.logger.Errorf("db error: %T: %v", err, err)
-		return nil, errors.ErrDatabaseFailure
+		return nil, appErrors.ErrDatabaseFailure
 	}
 	return ruNames, nil
 }
@@ -119,7 +127,7 @@ func (r *Repo) filterRussianWithDB(ctx context.Context, names []string) ([]strin
 	ruNames, err := r.db.GetRussianArtistNames(ctx, names)
 	if err != nil {
 		r.logger.Errorf("db error: %T: %v", err, err)
-		return nil, errors.ErrDatabaseFailure
+		return nil, appErrors.ErrDatabaseFailure
 	}
 	return ruNames, nil
 }
@@ -136,7 +144,7 @@ func (r *Repo) SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) erro
 	err := r.db.SetSpotifyToken(ctx, newToken)
 	if err != nil {
 		r.logger.Errorf("db error: %T: %v", err, err)
-		return errors.ErrDatabaseFailure
+		return appErrors.ErrDatabaseFailure
 	}
 	r.token = newToken
 	return nil
@@ -151,10 +159,10 @@ func (r *Repo) GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			r.logger.Infof("no stored spotify token found: %T: %v", err, err)
-			return nil, errors.ErrNotFound
+			return nil, appErrors.ErrNotFound
 		}
 		r.logger.Errorf("db error: %T: %v", err, err)
-		return nil, errors.ErrDatabaseFailure
+		return nil, appErrors.ErrDatabaseFailure
 	}
 	r.token = token
 	return token, nil
@@ -166,4 +174,68 @@ func (r *Repo) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, err
 		return nil, r.translateSpotifyError(err)
 	}
 	return token, nil
+}
+
+func (r *Repo) GetUserByID(ctx context.Context, id int) (*models.User, error) {
+	user, err := r.db.GetUserByID(ctx, id)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		if err == sql.ErrNoRows {
+			return nil, appErrors.ErrNotFound
+		}
+		return nil, appErrors.ErrDatabaseFailure
+	}
+	return user, nil
+}
+
+func (r *Repo) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	user, err := r.db.GetUserByEmail(ctx, email)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		if err == sql.ErrNoRows {
+			return nil, appErrors.ErrUnauthorized
+		}
+		return nil, appErrors.ErrDatabaseFailure
+	}
+	return user, nil
+}
+
+func (r *Repo) StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error {
+	if err := r.db.StoreRefreshTokenHash(ctx, userID, tokenHash, expiresAt); err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		return appErrors.ErrDatabaseFailure
+	}
+	return nil
+}
+
+func (r *Repo) CreateUser(ctx context.Context, user *models.User) (int, error) {
+	id, err := r.db.CreateUser(ctx, user)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return 0, appErrors.ErrEmailExists
+		}
+		return 0, appErrors.ErrDatabaseFailure
+	}
+	return id, nil
+}
+
+func (r *Repo) GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error) {
+	tokenHash, expiresAt, err := r.db.GetRefreshTokenByUserID(ctx, userID)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		if err == sql.ErrNoRows {
+			return "", time.Time{}, appErrors.ErrUnauthorized
+		}
+		return "", time.Time{}, appErrors.ErrDatabaseFailure
+	}
+	return tokenHash, expiresAt, nil
+}
+
+func (r *Repo) DeleteRefreshTokenHash(ctx context.Context, userID int) error {
+	if err := r.db.DeleteRefreshTokenHash(ctx, userID); err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		return appErrors.ErrDatabaseFailure
+	}
+	return nil
 }

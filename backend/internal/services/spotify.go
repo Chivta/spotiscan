@@ -7,12 +7,12 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/chivta/spotiscan/internal/errors"
+	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 )
 
-type Repo interface {
+type SpotifyRepo interface {
 	FilterRussian(ctx context.Context, names []string) ([]string, error)
 	GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
 	SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
@@ -20,7 +20,7 @@ type Repo interface {
 	GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
 }
 
-func NewSpotifyService(logger *logger.Logger, repo Repo) *SpotifyService {
+func NewSpotifyService(logger *logger.Logger, repo SpotifyRepo) *SpotifyService {
 	return &SpotifyService{
 		log:  logger,
 		repo: repo,
@@ -29,13 +29,12 @@ func NewSpotifyService(logger *logger.Logger, repo Repo) *SpotifyService {
 
 type SpotifyService struct {
 	log  *logger.Logger
-	repo Repo
+	repo SpotifyRepo
 }
 
 func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
-	s.log.Debugf("getting valid spotify token")
 	token, err := s.repo.GetStoredSpotifyToken(ctx)
-	if err != nil && err != errors.ErrNotFound {
+	if err != nil && err != appErrors.ErrNotFound {
 		s.log.Errorf("failed to get stored spotify token: %v", err)
 		return nil, err
 	}
@@ -52,7 +51,7 @@ func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Toke
 	}
 	if newToken == nil {
 		s.log.Errorf("refreshed spotify token is nil")
-		return nil, errors.ErrInternal
+		return nil, appErrors.ErrInternal
 	}
 
 	err = s.repo.SetSpotifyToken(ctx, newToken)
@@ -94,7 +93,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	ruArtistNames, err := s.repo.FilterRussian(ctx, artistNames)
 	if err != nil {
 		s.log.Errorf("failed to filter Russian artists: %v", err)
-		return nil, errors.ErrDatabaseFailure
+		return nil, appErrors.ErrDatabaseFailure
 	}
 
 	// names should all be in lowercase at this point

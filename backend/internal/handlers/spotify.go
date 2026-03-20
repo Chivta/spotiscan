@@ -5,21 +5,23 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/chivta/spotiscan/internal/services"
 )
 
-func NewSpotifyHandler(service *services.SpotifyService) *SpotifyHandler {
-	return &SpotifyHandler{svc: service}
+func NewSpotifyHandler(service *services.SpotifyService, validate *validator.Validate) *SpotifyHandler {
+	return &SpotifyHandler{svc: service, validate: validate}
 }
 
 type SpotifyHandler struct {
-	svc *services.SpotifyService
+	svc      *services.SpotifyService
+	validate *validator.Validate
 }
 
 func (h *SpotifyHandler) GetPlaylistRuContent(c *gin.Context) {
-	ctx := context.WithValue(c.Request.Context(),"spotify_token",c.Value("spotify_token"))
-	
+	ctx := context.WithValue(c.Request.Context(), "spotify_token", c.Value("spotify_token"))
+
 	playlistId := c.Params.ByName("id")
 	if playlistId == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "empty id"})

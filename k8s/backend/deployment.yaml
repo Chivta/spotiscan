@@ -31,6 +31,30 @@ spec:
           env:
             - name: GIN_MODE
               value: "release"
+            - name: SECURE_COOKIES
+              value: "true"
+            - name: REDIS_URL
+              value: "redis://redis-svc:6379"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
       imagePullSecrets:
         - name: ghcr-secret
       volumes:
