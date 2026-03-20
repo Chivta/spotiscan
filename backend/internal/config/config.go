@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
@@ -49,7 +50,7 @@ func Load() (*Config, error) {
 		SpotifyClientID:     os.Getenv("SPOTIFY_CLIENT_ID"),
 		SpotifyClientSecret: os.Getenv("SPOTIFY_CLIENT_SECRET"),
 		JWTSecret:           os.Getenv("JWT_SECRET"),
-		SecureCookies:       os.Getenv("SECURE_COOKIES") == "true",
+		SecureCookies:       func() bool { v, _ := strconv.ParseBool(os.Getenv("SECURE_COOKIES")); return v }(),
 	}
 
 	decoder := json.NewDecoder(file)
