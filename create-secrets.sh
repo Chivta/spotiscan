@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# All secrets are read from .env.secrets (not version-controlled).
+# Required keys:
+#   GHCR_USERNAME       — GitHub username for container registry
+#   GHCR_PAT            — GitHub personal access token (read:packages scope)
+#   GHCR_EMAIL          — GitHub account email
+#   DB_URL              — full postgres connection string (e.g. postgres://user:pass@postgres-svc:5432/spotiscan?sslmode=disable)
+#   DB_PASSWORD         — postgres password (must match DB_URL; used by the postgres StatefulSet)
+#   SPOTIFY_CLIENT_ID   — Spotify app client ID
+#   SPOTIFY_CLIENT_SECRET — Spotify app client secret
+#   JWT_SECRET          — random string, minimum 32 characters (e.g. openssl rand -hex 32)
+
+set -o allexport
+source .env.secrets
+set +o allexport
+
 # Registry auth
 kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
@@ -9,16 +24,6 @@ kubectl create secret docker-registry ghcr-secret \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # App secrets
-# Required vars:
-#   DB_URL              — full postgres connection string (e.g. postgres://user:pass@postgres-svc:5432/spotiscan?sslmode=disable)
-#   DB_PASSWORD         — postgres password (must match DB_URL; used by the postgres StatefulSet)
-#   SPOTIFY_CLIENT_ID   — Spotify app client ID
-#   SPOTIFY_CLIENT_SECRET — Spotify app client secret
-#   JWT_SECRET          — random string, minimum 32 characters (e.g. openssl rand -hex 32)
 kubectl create secret generic app-secrets \
-  --from-literal=DB_URL="${DB_URL}" \
-  --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
-  --from-literal=SPOTIFY_CLIENT_ID="${SPOTIFY_CLIENT_ID}" \
-  --from-literal=SPOTIFY_CLIENT_SECRET="${SPOTIFY_CLIENT_SECRET}" \
-  --from-literal=JWT_SECRET="${JWT_SECRET}" \
+  --from-env-file=.env.secrets \
   --dry-run=client -o yaml | kubectl apply -f -
