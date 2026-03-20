@@ -30,6 +30,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - FRONTEND_URL=http://localhost:5173
       - DB_URL=postgres://postgres:postgres@postgres:5432/spotiscan?sslmode=disable
+      - SECURE_COOKIES=false
     ports:
       - "8080:8080"
     depends_on:

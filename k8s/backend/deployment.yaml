@@ -31,6 +31,8 @@ spec:
           env:
             - name: GIN_MODE
               value: "release"
+            - name: SECURE_COOKIES
+              value: "true"
       imagePullSecrets:
         - name: ghcr-secret
       volumes:
