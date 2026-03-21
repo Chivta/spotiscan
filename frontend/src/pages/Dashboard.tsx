@@ -178,7 +178,7 @@ const Dashboard = () => {
         zIndex: 1,
         width: "100%",
         height: "100%",
-        padding: "56px 24px 40px",
+        padding: "88px 24px 40px",
         boxSizing: "border-box",
         overflow: "auto",
       }}>
