@@ -13,11 +13,11 @@ Scan your Spotify playlists to identify tracks by Russian artists.
 
 ## Tech Stack
 
-**Frontend:** React 19 + TypeScript + Vite\
 **Backend:** Go + Gin\
-**Auth:** Email/password with JWT\
+**Auth:** Email/password, short-living JWT + refresh token\
+**Frontend:** React 19 + TypeScript + Vite (vibecoded; some components from [React Bits](https://reactbits.dev))\
 **Storage:** PostgreSQL + Redis\
-**Deployment:** Docker Compose / Kubernetes (FluxCD)
+**Deployment:** Kubernetes (FluxCD)
 
 ## Quick Start
 
@@ -26,7 +26,7 @@ docker-compose up
 ```
 
 Runs both services in dev stage with hot reload inside containers.\
-Frontend: http://localhost:5173\
+Frontend: http://localhost:5173 \
 Backend: http://localhost:8080
 
 ## Requirements
