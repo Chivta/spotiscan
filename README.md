@@ -3,46 +3,31 @@
 [![CI](https://github.com/chivta/spotiscan/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/chivta/spotiscan/actions/workflows/ci-cd.yaml)
 [![codecov](https://codecov.io/gh/chivta/spotiscan/branch/main/graph/badge.svg)](https://codecov.io/gh/chivta/spotiscan)
 
-Take control of your Spotify library. SpotiScan scans your playlists and liked songs to identify tracks by Russian artists and remove them with one click.
+Scan your Spotify playlists to identify tracks by Russian artists.
 
 ## Features
 
 - **Scan playlists** - Paste any Spotify playlist URL or ID to find tracks by Russian artists
-- **Tracks tab** - Browse flagged tracks with album art and highlighted Russian artist names linked to Spotify
-- **Artists tab** - See all Russian artists sorted by track count, with a one-click filter to their tracks
-- **Search within results** - Filter tracks or artists by name inside scan results
+- **Tracks & Artists tabs** - Browse flagged tracks with album art, or view Russian artists sorted by track count; filter and navigate between them
 - **Result caching** - Re-opening a scanned playlist is instant; rescan on demand to refresh
 
 ## Tech Stack
 
 **Frontend:** React 19 + TypeScript + Vite\
 **Backend:** Go + Gin\
+**Auth:** Email/password with JWT\
 **Storage:** PostgreSQL + Redis\
-**Deployment:** Docker Compose / Kubernetes (ArgoCD)
+**Deployment:** Docker Compose / Kubernetes (FluxCD)
 
 ## Quick Start
 
-### With Docker
 ```bash
 docker-compose up
 ```
-Frontend: http://localhost:3000\
+
+Runs both services in dev stage with hot reload inside containers.\
+Frontend: http://localhost:5173\
 Backend: http://localhost:8080
-
-### Local Development
-
-**Backend:**
-```bash
-cd backend
-air  # Hot reload dev server (port 8080)
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev  # Dev server (port 5173)
-```
 
 ## Requirements
 
@@ -50,24 +35,22 @@ npm run dev  # Dev server (port 5173)
 - Node.js 18+ (for local frontend dev)
 - Go 1.25+ (for local backend dev)
 - PostgreSQL 14+ (for local database)
-- Redis (optional — used for artist name caching and rate limiting; app falls back to DB if unavailable)
+- Redis (required env var; app degrades gracefully if unavailable — caching and rate limiting disabled)
 
 ## Setup
 
-1. Create `.env` in the root directory:
+1. Create `.env` in `backend/`:
 ```
 DB_URL=postgres://user:password@localhost:5432/spotiscan
+REDIS_URL=redis://localhost:6379
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+JWT_SECRET=your_jwt_secret_at_least_32_chars
 ```
 
-2. Set up Spotify OAuth at https://developer.spotify.com/dashboard
+2. Get Spotify API credentials at https://developer.spotify.com/dashboard (client credentials only — no OAuth redirect needed).
 
-3. Run migrations:
-```bash
-cd backend
-goose -dir migrations postgres "$DB_URL" up
-```
+Database migrations run automatically on startup.
 
 ## Project Structure
 
@@ -75,7 +58,7 @@ goose -dir migrations postgres "$DB_URL" up
 spotiscan/
 ├── frontend/              # React app
 │   └── src/
-│       ├── pages/         # Dashboard, Landing
+│       ├── pages/         # Landing, AuthPage, Dashboard
 │       ├── components/    # Header, AnimatedList, Aurora, GradientText
 │       └── types/         # TypeScript interfaces
 ├── backend/               # Go API server
@@ -87,17 +70,18 @@ spotiscan/
 │   │   ├── repository/    # DB, Redis, Spotify API clients
 │   │   ├── models/        # Domain types
 │   │   └── config/        # Config loading & validation
-│   └── migrations/        # Database schema
+│   ├── migrations/        # Database migration files (embeded into binary)
+│   └── scripts/           # Lua script for ratelimiting (embeded into binary)
 └── k8s/                   # Kubernetes manifests (kustomize)
 ```
 
 ## API Endpoints
 
-- `GET /api/auth/start` - Initiate Spotify OAuth
+- `POST /api/auth/signup` - Create account
+- `POST /api/auth/login` - Log in
+- `POST /api/auth/logout` - Log out
 - `GET /api/me` - Current user info
-- `GET /api/user/playlists` - User's playlists
-- `GET/DELETE /api/playlist/:id/rucontent` - Scan/clean playlist
-- `GET/DELETE /api/user/liked-songs/rucontent` - Scan/clean liked songs
+- `GET /api/playlist/:id/rucontent` - Scan playlist for Russian content
 
 ## License
 
