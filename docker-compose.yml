@@ -31,6 +31,12 @@ services:
       - FRONTEND_URL=http://localhost:5173
       - DB_URL=postgres://postgres:postgres@postgres:5432/spotiscan?sslmode=disable
       - SECURE_COOKIES=false
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     ports:
       - "8080:8080"
     depends_on:
@@ -38,6 +44,23 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+
+  scraper:
+    build:
+      context: ./backend
+      target: scraper
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DB_URL=postgres://postgres:postgres@postgres:5432/spotiscan?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
 
   frontend:
     build:
@@ -51,7 +74,8 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
 
   redis:
     image: redis:7-alpine
