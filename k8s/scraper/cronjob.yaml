@@ -24,17 +24,14 @@ spec:
           containers:
             - name: scraper
               image: ghcr.io/chivta/spotiscan/spotiscan-scraper:latest
+              volumeMounts:
+                - name: config
+                  mountPath: /home/appuser/config.json
+                  subPath: config.json
               envFrom:
                 - secretRef:
                     name: app-secrets
               env:
-                - name: LASTFM_API_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: app-secrets
-                      key: LASTFM_API_KEY
-                - name: REDIS_URL
-                  value: "redis://redis-svc:6379"
                 - name: SCRAPE_LASTFM_TOP_ARTISTS_FOR_ALL_TAGS
                   value: "true"
                 - name: SCRAPE_MUSICBRAINZ_ARTISTS_FOR_ALL_REGIONS
@@ -48,3 +45,7 @@ spec:
                 limits:
                   cpu: 500m
                   memory: 256Mi
+          volumes:
+            - name: config
+              configMap:
+                name: backend-config
