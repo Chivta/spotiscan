@@ -133,6 +133,10 @@ CREATE TRIGGER ru_artists_blocklist_check
 -- +goose Down
 -- +goose StatementBegin
 
+DROP TRIGGER IF EXISTS ru_artists_blocklist_check ON ru_artists;
+DROP FUNCTION IF EXISTS check_artist_blocklist();
+DROP TABLE IF EXISTS artist_blocklist;
+
 DROP TRIGGER IF EXISTS ru_artists_updated_at ON ru_artists;
 DROP FUNCTION IF EXISTS set_updated_at();
 ALTER TABLE ru_artists
@@ -145,5 +149,8 @@ ALTER TABLE ru_artists
     DROP COLUMN IF EXISTS created_at,
     DROP COLUMN IF EXISTS updated_at;
 DROP TYPE IF EXISTS artist_source;
+
+DROP TABLE IF EXISTS musicbrainz_ru_regions;
+DROP TABLE IF EXISTS lastfm_ru_tags;
 
 -- +goose StatementEnd
