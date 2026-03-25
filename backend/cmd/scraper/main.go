@@ -8,7 +8,9 @@ import (
 
 	"github.com/chivta/spotiscan/internal/config"
 	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/chivta/spotiscan/internal/repository"
 	"github.com/chivta/spotiscan/internal/repository/db_client"
+	"github.com/chivta/spotiscan/internal/repository/redis_client"
 )
 
 func main() {
@@ -59,6 +61,14 @@ func runApp() int {
 			appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
 		}
 	}
+
+	redisClient, err := redis_client.NewRedisClient(cfg.RedisURL)
+	if err != nil {
+		appLogger.Warnf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
+		return 0
+	} 
+	repo := repository.NewRepo(appLogger, db, redisClient, nil)
+	repo.LoadRussianArtistsToRedis(ctx)
 
 	return 0
 }
