@@ -46,6 +46,8 @@ services:
         condition: service_started
 
   scraper:
+    profiles:
+      - scraper
     build:
       context: ./backend
       target: scraper
