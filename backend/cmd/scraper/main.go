@@ -53,5 +53,12 @@ func runApp() int {
 		}
 	}
 
+	if cfg.ScraperConfig.ScrapePhonkersDBArtists {
+		err = scrapePhonkersDB(ctx, appLogger, db)
+		if err != nil {
+			appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
+		}
+	}
+
 	return 0
 }

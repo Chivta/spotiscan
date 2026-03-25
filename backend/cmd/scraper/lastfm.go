@@ -125,11 +125,11 @@ func scrapeLastFMTopArtistsForAllTags(ctx context.Context, appLogger *logger.Log
 			appLogger.Errorf("Failed to scrape artists for tag '%s': %v", tag, err)
 			continue
 		}
-		err = db.InsertArtists(ctx, artists)
-		if err != nil {
+		if err = db.InsertArtists(ctx, artists); err != nil {
 			appLogger.Errorf("Failed to insert artists for tag '%s': %v", tag, err)
 			continue
 		}
+		appLogger.Infof("LastFM tag '%s': inserted %d artists", tag, len(artists))
 	}
 
 	return nil

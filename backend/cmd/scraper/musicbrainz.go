@@ -16,12 +16,12 @@ import (
 const (
 	mbBaseURL   = "https://musicbrainz.org/ws/2"
 	mbPageSize  = 100
-	mbUserAgent = "spotiscan/1.0 (https://github.com/chivta/spotiscan)"
+	mbUserAgent = "spotiscan/1.0 (https://spotiscan.chivtar.dev)"
 )
 
 type MusicBrainzArtistsResponse struct {
-	Count   int                 `json:"count"`
-	Offset  int                 `json:"offset"`
+	Count   int                 `json:"artist-count"`
+	Offset  int                 `json:"artist-offset"`
 	Artists []MusicBrainzArtist `json:"artists"`
 }
 
@@ -121,19 +121,20 @@ func scrapeMusicBrainzArtistsForAllRegions(ctx context.Context, appLogger *logge
 		return fmt.Errorf("failed to get ru region ids: %w", err)
 	}
 
+	var totalInserted int
 	for _, id := range regionIDs {
-		appLogger.Infof("Scraping MusicBrainz artists for area '%s'", id)
 		artists, err := scrapeMusicBrainzArtistsByArea(ctx, id)
 		if err != nil {
-			appLogger.Errorf("Failed to scrape artists for area '%s': %v", id, err)
+			appLogger.Errorf("Failed to scrape MusicBrainz artists for area '%s': %v", id, err)
 			continue
 		}
 		if err := db.InsertArtists(ctx, artists); err != nil {
-			appLogger.Errorf("Failed to insert artists for area '%s': %v", id, err)
+			appLogger.Errorf("Failed to insert MusicBrainz artists for area '%s': %v", id, err)
 			continue
 		}
-		appLogger.Infof("Successfully inserted %d artists for area '%s'", len(artists), id)
+		totalInserted += len(artists)
 	}
+	appLogger.Infof("MusicBrainz: inserted %d artists across %d regions", totalInserted, len(regionIDs))
 
 	return nil
 }
