@@ -4,6 +4,7 @@ resources:
 - backend/deployment.yaml
 - backend/configmap.yaml
 - frontend/deployment.yaml
+- scraper/cronjob.yaml
 - postgres/statefulset.yaml
 - redis/deployment.yaml
 - ingress.yaml
@@ -14,3 +15,6 @@ images:
 - name: ghcr.io/chivta/spotiscan/spotiscan-frontend
   newName: ghcr.io/chivta/spotiscan/spotiscan-frontend
   newTag: 40c6ac4e5d7629c5029215694711f387e47d9f5b
+- name: ghcr.io/chivta/spotiscan/spotiscan-scraper
+  newName: ghcr.io/chivta/spotiscan/spotiscan-scraper
+  newTag: latest

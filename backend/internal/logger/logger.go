@@ -52,6 +52,15 @@ func (l *Logger) Debugf(format string, v ...any) {
 		timestamp, fmt.Sprintf(format, v...))
 }
 
+func (l *Logger) Info(v ...any) {
+	if l == nil || !l.infoEnabled {
+		return
+	}
+	timestamp := time.Now().Format("2006-01-02T15:04:05.000000-07:00")
+	l.infoLogger.Printf("%s [INFO] %s",
+		timestamp, fmt.Sprint(v...))
+}
+
 func (l *Logger) Infof(format string, v ...any) {
 	if l == nil || !l.infoEnabled {
 		return

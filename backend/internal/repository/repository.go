@@ -32,6 +32,7 @@ type (
 		GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
 		StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error
 		DeleteRefreshTokenHash(ctx context.Context, userID int) error
+		InsertArtists(ctx context.Context, artists []models.Artist) error
 	}
 
 	SpotifyClient interface {
@@ -239,3 +240,12 @@ func (r *Repo) DeleteRefreshTokenHash(ctx context.Context, userID int) error {
 	}
 	return nil
 }
+
+func (r *Repo) InsertArtists(ctx context.Context, artists []models.Artist) error {
+	err := r.db.InsertArtists(ctx, artists)
+	if err != nil {
+		r.logger.Errorf("db error: %T: %v", err, err)
+		return appErrors.ErrDatabaseFailure
+	}
+	return nil
+}	

@@ -1,17 +1,34 @@
-# Dev stage
-FROM golang:1.25.3-alpine AS dev
-RUN go install github.com/air-verse/air@latest
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-CMD ["air"]
-
-# Build stage
-FROM golang:1.25.3-alpine AS builder
+# Base stage: shared dependency download
+FROM golang:1.25.3-alpine AS base
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
+
+# Source stage: base + full source
+FROM base AS source
 COPY . .
+
+# Dev stage
+FROM base AS dev
+RUN go install github.com/air-verse/air@latest
+WORKDIR /app
+CMD ["air"]
+
+# Scraper build stage
+FROM source AS scraper-builder
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o scraper ./cmd/scraper
+
+# Scraper runtime stage
+FROM alpine:3.19 AS scraper
+RUN apk --no-cache add ca-certificates && \
+    adduser -D -s /sbin/nologin appuser
+WORKDIR /home/appuser
+COPY --from=scraper-builder --chown=appuser:appuser /build/scraper .
+USER appuser
+CMD ["./scraper"]
+
+# Build stage
+FROM source AS builder
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/spotiscan
 
 # Production stage

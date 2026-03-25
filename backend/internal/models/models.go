@@ -1,9 +1,8 @@
 package models
 
 const (
-	// TODO: make sure in prod values are correct
-	JWTDuration          = 15 * 60             // 15 minutes
-	RefreshTokenDuration = 30 * 24 * 60 * 60   // 30 days
+	JWTDuration           = 15 * 60           // 15 minutes
+	RefreshTokenDuration  = 30 * 24 * 60 * 60 // 30 days
 	JWTCookieAge          = 30 * 24 * 60 * 60 // 30 days
 	RefreshTokenCookieAge = 30 * 24 * 60 * 60 // 30 days
 	CookieJWT             = "jwt"
@@ -35,9 +34,15 @@ type Track struct {
 }
 
 type Artist struct {
-	ID   string `json:"ID"`
-	URL  string `json:"URL"`
-	Name string `json:"Name"`
+	ID            string `json:"ID"`
+	Name          string `json:"Name"`
+	SpotifyURL    string `json:"URL"`
+	DescriptionUA string `json:"DescriptionUA"`
+	DescriptionEN string `json:"DescriptionEN"`
+	Source        string `json:"Source"`
+	SourceURL        string `json:"SourceURL"`
+	Country       string `json:"Country"`
+	Confirmed     bool   `json:"Confirmed"`
 }
 
 type Playlist struct {

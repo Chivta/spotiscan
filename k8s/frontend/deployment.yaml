@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend-app
+  name: frontend
   namespace: spotiscan
   labels:
-    app: frontend-app
+    app: frontend
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: frontend-app
+      app: frontend
   template:
     metadata:
       labels:
-        app: frontend-app
+        app: frontend
     spec:
       containers:
-        - name: frontend-app
+        - name: frontend
           image: ghcr.io/chivta/spotiscan/spotiscan-frontend:latest
           ports:
             - containerPort: 80
@@ -50,10 +50,10 @@ metadata:
   name: frontend-svc
   namespace: spotiscan
   labels:
-    app: frontend-app
+    app: frontend
 spec:
   selector:
-    app: frontend-app
+    app: frontend
   ports:
     - port: 80
       targetPort: 80

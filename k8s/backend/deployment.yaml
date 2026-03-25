@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend-app 
+  name: backend 
   namespace: spotiscan
   labels:
-    app: backend-app
+    app: backend
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector: 
     matchLabels:
-      app: backend-app 
+      app: backend 
   template:
     metadata:
       labels:
-        app: backend-app
+        app: backend
     spec:
       containers:
-        - name: backend-app
+        - name: backend
           volumeMounts:
           - name: config
             mountPath: /home/appuser/config.json
@@ -69,10 +69,10 @@ metadata:
   name: backend-svc
   namespace: spotiscan
   labels:
-    app: backend-app
+    app: backend
 spec:
   selector:
-    app: backend-app  
+    app: backend  
   ports:
     - port: 8080
       targetPort: 8080
