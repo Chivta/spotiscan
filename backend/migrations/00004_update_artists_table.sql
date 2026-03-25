@@ -7,12 +7,16 @@ CREATE TABLE IF NOT EXISTS lastfm_ru_tags (
 );
 
 INSERT INTO lastfm_ru_tags (name) VALUES 
+('russian+rock'),
+('russian+pop'),
+('russian+hip-hop'),
+('russia'),
 ('russian');
 
 CREATE TABLE IF NOT EXISTS musicbrainz_ru_regions (
     id SERIAL PRIMARY KEY,
     name VARCHAR(256) NOT NULL UNIQUE,
-    mbid VARCHAR(36) NOT NULL UNIQUE
+    mbid UUID NOT NULL UNIQUE
 );
 
 INSERT INTO musicbrainz_ru_regions (name, mbid) VALUES 
@@ -77,7 +81,7 @@ INSERT INTO musicbrainz_ru_regions (name, mbid) VALUES
     ('Respublika Tatarstan', '9593b81f-1249-48a9-9155-6456488e3cde');
 
 
-CREATE TYPE artist_source AS ENUM ('lastfm', 'musicbrainz', 'phonkers_db', 'manual');
+CREATE TYPE artist_source AS ENUM ('lastfm', 'musicbrainz', 'phonkersbase', 'manual', 'crowdsourced');
 
 ALTER TABLE ru_artists 
     ADD COLUMN description_ua TEXT,
@@ -101,6 +105,28 @@ CREATE TRIGGER ru_artists_updated_at
     BEFORE UPDATE ON ru_artists
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE artist_blocklist (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION check_artist_blocklist()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM artist_blocklist WHERE name = NEW.name) THEN
+        RETURN NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER ru_artists_blocklist_check
+    BEFORE INSERT ON ru_artists
+    FOR EACH ROW
+    EXECUTE FUNCTION check_artist_blocklist();
 
 -- +goose StatementEnd
 
