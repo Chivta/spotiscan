@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/chivta/spotiscan/internal/models"
@@ -209,13 +210,14 @@ func (db *DBClient) InsertArtists(ctx context.Context, artists []models.Artist) 
 
 	seen := make(map[string]struct{}, len(artists))
 	for _, artist := range artists {
-		if artist.Name == "" {
+		name := strings.ToLower(artist.Name)
+		if name == "" {
 			continue
 		}
-		if _, dup := seen[artist.Name]; dup {
+		if _, dup := seen[name]; dup {
 			continue
 		}
-		seen[artist.Name] = struct{}{}
+		seen[name] = struct{}{}
 
 		source := artist.Source
 		if source == "" {
@@ -227,7 +229,7 @@ func (db *DBClient) InsertArtists(ctx context.Context, artists []models.Artist) 
 			country = "RU"
 		}
 
-		names = append(names, artist.Name)
+		names = append(names, name)
 		descriptionsUA = append(descriptionsUA, artist.DescriptionUA)
 		descriptionsEN = append(descriptionsEN, artist.DescriptionEN)
 		sources = append(sources, source)
