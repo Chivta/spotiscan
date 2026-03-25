@@ -28,6 +28,11 @@ spec:
                 - secretRef:
                     name: app-secrets
               env:
+                - name: LASTFM_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: app-secrets
+                      key: LASTFM_API_KEY
                 - name: REDIS_URL
                   value: "redis://redis-svc:6379"
                 - name: SCRAPE_LASTFM_TOP_ARTISTS_FOR_ALL_TAGS

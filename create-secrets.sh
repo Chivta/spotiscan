@@ -10,6 +10,7 @@
 #   SPOTIFY_CLIENT_ID   — Spotify app client ID
 #   SPOTIFY_CLIENT_SECRET — Spotify app client secret
 #   JWT_SECRET          — random string, minimum 32 characters (e.g. openssl rand -hex 32)
+#   LastFMAPIKey        —  Last.fm API key
 
 set -o allexport
 source .env.secrets

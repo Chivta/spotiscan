@@ -27,7 +27,7 @@ type ScraperConfig struct {
 	ScrapePhonkersDBArtists               bool
 	ScrapeMusicBrainzArtistsForAllRegions bool
 	LastFMAPIKey                          string `validate:"required,min=1"`
-	LastFMSharedSecret                    string `validate:"required,min=1"`
+	LastFMSharedSecret                    string `validate:"min=1"`
 }
 
 type LogConfig struct {
