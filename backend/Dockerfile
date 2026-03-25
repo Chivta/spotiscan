@@ -14,9 +14,17 @@ RUN go install github.com/air-verse/air@latest
 WORKDIR /app
 CMD ["air"]
 
-# Scraper stage
-FROM source AS scraper
+# Scraper build stage
+FROM source AS scraper-builder
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o scraper ./cmd/scraper
+
+# Scraper runtime stage
+FROM alpine:3.19 AS scraper
+RUN apk --no-cache add ca-certificates && \
+    adduser -D -s /sbin/nologin appuser
+WORKDIR /home/appuser
+COPY --from=scraper-builder --chown=appuser:appuser /build/scraper .
+USER appuser
 CMD ["./scraper"]
 
 # Build stage
