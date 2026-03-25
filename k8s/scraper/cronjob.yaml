@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scraper
+  namespace: spotiscan
+  labels:
+    app: scraper
+spec:
+  schedule: "0 3 * * 0"  # every Sunday at 3am
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app: scraper
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: ghcr-secret
+          containers:
+            - name: scraper
+              image: ghcr.io/chivta/spotiscan/spotiscan-scraper:latest
+              envFrom:
+                - secretRef:
+                    name: app-secrets
+              env:
+                - name: REDIS_URL
+                  value: "redis://redis-svc:6379"
+                - name: SCRAPE_LASTFM_TOP_ARTISTS_FOR_ALL_TAGS
+                  value: "true"
+                - name: SCRAPE_MUSICBRAINZ_ARTISTS_FOR_ALL_REGIONS
+                  value: "true"
+                - name: SCRAPE_PHONKERS_DB_ARTISTS
+                  value: "true"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
