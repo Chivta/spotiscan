@@ -18,9 +18,13 @@ function RootRoute({ onUser }: { onUser: (user: User) => void }) {
         throw new Error("unauthenticated");
       })
       .then((user: User) => {
-        onUser(user);
-        setAuthed(true);
-        navigate("/dashboard", { replace: true });
+        if (user.userRole !== "anon") {
+          onUser(user);
+          setAuthed(true);
+          navigate("/dashboard", { replace: true });
+        } else {
+          setChecked(true);
+        }
       })
       .catch(() => setChecked(true));
   }, []);
@@ -48,7 +52,7 @@ function AppRoutes() {
       <Route
         path="/dashboard"
         element={
-          user ? (
+          user && user.userRole !== "anon" ? (
             <>
               <Header user={user} onLogout={handleLogout} />
               <Dashboard />
