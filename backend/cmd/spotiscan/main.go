@@ -18,6 +18,7 @@ import (
 	"github.com/chivta/spotiscan/internal/handlers"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/middlewares"
+	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
 	"github.com/chivta/spotiscan/internal/repository/db_client"
 	"github.com/chivta/spotiscan/internal/repository/redis_client"
@@ -210,7 +211,7 @@ func runApp() int {
 		api.GET("/me", authHandler.Me)
 		api.POST("/auth/signup", authHandler.Signup)
 		api.POST("/auth/login", authHandler.Login)
-		api.GET("/playlist/:id/rucontent", jwtMiddleware.RequireAnonQuota(3), spotifyHandler.GetPlaylistRuContent)
+		api.GET("/playlist/:id/rucontent", jwtMiddleware.RequireAnonQuota("/playlist", models.AnonRequestLimit), spotifyHandler.GetPlaylistRuContent)
 
 		userEndpoints := api.Group("")
 		userEndpoints.Use(jwtMiddleware.RequireUserRole())

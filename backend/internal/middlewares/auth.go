@@ -134,9 +134,8 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 	}
 }
 
-func (m *JWTMiddleware) RequireAnonQuota(limit int) gin.HandlerFunc {
+func (m *JWTMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		path := c.Request.URL.Path
 		anonIDAny, exists := c.Get(userIDKey)
 		if !exists {
 			m.log.Warnf("RequireAnonQuota: userID not found in context")

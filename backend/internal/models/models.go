@@ -12,7 +12,7 @@ const (
 const (
 	AnonSessionDuration  = 60 * 60 * 24 // 24 hours
 	AnonSessionCookieAge = 60 * 60 * 24 // 24 hours
-	AnonRequestLimit     = 5            // 5 requests per AnonSessionDuration
+	AnonRequestLimit     = 3
 )
 
 type Role string
