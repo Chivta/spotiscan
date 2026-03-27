@@ -28,14 +28,9 @@ func NewJWTMiddleware(authService *services.AuthService, secureCookies bool, app
 	}
 }
 
-const (
-	userRoleKey = "userRole"
-	userIDKey   = "userID"
-)
-
 func (m *JWTMiddleware) RequireAdminRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		assignedRole, exists := c.Get(userRoleKey)
+		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
 			m.log.Warnf("RequireRole: userRole not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
@@ -55,7 +50,7 @@ func (m *JWTMiddleware) RequireAdminRole() gin.HandlerFunc {
 
 func (m *JWTMiddleware) RequireUserRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		assignedRole, exists := c.Get(userRoleKey)
+		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
 			m.log.Warnf("RequireRole: userRole not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
@@ -88,8 +83,8 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 			}
 			c.SetSameSite(http.SameSiteLaxMode)
 			c.SetCookie(models.CookieJWT, anonSession.JWT, models.AnonSessionCookieAge, "/", "", m.secureCookies, true)
-			c.Set(userIDKey, anonSession.UserID)
-			c.Set(userRoleKey, anonSession.Role)
+			c.Set(models.UserIDKey, anonSession.UserID)
+			c.Set(models.UserRoleKey, anonSession.Role)
 			c.Next()
 			return
 		}
@@ -122,21 +117,21 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 			c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", m.secureCookies, true)
 			c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", m.secureCookies, true)
 
-			c.Set("userID", session.UserID)
-			c.Set("userRole", session.Role)
+			c.Set(models.UserIDKey, session.UserID)
+			c.Set(models.UserRoleKey, session.Role)
 			c.Next()
 			return
 		}
 
-		c.Set(userIDKey, claims.UserID)
-		c.Set(userRoleKey, claims.Role)
+		c.Set(models.UserIDKey, claims.UserID)
+		c.Set(models.UserRoleKey, claims.Role)
 		c.Next()
 	}
 }
 
 func (m *JWTMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		anonIDAny, exists := c.Get(userIDKey)
+		anonIDAny, exists := c.Get(models.UserIDKey)
 		if !exists {
 			m.log.Warnf("RequireAnonQuota: userID not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
@@ -150,7 +145,7 @@ func (m *JWTMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc
 			c.Abort()
 			return
 		}
-		assignedRole, exists := c.Get(userRoleKey)
+		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
 			m.log.Warnf("RequireAnonQuota: userRole not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)

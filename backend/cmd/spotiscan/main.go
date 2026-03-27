@@ -218,8 +218,6 @@ func runApp() int {
 		{
 			userEndpoints.POST("/auth/logout", authHandler.Logout)
 		}
-
-		// TODO: Add admin panel
 	}
 
 	if err = r.Run(); err != nil {

@@ -111,7 +111,6 @@ func fetchPhonkersDBPage(ctx context.Context, offset int) (*PhonkersDBResponse, 
 	}
 	req.Header.Set("User-Agent", pdbUserAgent)
 
-	// TODO: propagate context
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch offset %d: %w", offset, err)

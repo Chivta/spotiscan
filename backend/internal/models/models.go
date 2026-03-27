@@ -15,6 +15,11 @@ const (
 	AnonRequestLimit     = 3
 )
 
+const (
+	UserRoleKey = "userRole"
+	UserIDKey   = "userID"
+)
+
 type Role string
 
 const (
