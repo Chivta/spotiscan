@@ -26,7 +26,7 @@ type AuthRepository interface {
 	GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
 	StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error
 	DeleteRefreshTokenHash(ctx context.Context, userID int) error
-	IncrementAnonRequestCounter(ctx context.Context, anonID, path string) (int, error)
+	IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error)
 }
 
 func NewAuthService(repo AuthRepository, logger *logger.Logger, jwtSecret []byte) *AuthService {
@@ -175,7 +175,7 @@ func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSes
 }
 
 func (s *AuthService) IncrementAnonQuota(ctx context.Context, anonID, path string) (int, error) {
-	return s.repo.IncrementAnonRequestCounter(ctx, anonID,path)
+	return s.repo.IncrementAnonRequestCounter(ctx, anonID, path, time.Duration(models.AnonSessionDuration)*time.Second)
 }
 
 // ExchangeRefreshToken validates the refresh token against the DB, revokes it, and returns a new session.

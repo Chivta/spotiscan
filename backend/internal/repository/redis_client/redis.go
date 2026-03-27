@@ -2,6 +2,8 @@ package redis_client
 
 import (
 	"context"
+	"time"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -102,10 +104,15 @@ func (r *RedisClient) FilterRussianArtistNames(ctx context.Context, names []stri
     return ruNames, nil
 }
 
-func (r *RedisClient) IncrementAnonRequestCounter(ctx context.Context, anonID, path string) (int, error) {
-    newValue, err := r.client.Incr(ctx, "anon:"+anonID+":"+path).Result()
+func (r *RedisClient) IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error) {
+    key := "anon:" + anonID + ":" + path
+    newValue, err := r.client.Incr(ctx, key).Result()
     if err != nil {
         return 0, err
+    }
+    // Set TTL only on key creation so the window is fixed, not sliding.
+    if newValue == 1 {
+        r.client.Expire(ctx, key, ttl)
     }
     return int(newValue), nil
 }
