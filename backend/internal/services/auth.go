@@ -58,6 +58,7 @@ type Session struct {
 
 type AnonymousSession struct {
 	JWT  string
+	UserID string
 	Role models.Role
 }
 
@@ -168,6 +169,7 @@ func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSes
 
 	return &AnonymousSession{
 		JWT:  signed,
+		UserID: anonID,
 		Role: models.RoleAnon,
 	}, nil
 }

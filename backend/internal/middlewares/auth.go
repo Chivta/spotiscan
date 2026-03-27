@@ -88,7 +88,7 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 			}
 			c.SetSameSite(http.SameSiteLaxMode)
 			c.SetCookie(models.CookieJWT, anonSession.JWT, models.AnonSessionCookieAge, "/", "", m.secureCookies, true)
-			c.Set(userIDKey, "0")
+			c.Set(userIDKey, anonSession.UserID)
 			c.Set(userRoleKey, anonSession.Role)
 			c.Next()
 			return
