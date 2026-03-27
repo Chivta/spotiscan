@@ -177,5 +177,6 @@ func (m *JWTMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc
 			return
 		}
 
+		c.Next()
 	}
 }
