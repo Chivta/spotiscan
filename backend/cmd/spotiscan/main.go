@@ -191,7 +191,7 @@ func runApp() int {
 	spotifyService := services.NewSpotifyService(appLogger, repo)
 	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
 
-	authService := services.NewAuthService(repo, []byte(cfg.JWTSecret))
+	authService := services.NewAuthService(repo, appLogger, []byte(cfg.JWTSecret))
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
 	spotifyMiddleware := middlewares.NewSpotifyMiddleware(spotifyService)
 	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies, appLogger)
@@ -203,22 +203,19 @@ func runApp() int {
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(rateLimitCache, appLogger)
 
 	api := r.Group("/api")
+	api.Use(jwtMiddleware.ParseAuth())
 	api.Use(spotifyMiddleware.AttachSpotifyClientCreds())
 	api.Use(rateLimitMiddleware.LimitRequests(cfg.RateLimit.RequestLimit, cfg.RateLimit.WindowSeconds))
-	{	
-		auth := api.Group("/auth")
-		{
-			auth.POST("/signup", authHandler.Signup)
-			auth.POST("/login", authHandler.Login)
-		}
+	{
+		api.GET("/me", authHandler.Me)
+		api.POST("/auth/signup", authHandler.Signup)
+		api.POST("/auth/login", authHandler.Login)
+		api.GET("/playlist/:id/rucontent", jwtMiddleware.RequireAnonQuota(3), spotifyHandler.GetPlaylistRuContent)
 
-		prot := api.Group("")
-		prot.Use(jwtMiddleware.ProtectRoutes())
+		userEndpoints := api.Group("")
+		userEndpoints.Use(jwtMiddleware.RequireUserRole())
 		{
-			prot.POST("/auth/logout", authHandler.Logout)
-			prot.GET("/me", authHandler.Me)
-			prot.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
-
+			userEndpoints.POST("/auth/logout", authHandler.Logout)
 		}
 
 		// TODO: Add admin panel

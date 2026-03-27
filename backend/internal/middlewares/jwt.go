@@ -28,13 +28,69 @@ func NewJWTMiddleware(authService *services.AuthService, secureCookies bool, app
 	}
 }
 
-func (m *JWTMiddleware) ProtectRoutes() gin.HandlerFunc {
+const (
+	userRoleKey = "userRole"
+	userIDKey   = "userID"
+)
+
+func (m *JWTMiddleware) RequireAdminRole() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		assignedRole, exists := c.Get(userRoleKey)
+		if !exists {
+			m.log.Warnf("RequireRole: userRole not found in context")
+			handlers.RespondWithError(c, appErrors.ErrInternal)
+			c.Abort()
+			return
+		}
+
+		if assignedRole != models.RoleAdmin {
+			handlers.RespondWithError(c, appErrors.ErrForbidden)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func (m *JWTMiddleware) RequireUserRole() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		assignedRole, exists := c.Get(userRoleKey)
+		if !exists {
+			m.log.Warnf("RequireRole: userRole not found in context")
+			handlers.RespondWithError(c, appErrors.ErrInternal)
+			c.Abort()
+			return
+		}
+
+		if assignedRole != models.RoleUser && assignedRole != models.RoleAdmin {
+			handlers.RespondWithError(c, appErrors.ErrForbidden)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jwtStr, err := c.Cookie(models.CookieJWT)
 		if err != nil {
-			m.log.Debugf("JWT cookie error: %v:%T", err, err)
-			handlers.RespondWithError(c, appErrors.ErrUnauthorized)
-			c.Abort()
+			// No JWT cookie: treat as anonymous user
+			m.log.Info("Issuing anon session ")
+			anonSession, err := m.authService.CreateAnonymousSession(c.Request.Context())
+			if err != nil {
+				m.log.Errorf("Failed to create anonymous session: %v", err)
+				handlers.RespondWithError(c, err)
+				c.Abort()
+				return
+			}
+			c.SetSameSite(http.SameSiteLaxMode)
+			c.SetCookie(models.CookieJWT, anonSession.JWT, models.AnonSessionDuration, "/", "", m.secureCookies, true)
+			c.Set(userIDKey, "0")
+			c.Set(userRoleKey, anonSession.Role)
+			c.Next()
 			return
 		}
 
@@ -72,8 +128,55 @@ func (m *JWTMiddleware) ProtectRoutes() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userID", claims.UserID)
-		c.Set("userRole", claims.Role)
+		c.Set(userIDKey, claims.UserID)
+		c.Set(userRoleKey, claims.Role)
 		c.Next()
+	}
+}
+
+func (m *JWTMiddleware) RequireAnonQuota(limit int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+		anonIDAny, exists := c.Get(userIDKey)
+		if !exists {
+			m.log.Warnf("RequireAnonQuota: userID not found in context")
+			handlers.RespondWithError(c, appErrors.ErrInternal)
+			c.Abort()
+			return
+		}
+		anonID, ok := anonIDAny.(string)
+		if !ok {
+			m.log.Warnf("RequireAnonQuota: userID in context is not a string")
+			handlers.RespondWithError(c, appErrors.ErrInternal)
+			c.Abort()
+			return
+		}
+		assignedRole, exists := c.Get(userRoleKey)
+		if !exists {
+			m.log.Warnf("RequireAnonQuota: userRole not found in context")
+			handlers.RespondWithError(c, appErrors.ErrInternal)
+			c.Abort()
+			return
+		}
+
+		if assignedRole != models.RoleAnon {
+			c.Next()
+			return
+		}
+		
+		n, err := m.authService.IncrementAnonQuota(c.Request.Context(), anonID, path)
+		if err != nil {
+			m.log.Errorf("Failed to increment anon quota: %v", err)
+			handlers.RespondWithError(c, appErrors.ErrInternal)
+			c.Abort()
+			return
+		}
+
+		if n > limit {
+			handlers.RespondWithError(c, appErrors.ErrQuotaExceeded)
+			c.Abort()
+			return
+		}
+
 	}
 }

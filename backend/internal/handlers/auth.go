@@ -106,6 +106,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "logout successful"})
 }
 
+// TODO: those hardcoded field names... use constants
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	userRole, _ := c.Get("userRole")

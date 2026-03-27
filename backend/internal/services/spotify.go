@@ -34,7 +34,7 @@ type SpotifyService struct {
 
 func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
 	token, err := s.repo.GetStoredSpotifyToken(ctx)
-	if err != nil && err != appErrors.ErrNotFound {
+	if err != nil && err != appErrors.ErrPlaylistNotFound {
 		s.log.Errorf("failed to get stored spotify token: %v", err)
 		return nil, err
 	}

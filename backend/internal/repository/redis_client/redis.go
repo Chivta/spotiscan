@@ -101,3 +101,11 @@ func (r *RedisClient) FilterRussianArtistNames(ctx context.Context, names []stri
     }
     return ruNames, nil
 }
+
+func (r *RedisClient) IncrementAnonRequestCounter(ctx context.Context, anonID, path string) (int, error) {
+    newValue, err := r.client.Incr(ctx, "anon:"+anonID+":"+path).Result()
+    if err != nil {
+        return 0, err
+    }
+    return int(newValue), nil
+}
