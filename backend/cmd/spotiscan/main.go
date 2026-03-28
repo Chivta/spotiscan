@@ -18,6 +18,7 @@ import (
 	"github.com/chivta/spotiscan/internal/handlers"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/middlewares"
+	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
 	"github.com/chivta/spotiscan/internal/repository/db_client"
 	"github.com/chivta/spotiscan/internal/repository/redis_client"
@@ -191,7 +192,7 @@ func runApp() int {
 	spotifyService := services.NewSpotifyService(appLogger, repo)
 	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
 
-	authService := services.NewAuthService(repo, []byte(cfg.JWTSecret))
+	authService := services.NewAuthService(repo, appLogger, []byte(cfg.JWTSecret))
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
 	spotifyMiddleware := middlewares.NewSpotifyMiddleware(spotifyService)
 	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies, appLogger)
@@ -203,25 +204,20 @@ func runApp() int {
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(rateLimitCache, appLogger)
 
 	api := r.Group("/api")
+	api.Use(jwtMiddleware.ParseAuth())
 	api.Use(spotifyMiddleware.AttachSpotifyClientCreds())
 	api.Use(rateLimitMiddleware.LimitRequests(cfg.RateLimit.RequestLimit, cfg.RateLimit.WindowSeconds))
-	{	
-		auth := api.Group("/auth")
+	{
+		api.GET("/me", authHandler.Me)
+		api.POST("/auth/signup", authHandler.Signup)
+		api.POST("/auth/login", authHandler.Login)
+		api.GET("/playlist/:id/rucontent", jwtMiddleware.RequireAnonQuota("/playlist", models.AnonRequestLimit), spotifyHandler.GetPlaylistRuContent)
+
+		userEndpoints := api.Group("")
+		userEndpoints.Use(jwtMiddleware.RequireUserRole())
 		{
-			auth.POST("/signup", authHandler.Signup)
-			auth.POST("/login", authHandler.Login)
+			userEndpoints.POST("/auth/logout", authHandler.Logout)
 		}
-
-		prot := api.Group("")
-		prot.Use(jwtMiddleware.ProtectRoutes())
-		{
-			prot.POST("/auth/logout", authHandler.Logout)
-			prot.GET("/me", authHandler.Me)
-			prot.GET("/playlist/:id/rucontent", spotifyHandler.GetPlaylistRuContent)
-
-		}
-
-		// TODO: Add admin panel
 	}
 
 	if err = r.Run(); err != nil {

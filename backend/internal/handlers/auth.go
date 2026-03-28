@@ -83,7 +83,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get(models.UserIDKey)
 	if !exists {
 		RespondWithError(c, appErrors.ErrUnauthorized)
 		return
@@ -107,10 +107,10 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
-	userID, _ := c.Get("userID")
-	userRole, _ := c.Get("userRole")
+	userID, _ := c.Get(models.UserIDKey)
+	userRole, _ := c.Get(models.UserRoleKey)
 	c.JSON(200, gin.H{
-		"userID":   userID,
-		"userRole": userRole,
+		models.UserIDKey:   userID,
+		models.UserRoleKey: userRole,
 	})
 }

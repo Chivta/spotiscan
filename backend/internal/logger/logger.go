@@ -44,12 +44,16 @@ type Logger struct {
 }
 
 func (l *Logger) Debugf(format string, v ...any) {
-	if l == nil || !l.debugEnabled {
-		return
-	}
-	timestamp := time.Now().Format("2006-01-02T15:04:05.000000-07:00")
-	l.debugLogger.Printf("%s [DEBUG] %s",
-		timestamp, fmt.Sprintf(format, v...))
+    if l == nil || !l.debugEnabled {
+        return  // this part gets inlined → fast path costs nothing
+    }
+    l.debugOutput(format, v...)
+}
+
+//go:noinline
+func (l *Logger) debugOutput(format string, v ...any) {
+    timestamp := time.Now().Format("2006-01-02T15:04:05.000000-07:00")
+    l.debugLogger.Printf("%s [DEBUG] %s", timestamp, fmt.Sprintf(format, v...))
 }
 
 func (l *Logger) Info(v ...any) {

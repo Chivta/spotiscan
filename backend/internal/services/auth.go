@@ -15,6 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -25,6 +26,21 @@ type AuthRepository interface {
 	GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
 	StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error
 	DeleteRefreshTokenHash(ctx context.Context, userID int) error
+	IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error)
+}
+
+func NewAuthService(repo AuthRepository, logger *logger.Logger, jwtSecret []byte) *AuthService {
+	return &AuthService{
+		repo:      repo,
+		log:       logger,
+		jwtSecret: jwtSecret,
+	}
+}
+
+type AuthService struct {
+	repo      AuthRepository
+	log       *logger.Logger
+	jwtSecret []byte
 }
 
 type JWTClaims struct {
@@ -33,26 +49,20 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-func NewAuthService(repo AuthRepository, jwtSecret []byte) *AuthService {
-	return &AuthService{
-		repo:      repo,
-		jwtSecret: jwtSecret,
-	}
-}
-
-type AuthService struct {
-	repo      AuthRepository
-	jwtSecret []byte
-}
-
-type NewSession struct {
+type Session struct {
 	JWT          string
 	RefreshToken string
 	UserID       string
 	Role         models.Role
 }
 
-func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*NewSession, error) {
+type AnonymousSession struct {
+	JWT  string
+	UserID string
+	Role models.Role
+}
+
+func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Session, error) {
 	user, err := s.repo.GetUserByEmail(ctx, loginDTO.Email)
 	if err != nil {
 		return nil, err
@@ -65,7 +75,7 @@ func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*New
 	return s.createSession(ctx, user)
 }
 
-func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*NewSession, error) {
+func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*Session, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signupDTO.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", appErrors.ErrInternal, err)
@@ -85,8 +95,8 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 	return s.createSession(ctx, &user)
 }
 
-// createSession issues a new JWT + refresh token, stores the refresh token hash, and returns a NewSession.
-func (s *AuthService) createSession(ctx context.Context, user *models.User) (*NewSession, error) {
+// createSession issues a new JWT + refresh token, stores the refresh token hash, and returns session.
+func (s *AuthService) createSession(ctx context.Context, user *models.User) (*Session, error) {
 	refreshToken, err := generateRefreshToken()
 	if err != nil {
 		return nil, err
@@ -110,7 +120,7 @@ func (s *AuthService) createSession(ctx context.Context, user *models.User) (*Ne
 		return nil, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
 	}
 
-	return &NewSession{
+	return &Session{
 		JWT:          signed,
 		RefreshToken: refreshToken,
 		UserID:       strconv.Itoa(user.ID),
@@ -131,13 +141,45 @@ func (s *AuthService) ParseJWT(jwtStr string) (JWTClaims, error) {
 		return s.jwtSecret, nil
 	})
 	if err != nil {
-		return JWTClaims{}, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
+		return claims, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
 	}
 	return claims, nil
 }
 
+func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSession, error) {
+	anonID, err := generateAnonUserID()
+	if err != nil {
+		s.log.Errorf("Failed to generate anon user ID: %v", err)
+		return nil, appErrors.ErrInternal
+	}
+
+	claims := JWTClaims{
+		UserID: anonID,
+		Role:   models.RoleAnon,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(models.AnonSessionDuration) * time.Second)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString(s.jwtSecret)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
+	}
+
+	return &AnonymousSession{
+		JWT:  signed,
+		UserID: anonID,
+		Role: models.RoleAnon,
+	}, nil
+}
+
+func (s *AuthService) IncrementAnonQuota(ctx context.Context, anonID, path string) (int, error) {
+	return s.repo.IncrementAnonRequestCounter(ctx, anonID, path, time.Duration(models.AnonSessionDuration)*time.Second)
+}
+
 // ExchangeRefreshToken validates the refresh token against the DB, revokes it, and returns a new session.
-func (s *AuthService) ExchangeRefreshToken(ctx context.Context, expiredJWTStr, refreshToken string) (*NewSession, error) {
+func (s *AuthService) ExchangeRefreshToken(ctx context.Context, expiredJWTStr, refreshToken string) (*Session, error) {
 	var claims JWTClaims
 	_, err := jwt.NewParser(jwt.WithoutClaimsValidation()).ParseWithClaims(expiredJWTStr, &claims, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -183,6 +225,14 @@ func (s *AuthService) ExchangeRefreshToken(ctx context.Context, expiredJWTStr, r
 
 func comparePasswordHashWithSalt(storedHash string, plainPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(plainPassword))
+}
+
+func generateAnonUserID() (string, error) {
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(raw), nil
 }
 
 func generateRefreshToken() (string, error) {

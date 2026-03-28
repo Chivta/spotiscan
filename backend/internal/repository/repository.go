@@ -19,6 +19,7 @@ type (
 	CacheClient interface {
 		SetRussianArtistNames(ctx context.Context, names []string) error
 		FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error)
+		IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error)
 	}
 
 	DBClient interface {
@@ -65,7 +66,7 @@ func (r *Repo) translateSpotifyError(err error) error {
 		switch spotifyErr.Status {
 		case 404:
 			r.logger.Infof("spotify not found: %T: %v", spotifyErr, spotifyErr)
-			return appErrors.ErrNotFound
+			return appErrors.ErrPlaylistNotFound
 		case 400:
 			r.logger.Infof("spotify bad request: %T: %v", spotifyErr, spotifyErr)
 			return appErrors.ErrBadRequest
@@ -248,4 +249,8 @@ func (r *Repo) InsertArtists(ctx context.Context, artists []models.Artist) error
 		return appErrors.ErrDatabaseFailure
 	}
 	return nil
-}	
+}
+
+func (r *Repo) IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error) {
+	return r.redis.IncrementAnonRequestCounter(ctx, anonID, path, ttl)
+}

@@ -9,11 +9,23 @@ const (
 	CookieRefreshToken    = "refresh_token"
 )
 
+const (
+	AnonSessionDuration  = 60 * 60 * 24 // 24 hours
+	AnonSessionCookieAge = 60 * 60 * 24 // 24 hours
+	AnonRequestLimit     = 3
+)
+
+const (
+	UserRoleKey = "userRole"
+	UserIDKey   = "userID"
+)
+
 type Role string
 
 const (
 	RoleUser  Role = "user"
 	RoleAdmin Role = "admin"
+	RoleAnon  Role = "anon"
 )
 
 type LoginDTO struct {
@@ -40,7 +52,7 @@ type Artist struct {
 	DescriptionUA string `json:"DescriptionUA"`
 	DescriptionEN string `json:"DescriptionEN"`
 	Source        string `json:"Source"`
-	SourceURL        string `json:"SourceURL"`
+	SourceURL     string `json:"SourceURL"`
 	Country       string `json:"Country"`
 	Confirmed     bool   `json:"Confirmed"`
 }
