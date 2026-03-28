@@ -17,28 +17,31 @@ import (
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/spotiscan/internal/repository"
 )
 
-type AuthRepository interface {
-	GetUserByID(ctx context.Context, id int) (*models.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
-	CreateUser(ctx context.Context, user *models.User) (int, error)
-	GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
-	StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error
-	DeleteRefreshTokenHash(ctx context.Context, userID int) error
-	IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error)
-}
+// type AuthRepository interface {
+// 	GetUserByID(ctx context.Context, id int) (*models.User, error)
+// 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+// 	CreateUser(ctx context.Context, user *models.User) (int, error)
+// 	GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
+// 	StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error
+// 	DeleteRefreshTokenHash(ctx context.Context, userID int) error
+// 	IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error)
+// }
 
-func NewAuthService(repo AuthRepository, logger *logger.Logger, jwtSecret []byte) *AuthService {
+func NewAuthService(logger *logger.Logger, jwtSecret []byte, tokenRepo *repository.TokenRepo, userRepo *repository.UserRepo) *AuthService {
 	return &AuthService{
-		repo:      repo,
 		log:       logger,
 		jwtSecret: jwtSecret,
+		tokenRepo: tokenRepo,
+		userRepo:  userRepo,
 	}
 }
 
 type AuthService struct {
-	repo      AuthRepository
+	tokenRepo *repository.TokenRepo
+	userRepo  *repository.UserRepo
 	log       *logger.Logger
 	jwtSecret []byte
 }
@@ -57,13 +60,13 @@ type Session struct {
 }
 
 type AnonymousSession struct {
-	JWT  string
+	JWT    string
 	UserID string
-	Role models.Role
+	Role   models.Role
 }
 
 func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Session, error) {
-	user, err := s.repo.GetUserByEmail(ctx, loginDTO.Email)
+	user, err := s.userRepo.GetUserByEmail(ctx, loginDTO.Email)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +89,7 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 		PasswordHash: string(hashedPassword),
 		Role:         models.RoleUser,
 	}
-	id, err := s.repo.CreateUser(ctx, &user)
+	id, err := s.userRepo.CreateUser(ctx, &user)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +106,7 @@ func (s *AuthService) createSession(ctx context.Context, user *models.User) (*Se
 	}
 	refreshTokenHash := hashRefreshToken(refreshToken)
 	refreshExpiresAt := time.Now().Add(time.Duration(models.RefreshTokenDuration) * time.Second)
-	if err := s.repo.StoreRefreshTokenHash(ctx, user.ID, refreshTokenHash, refreshExpiresAt); err != nil {
+	if err := s.tokenRepo.StoreRefreshTokenHash(ctx, user.ID, refreshTokenHash, refreshExpiresAt); err != nil {
 		return nil, err
 	}
 
@@ -129,7 +132,7 @@ func (s *AuthService) createSession(ctx context.Context, user *models.User) (*Se
 }
 
 func (s *AuthService) Logout(ctx context.Context, userID int) error {
-	return s.repo.DeleteRefreshTokenHash(ctx, userID)
+	return s.tokenRepo.DeleteRefreshTokenHash(ctx, userID)
 }
 
 func (s *AuthService) ParseJWT(jwtStr string) (JWTClaims, error) {
@@ -168,14 +171,14 @@ func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSes
 	}
 
 	return &AnonymousSession{
-		JWT:  signed,
+		JWT:    signed,
 		UserID: anonID,
-		Role: models.RoleAnon,
+		Role:   models.RoleAnon,
 	}, nil
 }
 
 func (s *AuthService) IncrementAnonQuota(ctx context.Context, anonID, path string) (int, error) {
-	return s.repo.IncrementAnonRequestCounter(ctx, anonID, path, time.Duration(models.AnonSessionDuration)*time.Second)
+	return s.tokenRepo.IncrementAnonRequestCounter(ctx, anonID, path, time.Duration(models.AnonSessionDuration)*time.Second)
 }
 
 // ExchangeRefreshToken validates the refresh token against the DB, revokes it, and returns a new session.
@@ -198,7 +201,7 @@ func (s *AuthService) ExchangeRefreshToken(ctx context.Context, expiredJWTStr, r
 
 	incomingHash := hashRefreshToken(refreshToken)
 
-	storedHash, expiresAt, err := s.repo.GetRefreshTokenByUserID(ctx, userID)
+	storedHash, expiresAt, err := s.tokenRepo.GetRefreshTokenByUserID(ctx, userID)
 	if err != nil {
 		return nil, appErrors.ErrUnauthorized
 	}
@@ -211,11 +214,11 @@ func (s *AuthService) ExchangeRefreshToken(ctx context.Context, expiredJWTStr, r
 		return nil, appErrors.ErrUnauthorized
 	}
 
-	if err := s.repo.DeleteRefreshTokenHash(ctx, userID); err != nil {
+	if err := s.tokenRepo.DeleteRefreshTokenHash(ctx, userID); err != nil {
 		return nil, appErrors.ErrUnauthorized
 	}
 
-	user, err := s.repo.GetUserByID(ctx, userID)
+	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, appErrors.ErrUnauthorized
 	}

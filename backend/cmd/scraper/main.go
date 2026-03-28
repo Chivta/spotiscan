@@ -8,13 +8,18 @@ import (
 
 	"github.com/chivta/spotiscan/internal/config"
 	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
-	"github.com/chivta/spotiscan/internal/repository/redis_client"
 )
 
 func main() {
 	os.Exit(runApp())
+}
+
+type artistsRepo interface {
+	InsertArtists(ctx context.Context, artists []models.Artist) error 
+	GetRuTags(ctx context.Context) ([]string, error)
+	GetRuRegionIds(ctx context.Context) ([]string, error)
 }
 
 func runApp() int {
@@ -35,39 +40,42 @@ func runApp() int {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	db, err := db_client.NewDBClient(cfg.DatabaseURL)
+	db, err := repository.InitializeDatabase(cfg.DatabaseURL)
 	if err != nil {
-		appLogger.Errorf("Failed to initialize postgres: %v", err)
 		return 1
 	}
+	defer db.Close()
+
+	redis, err := repository.InitializeRedis(cfg.RedisURL)
+	if err != nil {
+		appLogger.Errorf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
+		return 1
+	}
+	defer redis.Close()
+
+	repo := repository.NewArtistRepo(appLogger, db, redis)
 
 	if cfg.ScraperConfig.ScrapeLastFMTopArtistsForAllTags {
-		err = scrapeLastFMTopArtistsForAllTags(ctx, appLogger, db, cfg.ScraperConfig.LastFMAPIKey)
+		err = scrapeLastFMTopArtistsForAllTags(ctx, appLogger, repo, cfg.ScraperConfig.LastFMAPIKey)
 		if err != nil {
 			appLogger.Errorf("Failed to scrape LastFM artists: %v", err)
 		}
 	}
 
 	if cfg.ScraperConfig.ScrapeMusicBrainzArtistsForAllRegions {
-		err = scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, db)
+		err = scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, repo)
 		if err != nil {
 			appLogger.Errorf("Failed to scrape MusicBrainz artists by regions: %v", err)
 		}
 	}
 
 	if cfg.ScraperConfig.ScrapePhonkersDBArtists {
-		err = scrapePhonkersDB(ctx, appLogger, db)
+		err = scrapePhonkersDB(ctx, appLogger, repo)
 		if err != nil {
 			appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
 		}
 	}
 
-	redisClient, err := redis_client.NewRedisClient(cfg.RedisURL)
-	if err != nil {
-		appLogger.Warnf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
-		return 0
-	} 
-	repo := repository.NewRepo(appLogger, db, redisClient, nil)
 	repo.LoadRussianArtistsToRedis(ctx)
 
 	return 0

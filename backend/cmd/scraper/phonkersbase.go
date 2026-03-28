@@ -10,7 +10,6 @@ import (
 
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
 )
 
 
@@ -169,12 +168,12 @@ func scrapePhonkersDBartists(ctx context.Context, appLogger *logger.Logger) ([]m
 	return artists, nil
 }
 
-func scrapePhonkersDB(ctx context.Context, appLogger *logger.Logger, db *db_client.DBClient) error {
+func scrapePhonkersDB(ctx context.Context, appLogger *logger.Logger, repo artistsRepo) error {
 	artists, err := scrapePhonkersDBartists(ctx, appLogger)
 	if err != nil {
 		return fmt.Errorf("failed to scrape PhonkersBase artists: %w", err)
 	}
-	if err := db.InsertArtists(ctx, artists); err != nil {
+	if err := repo.InsertArtists(ctx, artists); err != nil {
 		return fmt.Errorf("failed to insert PhonkersBase artists: %w", err)
 	}
 	appLogger.Infof("Successfully inserted %d artists from PhonkersBase", len(artists))

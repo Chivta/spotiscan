@@ -9,7 +9,6 @@ import (
 
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
 )
 
 // LastFMTopArtistsResponse matches the payload from tag.getTopArtists.
@@ -110,10 +109,10 @@ func scrapeLastFMArtists(ctx context.Context, method string, tag string, apiKey 
 	return artists, nil
 }
 
-func scrapeLastFMTopArtistsForAllTags(ctx context.Context, appLogger *logger.Logger, db *db_client.DBClient, apiKey string) error {
+func scrapeLastFMTopArtistsForAllTags(ctx context.Context, appLogger *logger.Logger, repo artistsRepo, apiKey string) error {
 	method := "tag.getTopArtists"
 
-	ruTags, err := db.GetRuTags(ctx)
+	ruTags, err := repo.GetRuTags(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get ru tags: %w", err)
 	}
@@ -125,7 +124,7 @@ func scrapeLastFMTopArtistsForAllTags(ctx context.Context, appLogger *logger.Log
 			appLogger.Errorf("Failed to scrape artists for tag '%s': %v", tag, err)
 			continue
 		}
-		if err = db.InsertArtists(ctx, artists); err != nil {
+		if err = repo.InsertArtists(ctx, artists); err != nil {
 			appLogger.Errorf("Failed to insert artists for tag '%s': %v", tag, err)
 			continue
 		}

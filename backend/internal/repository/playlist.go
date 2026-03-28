@@ -1,48 +1,53 @@
-package spotify_client
+package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 
+	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
+
+	"database/sql"
+
+	"github.com/redis/go-redis/v9"
 )
 
-func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
-	return &SpotifyClient{
-		spotifyId:     spotifyId,
-		spotifySecret: spotifySecret,
+func NewPlaylistRepo(logger *logger.Logger, db *sql.DB, redis *redis.Client) *PlaylistRepo {
+	return &PlaylistRepo{
+		logger:  logger,
+		redis:   redis,
 	}
 }
 
-type SpotifyClient struct {
-	spotifyId     string
-	spotifySecret string
+type PlaylistRepo struct {
+	logger  *logger.Logger
+	redis   *redis.Client
 }
 
-func (c *SpotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
+func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
 	token, ok := ctx.Value("spotify_token").(*oauth2.Token)
 	if !ok || token == nil {
-		return nil, fmt.Errorf("missing or invalid spotify token in context")
+		r.logger.Errorf("missing or invalid spotify token in context")
+		return nil, appErrors.ErrInternal
 	}
 	httpClient := spotifyauth.New().Client(ctx, token)
 	client := spotify.New(httpClient)
 
 	spotifyPlaylist, err := client.GetPlaylist(ctx, spotify.ID(playlistId))
 	if err != nil {
-		return nil, err
+		return nil, translateSpotifyError(err)
 	}
 	var playlist models.Playlist
 	playlist.ID = string(spotifyPlaylist.ID)
 	playlist.Name = spotifyPlaylist.Name
 	// Fill in tracks
-	tracks, err := c.getAllPlaylistTracks(ctx, client, spotifyPlaylist.ID)
+	tracks, err := r.getAllPlaylistTracks(ctx, client, spotifyPlaylist.ID)
 	if err != nil {
-		return nil, err
+		return nil, translateSpotifyError(err)
 	}
 	// Remove duplicate tracks
 	trackMap := make(map[string]models.Track)
@@ -58,7 +63,7 @@ func (c *SpotifyClient) GetPlaylistWithTracks(ctx context.Context, playlistId st
 	return &playlist, nil
 }
 
-func (c *SpotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotify.Client, playlistId spotify.ID) ([]models.Track, error) {
+func (c *PlaylistRepo) getAllPlaylistTracks(ctx context.Context, client *spotify.Client, playlistId spotify.ID) ([]models.Track, error) {
 	var limit = 50
 	var offset = 0
 	var allTracks []models.Track
@@ -99,21 +104,4 @@ func (c *SpotifyClient) getAllPlaylistTracks(ctx context.Context, client *spotif
 		offset += limit
 	}
 	return allTracks, nil
-}
-
-func (c *SpotifyClient) GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
-	config := &clientcredentials.Config{
-		ClientID:     c.spotifyId,
-		ClientSecret: c.spotifySecret,
-		TokenURL:     spotifyauth.TokenURL,
-	}
-
-	token, err := config.Token(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// Ensure the token's expiry is in UTC
-	token.Expiry = token.Expiry.UTC()
-
-	return token, nil
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
 )
 
 const (
@@ -115,8 +114,8 @@ func scrapeMusicBrainzArtistsByArea(ctx context.Context, areaID string) ([]model
 	return artists, nil
 }
 
-func scrapeMusicBrainzArtistsForAllRegions(ctx context.Context, appLogger *logger.Logger, db *db_client.DBClient) error {
-	regionIDs, err := db.GetRuRegionIds(ctx)
+func scrapeMusicBrainzArtistsForAllRegions(ctx context.Context, appLogger *logger.Logger, repo artistsRepo) error {
+	regionIDs, err := repo.GetRuRegionIds(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get ru region ids: %w", err)
 	}
@@ -128,7 +127,7 @@ func scrapeMusicBrainzArtistsForAllRegions(ctx context.Context, appLogger *logge
 			appLogger.Errorf("Failed to scrape MusicBrainz artists for area '%s': %v", id, err)
 			continue
 		}
-		if err := db.InsertArtists(ctx, artists); err != nil {
+		if err := repo.InsertArtists(ctx, artists); err != nil {
 			appLogger.Errorf("Failed to insert MusicBrainz artists for area '%s': %v", id, err)
 			continue
 		}
