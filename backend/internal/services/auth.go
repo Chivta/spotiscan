@@ -95,7 +95,7 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 	return s.createSession(ctx, &user)
 }
 
-// createSession issues a new JWT + refresh token, stores the refresh token hash, and returns a NewSession.
+// createSession issues a new JWT + refresh token, stores the refresh token hash, and returns session.
 func (s *AuthService) createSession(ctx context.Context, user *models.User) (*Session, error) {
 	refreshToken, err := generateRefreshToken()
 	if err != nil {
