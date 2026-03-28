@@ -112,7 +112,9 @@ func (r *RedisClient) IncrementAnonRequestCounter(ctx context.Context, anonID, p
     }
     // Set TTL only on key creation so the window is fixed, not sliding.
     if newValue == 1 {
-        r.client.Expire(ctx, key, ttl)
+        if err := r.client.Expire(ctx, key, ttl).Err(); err != nil {
+            return 0, err
+        }
     }
     return int(newValue), nil
 }
