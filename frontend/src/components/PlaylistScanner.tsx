@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import AnimatedList from "./react-bits/AnimatedList";
 import type { Artist, Track, RuContent } from "../types/models";
@@ -139,6 +139,21 @@ export default function PlaylistScanner() {
       (track.Artists ?? []).some((a: Artist) => a.Name.toLowerCase().includes(searchLower))
     );
   });
+
+  const filteredTracksMap = useMemo(
+    () => new Map(filteredTracks.map((t: Track) => [t.ID, t])),
+    [filteredTracks],
+  );
+
+  const artistTrackCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const track of ruContent?.Tracks ?? []) {
+      for (const artist of track.Artists ?? []) {
+        counts.set(artist.ID, (counts.get(artist.ID) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [ruContent?.Tracks]);
 
   const filteredArtists = (ruContent?.Artists ?? []).filter((artist: Artist) => {
     if (!artistsSearch.trim()) return true;
@@ -317,7 +332,7 @@ export default function PlaylistScanner() {
                     displayScrollbar={true}
                     enableArrowNavigation={true}
                     children={(trackId: string) => {
-                      const track = filteredTracks.find((t: Track) => t.ID === trackId);
+                      const track = filteredTracksMap.get(trackId);
                       if (!track) return null;
                       return (
                         <div style={{
@@ -405,9 +420,7 @@ export default function PlaylistScanner() {
                     {filteredArtists
                       .map((artist: Artist) => ({
                         artist,
-                        trackCount: (ruContent?.Tracks ?? []).filter((t: Track) =>
-                          (t.Artists ?? []).some(a => a.ID === artist.ID)
-                        ).length,
+                        trackCount: artistTrackCount.get(artist.ID) ?? 0,
                       }))
                       .sort((a, b) => b.trackCount - a.trackCount)
                       .map(({ artist, trackCount }) => (
