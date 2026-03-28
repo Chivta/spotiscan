@@ -68,23 +68,26 @@ func (m *JWTMiddleware) RequireUserRole() gin.HandlerFunc {
 	}
 }
 
+func (m *JWTMiddleware) issueAnonSession(c *gin.Context) {
+	anonSession, err := m.authService.CreateAnonymousSession(c.Request.Context())
+	if err != nil {
+		m.log.Errorf("Failed to create anonymous session: %v", err)
+		handlers.RespondWithError(c, err)
+		c.Abort()
+		return
+	}
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(models.CookieJWT, anonSession.JWT, models.AnonSessionCookieAge, "/", "", m.secureCookies, true)
+	c.Set(models.UserIDKey, anonSession.UserID)
+	c.Set(models.UserRoleKey, anonSession.Role)
+}
+
 func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jwtStr, err := c.Cookie(models.CookieJWT)
 		if err != nil {
 			// No JWT cookie: treat as anonymous user
-			m.log.Info("Issuing anon session ")
-			anonSession, err := m.authService.CreateAnonymousSession(c.Request.Context())
-			if err != nil {
-				m.log.Errorf("Failed to create anonymous session: %v", err)
-				handlers.RespondWithError(c, err)
-				c.Abort()
-				return
-			}
-			c.SetSameSite(http.SameSiteLaxMode)
-			c.SetCookie(models.CookieJWT, anonSession.JWT, models.AnonSessionCookieAge, "/", "", m.secureCookies, true)
-			c.Set(models.UserIDKey, anonSession.UserID)
-			c.Set(models.UserRoleKey, anonSession.Role)
+			m.issueAnonSession(c)
 			c.Next()
 			return
 		}
@@ -92,8 +95,16 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 		claims, err := m.authService.ParseJWT(jwtStr)
 		if err != nil {
 			if !errors.Is(err, jwt.ErrTokenExpired) {
+				m.log.Debugf("JWT parse error: %v:%T", err, err)
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
+				return
+			}
+
+			if claims.Role == models.RoleAnon {
+				// Anon JWT expired — issue new one without hitting the DB (since we don't store anon sessions)
+				m.issueAnonSession(c)
+				c.Next()
 				return
 			}
 

@@ -141,7 +141,7 @@ func (s *AuthService) ParseJWT(jwtStr string) (JWTClaims, error) {
 		return s.jwtSecret, nil
 	})
 	if err != nil {
-		return JWTClaims{}, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
+		return claims, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
 	}
 	return claims, nil
 }
