@@ -4,15 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"net/url"
-	"os"
-
-	"github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/zmb3/spotify/v2"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/migrations"
 )
 
@@ -55,64 +51,6 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 	}
 
 	return goose.UpContext(ctx, db, ".")
-}
-
-// migrateFromSQLite checks for a bot_data.db file and, if present, bulk-inserts
-// all artist names into postgres. Safe to call on every startup — the INSERT uses
-// ON CONFLICT DO NOTHING so duplicates are silently skipped.
-func MigrateFromSQLite(appLogger *logger.Logger, db *sql.DB) {
-	if _, err := os.Stat("bot_data.db"); os.IsNotExist(err) {
-		appLogger.Infof("bot_data.db not found, skipping SQLite migration")
-		return
-	}
-
-	appLogger.Infof("bot_data.db found, migrating artists to PostgreSQL")
-
-	sqliteDB, err := sql.Open("sqlite", "file:bot_data.db")
-	if err != nil {
-		appLogger.Warnf("Failed to open bot_data.db: %v", err)
-		return
-	}
-	defer sqliteDB.Close()
-
-	rows, err := sqliteDB.Query("SELECT name FROM artists")
-	if err != nil {
-		appLogger.Warnf("Failed to query artists from SQLite: %v", err)
-		return
-	}
-	defer rows.Close()
-
-	artists := make(map[string]struct{}, 25138) // known size of the old db
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			appLogger.Warnf("Failed to scan artist row: %v", err)
-			return
-		}
-		artists[name] = struct{}{}
-	}
-
-	artistsSlice := make([]string, 0, len(artists))
-	for name := range artists {
-		artistsSlice = append(artistsSlice, name)
-	}
-	artists = nil // free memory before the bulk insert
-
-	if len(artistsSlice) == 0 {
-		appLogger.Infof("No artists found in bot_data.db, nothing to migrate")
-		return
-	}
-
-	_, err = db.Exec(
-		"INSERT INTO ru_artists (name) SELECT unnest($1::text[]) ON CONFLICT (name) DO NOTHING",
-		pq.Array(artistsSlice),
-	)
-	if err != nil {
-		appLogger.Warnf("Failed to insert artists into PostgreSQL: %v", err)
-		return
-	}
-
-	appLogger.Infof("Successfully migrated %d artists from SQLite", len(artistsSlice))
 }
 
 func translateSpotifyError(err error) error {

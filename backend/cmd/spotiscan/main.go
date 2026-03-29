@@ -114,8 +114,6 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	}
 	defer redis.Close()
 
-	repository.MigrateFromSQLite(appLogger, db)
-
 	ratelimitRepo := repository.NewRatelimitRepo(appLogger, redis)
 	artistRepo := repository.NewArtistRepo(appLogger, db, redis)
 	tokenRepo := repository.NewTokenRepo(appLogger, db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
