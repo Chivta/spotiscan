@@ -40,7 +40,7 @@ func InitializeDatabase(ctx context.Context, dbUrl string) (*sql.DB, error) {
 	case err := <-errCh:
 		return nil, err
 	case <-ctx.Done():
-		return nil, context.DeadlineExceeded
+		return nil, ctx.Err()
 	}
 
 	return db, nil
