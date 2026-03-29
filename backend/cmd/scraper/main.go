@@ -40,13 +40,13 @@ func runApp() int {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	db, err := repository.InitializeDatabase(cfg.DatabaseURL)
+	db, err := repository.InitializeDatabase(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return 1
 	}
 	defer db.Close()
 
-	redis, err := repository.InitializeRedis(cfg.RedisURL)
+	redis, err := repository.InitializeRedis(ctx, cfg.RedisURL)
 	if err != nil {
 		appLogger.Errorf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
 		return 1

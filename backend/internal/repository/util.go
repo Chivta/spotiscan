@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"net/url"
 	"os"
-	"time"
 
 	"github.com/lib/pq"
 	"github.com/pressly/goose/v3"
@@ -17,9 +16,8 @@ import (
 	"github.com/chivta/spotiscan/migrations"
 )
 
-
 // TODO: propage context here
-func InitializeDatabase(dbUrl string) (*sql.DB, error) {
+func InitializeDatabase(ctx context.Context, dbUrl string) (*sql.DB, error) {
 	// db_client.NewDBClient blocks on Ping; wrap it in a goroutine so we can
 	// apply a timeout without needing a context-aware driver.
 	dbCh := make(chan *sql.DB, 1)
@@ -42,14 +40,14 @@ func InitializeDatabase(dbUrl string) (*sql.DB, error) {
 		db = result
 	case err := <-errCh:
 		return nil, err
-	case <-time.After(5 * time.Second):
+	case <-ctx.Done():
 		return nil, context.DeadlineExceeded
 	}
 
 	return db, nil
 }
 
-func RunMigrations(db *sql.DB) error {
+func RunMigrations(ctx context.Context, db *sql.DB) error {
 	goose.SetBaseFS(migrations.FS)
 
 	err := goose.SetDialect("postgres")
@@ -57,7 +55,7 @@ func RunMigrations(db *sql.DB) error {
 		return err
 	}
 
-	return goose.Up(db, ".")
+	return goose.UpContext(ctx, db, ".")
 }
 
 // migrateFromSQLite checks for a bot_data.db file and, if present, bulk-inserts
@@ -135,7 +133,7 @@ func translateSpotifyError(err error) error {
 	return appErrors.ErrSpotifyAPIError
 }
 
-func InitializeRedis(redisURL string) (*redis.Client, error) {
+func InitializeRedis(ctx context.Context, redisURL string) (*redis.Client, error) {
 	options, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
@@ -143,7 +141,7 @@ func InitializeRedis(redisURL string) (*redis.Client, error) {
 
 	redis := redis.NewClient(options)
 
-	_, err = redis.Ping(context.Background()).Result()
+	_, err = redis.Ping(ctx).Result()
 	if err != nil {
 		return nil, err
 	}

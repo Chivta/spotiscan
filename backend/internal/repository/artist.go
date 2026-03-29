@@ -3,13 +3,15 @@ package repository
 import (
 	"context"
 
+	"strings"
+
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/lib/pq"
-	"strings"
 
 	"database/sql"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -27,28 +29,18 @@ type ArtistRepo struct {
 	redis  *redis.Client
 }
 
-func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) {
-	if r.redis == nil {
-		r.logger.Warnf("redis not available, skipping artist cache load")
-		return
-	}
-	if r.db == nil {
-		r.logger.Warnf("db client is not initialized, cannot load ru artists to redis")
-		return
-	}
-
+func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
 	r.logger.Infof("loading ru_artists set from DB")
 	allNames, err := r.GetAllRussianArtistNames(ctx)
 	if err != nil {
-		r.logger.Warnf("failed to load all ru artists from DB: %v", err)
-		return
+		return err
 	}
 	err = r.SetRussianArtistNames(ctx, allNames)
 	if err != nil {
-		r.logger.Warnf("failed to set ru artists in redis: %v", err)
-		return
+		return err
 	}
 	r.logger.Infof("successfully loaded %d ru artists into redis", len(allNames))
+	return nil
 }
 
 func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
@@ -75,15 +67,15 @@ func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, er
 }
 
 func (r *ArtistRepo) SetRussianArtistNames(ctx context.Context, names []string) error {
-    key := "ru_artists"
-    // Clear existing set and add new names
-    pipe := r.redis.Pipeline()
-    pipe.Del(ctx, key)
-    if len(names) > 0 {
-        pipe.SAdd(ctx, key, names)
-    }
-    _, err := pipe.Exec(ctx)
-    return err
+	key := "ru_artists"
+	// Clear existing set and add new names
+	pipe := r.redis.Pipeline()
+	pipe.Del(ctx, key)
+	if len(names) > 0 {
+		pipe.SAdd(ctx, key, names)
+	}
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 func (r *ArtistRepo) FilterRussian(ctx context.Context, names []string) ([]string, error) {
@@ -105,36 +97,36 @@ func (r *ArtistRepo) FilterRussian(ctx context.Context, names []string) ([]strin
 }
 
 func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
-    key := "ru_artists"
-    if len(names) == 0 {
-        return []string{}, nil
-    }
+	key := "ru_artists"
+	if len(names) == 0 {
+		return []string{}, nil
+	}
 
-    // Use a pipeline to batch SISMEMBER commands
-    pipe := r.redis.Pipeline()
-    cmds := make([]*redis.BoolCmd, len(names))
-    for i, name := range names {
-        cmds[i] = pipe.SIsMember(ctx, key, name)
-    }
+	// Use a pipeline to batch SISMEMBER commands
+	pipe := r.redis.Pipeline()
+	cmds := make([]*redis.BoolCmd, len(names))
+	for i, name := range names {
+		cmds[i] = pipe.SIsMember(ctx, key, name)
+	}
 
-    // Execute the pipeline
-    _, err := pipe.Exec(ctx)
-    if err != nil {
-        return nil, err
-    }
+	// Execute the pipeline
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-    // Collect results
-    var ruNames []string
-    for i, cmd := range cmds {
-        isMember, err := cmd.Result()
-        if err != nil {
-            return nil, err
-        }
-        if isMember {
-            ruNames = append(ruNames, names[i])
-        }
-    }
-    return ruNames, nil
+	// Collect results
+	var ruNames []string
+	for i, cmd := range cmds {
+		isMember, err := cmd.Result()
+		if err != nil {
+			return nil, err
+		}
+		if isMember {
+			ruNames = append(ruNames, names[i])
+		}
+	}
+	return ruNames, nil
 }
 
 func (r *ArtistRepo) filterRussianWithDB(ctx context.Context, names []string) ([]string, error) {
@@ -254,9 +246,9 @@ func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []models.Artist)
 	return nil
 }
 
-
-
-func  (r *ArtistRepo) GetRuTags(ctx context.Context) ([]string, error) {
+// GetRuTags and GetRuRegionIds is only needed for scraper
+// they are added to artist repo because its repo scraper already uses
+func (r *ArtistRepo) GetRuTags(ctx context.Context) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT name FROM lastfm_ru_tags`)
 	if err != nil {
 		return nil, err
