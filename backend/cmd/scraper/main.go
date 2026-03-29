@@ -48,7 +48,7 @@ func runApp() int {
 
 	redis, err := repository.InitializeRedis(ctx, cfg.RedisURL)
 	if err != nil {
-		appLogger.Errorf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
+		appLogger.Errorf("Failed to initialize redis: %v", err)
 		return 1
 	}
 	defer redis.Close()

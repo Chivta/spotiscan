@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+	"database/sql"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
@@ -43,6 +45,8 @@ func runApp() int {
 		log.Printf("Failed to initialize app: %v", err)
 		return 1
 	}
+	defer c.db.Close()
+	defer c.redis.Close()
 
 	r := gin.New()
 	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
@@ -91,6 +95,8 @@ type appContainer struct {
 	spotifyMiddleware   *middlewares.SpotifyMiddleware
 	jwtMiddleware       *middlewares.JWTMiddleware
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
+	db            *sql.DB
+	redis               *redis.Client
 }
 
 func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error) {
@@ -101,7 +107,6 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	err = repository.RunMigrations(initCtx, db)
 	if err != nil {
@@ -112,7 +117,6 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
-	defer redis.Close()
 
 	ratelimitRepo := repository.NewRatelimitRepo(appLogger, redis)
 	artistRepo := repository.NewArtistRepo(appLogger, db, redis)
@@ -122,7 +126,7 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 
 	scriptErr := ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
 	if scriptErr != nil {
-		appLogger.Errorf("Failed to load rate limit script to redis (rate limiting disabled): %v", scriptErr)
+		appLogger.Errorf("Failed to load rate limit script to redis: %v", scriptErr)
 		return nil, scriptErr
 	}
 
@@ -156,5 +160,7 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 		spotifyMiddleware:   spotifyMiddleware,
 		jwtMiddleware:       jwtMiddleware,
 		rateLimitMiddleware: rateLimitMiddleware,
+		db:            db,
+		redis:               redis,
 	}, nil
 }
