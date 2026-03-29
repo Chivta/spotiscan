@@ -16,7 +16,6 @@ import (
 	"github.com/chivta/spotiscan/migrations"
 )
 
-// TODO: propage context here
 func InitializeDatabase(ctx context.Context, dbUrl string) (*sql.DB, error) {
 	// db_client.NewDBClient blocks on Ping; wrap it in a goroutine so we can
 	// apply a timeout without needing a context-aware driver.

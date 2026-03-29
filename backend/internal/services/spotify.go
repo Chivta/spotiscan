@@ -10,31 +10,36 @@ import (
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository"
 )
-// TODO: split spotify service into services per resourse or logic, not by relation to spotify
-// type SpotifyRepo interface {
-// 	FilterRussian(ctx context.Context, names []string) ([]string, error)
-// 	GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
-// 	SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
-// 	GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
-// 	GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
-// }
 
-func NewSpotifyService(logger *logger.Logger, artistRepo *repository.ArtistRepo, playlistRepo *repository.PlaylistRepo, tokenRepo *repository.TokenRepo) *SpotifyService {
+type (
+	filterArtistsRepo interface {
+		FilterRussian(ctx context.Context, names []string) ([]string, error)
+	}
+	getPlaylistRepo interface {
+		GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
+	}
+	spotifyTokenRepo interface {
+		SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
+		GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
+		GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
+	}
+)
+
+func NewSpotifyService(logger *logger.Logger, artistRepo filterArtistsRepo, playlistRepo getPlaylistRepo, tokenRepo spotifyTokenRepo) *SpotifyService {
 	return &SpotifyService{
-		log:  logger,
-		artistRepo: artistRepo,
+		log:          logger,
+		artistRepo:   artistRepo,
 		playlistRepo: playlistRepo,
-		tokenRepo: tokenRepo,
+		tokenRepo:    tokenRepo,
 	}
 }
 
 type SpotifyService struct {
-	log  *logger.Logger
-	artistRepo *repository.ArtistRepo
-	playlistRepo *repository.PlaylistRepo
-	tokenRepo *repository.TokenRepo
+	log          *logger.Logger
+	artistRepo   filterArtistsRepo
+	playlistRepo getPlaylistRepo
+	tokenRepo    spotifyTokenRepo
 }
 
 func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Token, error) {

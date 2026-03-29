@@ -17,20 +17,23 @@ import (
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository"
 )
 
-// type AuthRepository interface {
-// 	GetUserByID(ctx context.Context, id int) (*models.User, error)
-// 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
-// 	CreateUser(ctx context.Context, user *models.User) (int, error)
-// 	GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
-// 	StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error
-// 	DeleteRefreshTokenHash(ctx context.Context, userID int) error
-// 	IncrementAnonRequestCounter(ctx context.Context, anonID, path string, ttl time.Duration) (int, error)
-// }
+type (
+	sessionTokenRepo interface {
+		StoreRefreshTokenHash(ctx context.Context, userID int, refreshTokenHash string, expiresAt time.Time) error
+		GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
+		DeleteRefreshTokenHash(ctx context.Context, userID int) error
+		IncrementAnonRequestCounter(ctx context.Context, anonID, path string, expiration time.Duration) (int, error)	
+	}
+	userRepo interface {
+		GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+		GetUserByID(ctx context.Context, id int) (*models.User, error)
+		CreateUser(ctx context.Context, user *models.User) (int, error)
+	}
+)
 
-func NewAuthService(logger *logger.Logger, jwtSecret []byte, tokenRepo *repository.TokenRepo, userRepo *repository.UserRepo) *AuthService {
+func NewAuthService(logger *logger.Logger, jwtSecret []byte, tokenRepo sessionTokenRepo, userRepo userRepo) *AuthService {
 	return &AuthService{
 		log:       logger,
 		jwtSecret: jwtSecret,
@@ -40,8 +43,8 @@ func NewAuthService(logger *logger.Logger, jwtSecret []byte, tokenRepo *reposito
 }
 
 type AuthService struct {
-	tokenRepo *repository.TokenRepo
-	userRepo  *repository.UserRepo
+	tokenRepo sessionTokenRepo
+	userRepo  userRepo
 	log       *logger.Logger
 	jwtSecret []byte
 }
