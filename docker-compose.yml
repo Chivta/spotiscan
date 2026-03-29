@@ -62,9 +62,9 @@ services:
       postgres:
         condition: service_healthy
       backend:
-        condition: service_healthy
+        condition: service_healthy # scraper needs backend to be healthy to ensure DB migrations have run
       redis:
-        condition: service_started
+        condition: service_started # to load new artists into cache after update
 
   frontend:
     build:
