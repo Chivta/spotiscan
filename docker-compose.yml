@@ -21,7 +21,7 @@ services:
       context: ./backend
       target: dev
     volumes:
-      - ./backend:/app          # dev-only: includes bot_data.db (triggers SQLite migration on startup)
+      - ./backend:/app          # dev-only
       - backend_tmp:/app/tmp
     env_file:
       - ./backend/.env

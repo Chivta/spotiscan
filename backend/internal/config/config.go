@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,8 +16,8 @@ type Config struct {
 	SpotifyClientID     string `validate:"required,alphanum,min=1"`
 	SpotifyClientSecret string `validate:"required,min=1"`
 	SecureCookies       bool
-	Log                 LogConfig       `json:"log" validate:"required"`
-	RateLimit           RateLimitConfig `json:"rate_limit" validate:"required"`
+	// Log                 LogConfig       `json:"log" validate:"required"`
+	// RateLimit           RateLimitConfig `json:"rate_limit" validate:"required"`
 	ScraperConfig       ScraperConfig   `json:"scraper_config" validate:"required"`
 }
 
@@ -30,28 +29,21 @@ type ScraperConfig struct {
 	LastFMSharedSecret                    string `validate:"min=1"`
 }
 
-type LogConfig struct {
-	EnableDebug bool   `json:"enable_debug"`
-	EnableInfo  bool   `json:"enable_info"`
-	ErrorOutput string `json:"error_output"`
-	InfoOutput  string `json:"info_output"`
-	DebugOutput string `json:"debug_output"`
-}
+// type LogConfig struct {
+// 	EnableDebug bool   `json:"enable_debug"`
+// 	EnableInfo  bool   `json:"enable_info"`
+// 	ErrorOutput string `json:"error_output"`
+// 	InfoOutput  string `json:"info_output"`
+// 	DebugOutput string `json:"debug_output"`
+// }
 
-type RateLimitConfig struct {
-	RequestLimit  int `json:"request_limit" validate:"required,gt=0"`
-	WindowSeconds int `json:"window_seconds" validate:"required,gt=0"`
-}
+// type RateLimitConfig struct {
+// 	RequestLimit  int `json:"request_limit" validate:"required,gt=0"`
+// 	WindowSeconds int `json:"window_seconds" validate:"required,gt=0"`
+// }
 
 func Load() (*Config, error) {
 	godotenv.Load("./.env")
-
-	// Load log config from config.json
-	file, err := os.Open("./config.json")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open config.json: %w", err)
-	}
-	defer file.Close()
 
 	config := &Config{
 		DatabaseURL:         os.Getenv("DB_URL"),
@@ -69,15 +61,9 @@ func Load() (*Config, error) {
 		},
 	}
 
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode config.json: %w", err)
-	}
-
 	// Validate the configuration
 	validate := validator.New()
-	err = validate.Struct(config)
+	err := validate.Struct(config)
 	if err != nil {
 		var validationErrors []string
 		for _, err := range err.(validator.ValidationErrors) {

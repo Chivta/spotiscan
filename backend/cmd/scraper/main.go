@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/chivta/spotiscan/internal/config"
@@ -17,7 +18,7 @@ func main() {
 }
 
 type artistsRepo interface {
-	InsertArtists(ctx context.Context, artists []models.Artist) error 
+	InsertArtists(ctx context.Context, artists []models.Artist) error
 	GetRuTags(ctx context.Context) ([]string, error)
 	GetRuRegionIds(ctx context.Context) ([]string, error)
 }
@@ -29,12 +30,13 @@ func runApp() int {
 		return 1
 	}
 
+	// TODO: remove hardcodes
 	appLogger := logger.NewLogger(
-		cfg.Log.EnableDebug,
-		cfg.Log.EnableInfo,
-		cfg.Log.ErrorOutput,
-		cfg.Log.InfoOutput,
-		cfg.Log.DebugOutput,
+		false,
+		true,
+		"stdout",
+		"stdout",
+		"stdout",
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -55,26 +57,36 @@ func runApp() int {
 
 	repo := repository.NewArtistRepo(appLogger, db, redis)
 
+	var wg sync.WaitGroup
+
 	if cfg.ScraperConfig.ScrapeLastFMTopArtistsForAllTags {
-		err = scrapeLastFMTopArtistsForAllTags(ctx, appLogger, repo, cfg.ScraperConfig.LastFMAPIKey)
-		if err != nil {
-			appLogger.Errorf("Failed to scrape LastFM artists: %v", err)
-		}
+		wg.Go(func() {
+			err = scrapeLastFMTopArtistsForAllTags(ctx, appLogger, repo, cfg.ScraperConfig.LastFMAPIKey)
+			if err != nil {
+				appLogger.Errorf("Failed to scrape LastFM artists: %v", err)
+			}
+		})
 	}
 
 	if cfg.ScraperConfig.ScrapeMusicBrainzArtistsForAllRegions {
-		err = scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, repo)
-		if err != nil {
-			appLogger.Errorf("Failed to scrape MusicBrainz artists by regions: %v", err)
-		}
+		wg.Go(func() {
+			err = scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, repo)
+			if err != nil {
+				appLogger.Errorf("Failed to scrape MusicBrainz artists by regions: %v", err)
+			}
+		})
 	}
 
 	if cfg.ScraperConfig.ScrapePhonkersDBArtists {
-		err = scrapePhonkersDB(ctx, appLogger, repo)
-		if err != nil {
-			appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
-		}
+		wg.Go(func() {
+			err = scrapePhonkersDB(ctx, appLogger, repo)
+			if err != nil {
+				appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
+			}
+		})
 	}
+
+	wg.Wait()
 
 	repo.LoadRussianArtistsToRedis(ctx)
 

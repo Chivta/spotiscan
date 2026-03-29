@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"database/sql"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/redis/go-redis/v9"
 
-	"github.com/chivta/spotiscan/scripts"
 	"github.com/chivta/spotiscan/internal/config"
 	"github.com/chivta/spotiscan/internal/handlers"
 	"github.com/chivta/spotiscan/internal/logger"
@@ -20,6 +20,7 @@ import (
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
 	"github.com/chivta/spotiscan/internal/services"
+	"github.com/chivta/spotiscan/scripts"
 )
 
 func main() {
@@ -32,12 +33,13 @@ func runApp() int {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// TODO: remove hardcodes
 	appLogger := logger.NewLogger(
-		cfg.Log.EnableDebug,
-		cfg.Log.EnableInfo,
-		cfg.Log.ErrorOutput,
-		cfg.Log.InfoOutput,
-		cfg.Log.DebugOutput,
+		false,
+		true,
+		"stdout",
+		"stdout",
+		"stdout",
 	)
 
 	c, err := initApp(cfg, appLogger)
@@ -60,7 +62,7 @@ func runApp() int {
 	api := r.Group("/api")
 	api.Use(c.jwtMiddleware.ParseAuth())
 	api.Use(c.spotifyMiddleware.AttachSpotifyClientCreds())
-	api.Use(c.rateLimitMiddleware.LimitRequests(cfg.RateLimit.RequestLimit, cfg.RateLimit.WindowSeconds))
+	api.Use(c.rateLimitMiddleware.LimitRequests(models.RateLimitRequestLimit, models.RateLimitWindowSeconds))
 	{
 		api.GET("/me", c.authHandler.Me)
 		api.POST("/auth/signup", c.authHandler.Signup)
@@ -95,7 +97,7 @@ type appContainer struct {
 	spotifyMiddleware   *middlewares.SpotifyMiddleware
 	jwtMiddleware       *middlewares.JWTMiddleware
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
-	db            *sql.DB
+	db                  *sql.DB
 	redis               *redis.Client
 }
 
@@ -160,7 +162,7 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 		spotifyMiddleware:   spotifyMiddleware,
 		jwtMiddleware:       jwtMiddleware,
 		rateLimitMiddleware: rateLimitMiddleware,
-		db:            db,
+		db:                  db,
 		redis:               redis,
 	}, nil
 }
