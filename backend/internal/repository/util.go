@@ -46,13 +46,10 @@ func InitializeDatabase(dbUrl string) (*sql.DB, error) {
 		return nil, context.DeadlineExceeded
 	}
 
-	if err := runMigrations(db); err != nil {
-		return nil, err
-	}
 	return db, nil
 }
 
-func runMigrations(db *sql.DB) error {
+func RunMigrations(db *sql.DB) error {
 	goose.SetBaseFS(migrations.FS)
 
 	err := goose.SetDialect("postgres")

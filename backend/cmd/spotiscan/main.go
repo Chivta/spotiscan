@@ -45,6 +45,12 @@ func runApp() int {
 	}
 	defer db.Close()
 
+	err = repository.RunMigrations(db)
+	if err != nil {
+		appLogger.Errorf("Failed to run database migrations: %v", err)
+		return 1
+	}
+
 	redis, err := repository.InitializeRedis(cfg.RedisURL)
 	if err != nil {
 		appLogger.Errorf("Failed to initialize redis (rate limiting and caching disabled): %v", err)

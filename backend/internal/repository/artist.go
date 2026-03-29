@@ -37,7 +37,7 @@ func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) {
 		return
 	}
 
-	r.logger.Infof("lazy loading ru_artists set from DB")
+	r.logger.Infof("loading ru_artists set from DB")
 	allNames, err := r.GetAllRussianArtistNames(ctx)
 	if err != nil {
 		r.logger.Warnf("failed to load all ru artists from DB: %v", err)

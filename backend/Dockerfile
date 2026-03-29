@@ -24,6 +24,7 @@ RUN apk --no-cache add ca-certificates && \
     adduser -D -s /sbin/nologin appuser
 WORKDIR /home/appuser
 COPY --from=scraper-builder --chown=appuser:appuser /build/scraper .
+COPY --chown=appuser:appuser ./config.json .
 USER appuser
 CMD ["./scraper"]
 
