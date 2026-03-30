@@ -126,7 +126,7 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	artistRepo := repository.NewArtistRepo(appLogger, db, redis)
 	tokenRepo := repository.NewTokenRepo(appLogger, db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	userRepo := repository.NewUserRepo(appLogger, db, redis)
-	playlistRepo := repository.NewPlaylistRepo(appLogger, db, redis, spotifyClient)
+	playlistRepo := repository.NewPlaylistRepo(appLogger, db, spotifyClient)
 
 	err = ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
 	if err != nil {
