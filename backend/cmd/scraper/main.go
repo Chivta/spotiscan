@@ -61,7 +61,7 @@ func runApp() int {
 
 	if cfg.ScraperConfig.ScrapeLastFMTopArtistsForAllTags {
 		wg.Go(func() {
-			err = scrapeLastFMTopArtistsForAllTags(ctx, appLogger, repo, cfg.ScraperConfig.LastFMAPIKey)
+			err := scrapeLastFMTopArtistsForAllTags(ctx, appLogger, repo, cfg.ScraperConfig.LastFMAPIKey)
 			if err != nil {
 				appLogger.Errorf("Failed to scrape LastFM artists: %v", err)
 			}
@@ -70,7 +70,7 @@ func runApp() int {
 
 	if cfg.ScraperConfig.ScrapeMusicBrainzArtistsForAllRegions {
 		wg.Go(func() {
-			err = scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, repo)
+			err := scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, repo)
 			if err != nil {
 				appLogger.Errorf("Failed to scrape MusicBrainz artists by regions: %v", err)
 			}
@@ -79,7 +79,7 @@ func runApp() int {
 
 	if cfg.ScraperConfig.ScrapePhonkersDBArtists {
 		wg.Go(func() {
-			err = scrapePhonkersDB(ctx, appLogger, repo)
+			err := scrapePhonkersDB(ctx, appLogger, repo)
 			if err != nil {
 				appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
 			}
