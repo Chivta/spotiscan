@@ -3,9 +3,6 @@ package services
 import (
 	"context"
 	"strings"
-	"time"
-
-	"golang.org/x/oauth2"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/logger"
@@ -19,19 +16,13 @@ type (
 	getPlaylistRepo interface {
 		GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
 	}
-	spotifyTokenRepo interface {
-		SetSpotifyToken(ctx context.Context, newToken *oauth2.Token) error
-		GetStoredSpotifyToken(ctx context.Context) (*oauth2.Token, error)
-		GetRefreshedSpotifyToken(ctx context.Context) (*oauth2.Token, error)
-	}
 )
 
-func NewSpotifyService(logger *logger.Logger, artistRepo filterArtistsRepo, playlistRepo getPlaylistRepo, tokenRepo spotifyTokenRepo) *SpotifyService {
+func NewSpotifyService(logger *logger.Logger, artistRepo filterArtistsRepo, playlistRepo getPlaylistRepo) *SpotifyService {
 	return &SpotifyService{
 		log:          logger,
 		artistRepo:   artistRepo,
 		playlistRepo: playlistRepo,
-		tokenRepo:    tokenRepo,
 	}
 }
 
@@ -39,39 +30,6 @@ type SpotifyService struct {
 	log          *logger.Logger
 	artistRepo   filterArtistsRepo
 	playlistRepo getPlaylistRepo
-	tokenRepo    spotifyTokenRepo
-}
-
-func (s *SpotifyService) GetValidSpotifyToken(ctx context.Context) (*oauth2.Token, error) {
-	token, err := s.tokenRepo.GetStoredSpotifyToken(ctx)
-	if err != nil && err != appErrors.ErrNotFound {
-		s.log.Errorf("failed to get stored spotify token: %v", err)
-		return nil, err
-	}
-
-	if token != nil && token.Expiry.UTC().After(time.Now().UTC()) {
-		return token, nil
-	}
-
-	s.log.Debugf("token expired or not found, refreshing")
-	newToken, err := s.tokenRepo.GetRefreshedSpotifyToken(ctx)
-	if err != nil {
-		s.log.Errorf("failed to refresh spotify token: %v", err)
-		return nil, err
-	}
-	if newToken == nil {
-		s.log.Errorf("refreshed spotify token is nil")
-		return nil, appErrors.ErrInternal
-	}
-
-	err = s.tokenRepo.SetSpotifyToken(ctx, newToken)
-	if err != nil {
-		s.log.Errorf("failed to store refreshed spotify token: %v", err)
-		return nil, err
-	}
-
-	s.log.Debugf("successfully refreshed and stored new token")
-	return newToken, nil
 }
 
 // formRuContent filters the provided tracks and returns rusContent containing only Russian artists and tracks
@@ -143,11 +101,13 @@ func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId st
 	s.log.Debugf("getting RU content for playlist %s", playlistId)
 	playlist, err := s.playlistRepo.GetPlaylistWithTracks(ctx, playlistId)
 	if err != nil {
+		s.log.Errorf("failed to get playlist with tracks: %v", err)
 		return nil, err
 	}
 
 	ruContent, err := s.formRuContent(ctx, playlist.Tracks)
 	if err != nil {
+		s.log.Errorf("failed to form RU content: %v", err)
 		return nil, err
 	}
 

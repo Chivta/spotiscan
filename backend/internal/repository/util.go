@@ -6,9 +6,10 @@ import (
 	"net/url"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
-	"github.com/zmb3/spotify/v2"
+
 
 	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/spotiscan/internal/spotify"
 	"github.com/chivta/spotiscan/migrations"
 )
 
@@ -60,6 +61,8 @@ func translateSpotifyError(err error) error {
 			return appErrors.ErrPlaylistNotFound
 		case 400:
 			return appErrors.ErrBadRequest
+		case 429:
+			return appErrors.ErrTooManyRequests
 		default:
 			return appErrors.ErrSpotifyAPIError
 		}

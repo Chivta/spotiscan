@@ -20,6 +20,7 @@ import (
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
 	"github.com/chivta/spotiscan/internal/services"
+	"github.com/chivta/spotiscan/internal/spotify"
 	"github.com/chivta/spotiscan/scripts"
 )
 
@@ -35,7 +36,7 @@ func runApp() int {
 
 	// TODO: remove hardcodes
 	appLogger := logger.NewLogger(
-		false,
+		true,
 		true,
 		"stdout",
 		"stdout",
@@ -61,7 +62,7 @@ func runApp() int {
 
 	api := r.Group("/api")
 	api.Use(c.jwtMiddleware.ParseAuth())
-	api.Use(c.spotifyMiddleware.AttachSpotifyClientCreds())
+	// api.Use(c.spotifyMiddleware.AttachSpotifyClientCreds())
 	api.Use(c.rateLimitMiddleware.LimitRequests(models.RateLimitRequestLimit, models.RateLimitWindowSeconds))
 	{
 		api.GET("/me", c.authHandler.Me)
@@ -94,7 +95,6 @@ type appContainer struct {
 	spotifyHandler      *handlers.SpotifyHandler
 	authService         *services.AuthService
 	spotifyService      *services.SpotifyService
-	spotifyMiddleware   *middlewares.SpotifyMiddleware
 	jwtMiddleware       *middlewares.JWTMiddleware
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
 	db                  *sql.DB
@@ -119,12 +119,12 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
-
+	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	ratelimitRepo := repository.NewRatelimitRepo(appLogger, redis)
 	artistRepo := repository.NewArtistRepo(appLogger, db, redis)
 	tokenRepo := repository.NewTokenRepo(appLogger, db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	userRepo := repository.NewUserRepo(appLogger, db, redis)
-	playlistRepo := repository.NewPlaylistRepo(appLogger, db, redis)
+	playlistRepo := repository.NewPlaylistRepo(appLogger, db, redis, spotifyClient)
 
 	scriptErr := ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
 	if scriptErr != nil {
@@ -139,12 +139,11 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	}
 	validate := validator.New()
 
-	spotifyService := services.NewSpotifyService(appLogger, artistRepo, playlistRepo, tokenRepo)
+	spotifyService := services.NewSpotifyService(appLogger, artistRepo, playlistRepo)
 	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
 
 	authService := services.NewAuthService(appLogger, []byte(cfg.JWTSecret), tokenRepo, userRepo)
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
-	spotifyMiddleware := middlewares.NewSpotifyMiddleware(spotifyService)
 	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies, appLogger)
 
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo, appLogger)
@@ -159,7 +158,6 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 		spotifyHandler:      spotifyHandler,
 		authService:         authService,
 		spotifyService:      spotifyService,
-		spotifyMiddleware:   spotifyMiddleware,
 		jwtMiddleware:       jwtMiddleware,
 		rateLimitMiddleware: rateLimitMiddleware,
 		db:                  db,
