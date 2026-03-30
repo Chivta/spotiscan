@@ -1,5 +1,5 @@
 # Base stage: shared dependency download
-FROM golang:1.25.3-alpine AS base
+FROM golang:1.26.1-alpine AS base
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
