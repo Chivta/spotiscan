@@ -75,7 +75,6 @@ func (c *SpotifyClient) getToken(ctx context.Context) (string, time.Time, error)
 
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
-		TokenType   string `json:"token_type"`
 		ExpiresIn   int    `json:"expires_in"`
 	}
 
