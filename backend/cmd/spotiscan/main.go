@@ -112,11 +112,13 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 
 	err = repository.RunMigrations(initCtx, db)
 	if err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to run database migrations: %w", err)
 	}
 
 	redis, err := repository.InitializeRedis(initCtx, cfg.RedisURL)
 	if err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
 	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret, appLogger)
@@ -126,15 +128,19 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	userRepo := repository.NewUserRepo(appLogger, db, redis)
 	playlistRepo := repository.NewPlaylistRepo(appLogger, db, redis, spotifyClient)
 
-	scriptErr := ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
-	if scriptErr != nil {
-		appLogger.Errorf("Failed to load rate limit script to redis: %v", scriptErr)
-		return nil, scriptErr
+	err = ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
+	if err != nil {
+		appLogger.Errorf("Failed to load rate limit script to redis: %v", err)
+		redis.Close()
+		db.Close()
+		return nil, err
 	}
 
 	err = artistRepo.LoadRussianArtistsToRedis(initCtx)
 	if err != nil {
 		appLogger.Errorf("Failed to load Russian artists to redis: %v", err)
+		redis.Close()
+		db.Close()
 		return nil, err
 	}
 	validate := validator.New()
