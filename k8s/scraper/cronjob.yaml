@@ -45,7 +45,3 @@ spec:
                 limits:
                   cpu: 500m
                   memory: 256Mi
-          volumes:
-            - name: config
-              configMap:
-                name: backend-config
