@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/handlers"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/services"
 )
@@ -17,14 +17,12 @@ import (
 type JWTMiddleware struct {
 	authService   *services.AuthService
 	secureCookies bool
-	log           *logger.Logger
 }
 
-func NewJWTMiddleware(authService *services.AuthService, secureCookies bool, appLogger *logger.Logger) *JWTMiddleware {
+func NewJWTMiddleware(authService *services.AuthService, secureCookies bool) *JWTMiddleware {
 	return &JWTMiddleware{
 		authService:   authService,
 		secureCookies: secureCookies,
-		log:           appLogger,
 	}
 }
 
@@ -32,7 +30,7 @@ func (m *JWTMiddleware) RequireAdminRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
-			m.log.Warnf("RequireRole: userRole not found in context")
+			log.Warn().Msg("RequireRole: userRole not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
 			c.Abort()
 			return
@@ -52,7 +50,7 @@ func (m *JWTMiddleware) RequireUserRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
-			m.log.Warnf("RequireRole: userRole not found in context")
+			log.Warn().Msg("RequireRole: userRole not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
 			c.Abort()
 			return
@@ -71,7 +69,7 @@ func (m *JWTMiddleware) RequireUserRole() gin.HandlerFunc {
 func (m *JWTMiddleware) issueAnonSession(c *gin.Context) {
 	anonSession, err := m.authService.CreateAnonymousSession(c.Request.Context())
 	if err != nil {
-		m.log.Errorf("Failed to create anonymous session: %v", err)
+		log.Error().Err(err).Msg("Failed to create anonymous session")
 		handlers.RespondWithError(c, err)
 		c.Abort()
 		return
@@ -95,7 +93,7 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 		claims, err := m.authService.ParseJWT(jwtStr)
 		if err != nil {
 			if !errors.Is(err, jwt.ErrTokenExpired) {
-				m.log.Debugf("JWT parse error: %v:%T", err, err)
+				log.Debug().Msgf("JWT parse error: %v:%T", err, err)
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
 				return
@@ -111,7 +109,7 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 			// JWT expired — attempt refresh
 			refreshStr, err := c.Cookie(models.CookieRefreshToken)
 			if err != nil {
-				m.log.Debugf("Refresh token cookie error: %v:%T", err, err)
+				log.Debug().Msgf("Refresh token cookie error: %v:%T", err, err)
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
 				return
@@ -144,21 +142,21 @@ func (m *JWTMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc
 	return func(c *gin.Context) {
 		anonIDAny, exists := c.Get(models.UserIDKey)
 		if !exists {
-			m.log.Warnf("RequireAnonQuota: userID not found in context")
+			log.Warn().Msg("RequireAnonQuota: userID not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
 			c.Abort()
 			return
 		}
 		anonID, ok := anonIDAny.(string)
 		if !ok {
-			m.log.Warnf("RequireAnonQuota: userID in context is not a string")
+			log.Warn().Msg("RequireAnonQuota: userID in context is not a string")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
 			c.Abort()
 			return
 		}
 		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
-			m.log.Warnf("RequireAnonQuota: userRole not found in context")
+			log.Warn().Msg("RequireAnonQuota: userRole not found in context")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
 			c.Abort()
 			return
@@ -168,10 +166,10 @@ func (m *JWTMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc
 			c.Next()
 			return
 		}
-		
+
 		n, err := m.authService.IncrementAnonQuota(c.Request.Context(), anonID, path)
 		if err != nil {
-			m.log.Errorf("Failed to increment anon quota: %v", err)
+			log.Error().Err(err).Msg("Failed to increment anon quota")
 			handlers.RespondWithError(c, appErrors.ErrInternal)
 			c.Abort()
 			return

@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
 )
 
 
@@ -139,12 +139,12 @@ func containsBlockedLabel(labels []PhonkersDBListenLabel) bool {
 	return false
 }
 
-func scrapePhonkersDBartists(ctx context.Context, appLogger *logger.Logger) ([]models.Artist, error) {
+func scrapePhonkersDBartists(ctx context.Context) ([]models.Artist, error) {
 	first, err := fetchPhonkersDBPage(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
-	appLogger.Infof("Total artists in PhonkersDB: %d", first.Data.Info.Total)
+	log.Info().Int("total", first.Data.Info.Total).Msg("Total artists in PhonkersDB")
 
 	artists := make([]models.Artist, 0, first.Data.Info.Total)
 	for _, a := range first.Data.Items {
@@ -169,14 +169,14 @@ func scrapePhonkersDBartists(ctx context.Context, appLogger *logger.Logger) ([]m
 	return artists, nil
 }
 
-func scrapePhonkersDB(ctx context.Context, appLogger *logger.Logger, db *db_client.DBClient) error {
-	artists, err := scrapePhonkersDBartists(ctx, appLogger)
+func scrapePhonkersDB(ctx context.Context, repo artistsRepo) error {
+	artists, err := scrapePhonkersDBartists(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to scrape PhonkersBase artists: %w", err)
 	}
-	if err := db.InsertArtists(ctx, artists); err != nil {
+	if err := repo.InsertArtists(ctx, artists); err != nil {
 		return fmt.Errorf("failed to insert PhonkersBase artists: %w", err)
 	}
-	appLogger.Infof("Successfully inserted %d artists from PhonkersBase", len(artists))
+	log.Info().Int("count", len(artists)).Msg("Successfully inserted artists from PhonkersBase")
 	return nil
 }

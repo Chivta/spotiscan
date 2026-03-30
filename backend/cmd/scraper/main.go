@@ -2,72 +2,89 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/config"
-	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
-	"github.com/chivta/spotiscan/internal/repository/redis_client"
 )
 
 func main() {
 	os.Exit(runApp())
 }
 
+type artistsRepo interface {
+	InsertArtists(ctx context.Context, artists []models.Artist) error
+	GetRuTags(ctx context.Context) ([]string, error)
+	GetRuRegionIds(ctx context.Context) ([]string, error)
+}
+
 func runApp() int {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Printf("Failed to load config: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		return 1
 	}
-
-	appLogger := logger.NewLogger(
-		cfg.Log.EnableDebug,
-		cfg.Log.EnableInfo,
-		cfg.Log.ErrorOutput,
-		cfg.Log.InfoOutput,
-		cfg.Log.DebugOutput,
-	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	db, err := db_client.NewDBClient(cfg.DatabaseURL)
+	db, err := repository.InitializeDatabase(ctx, cfg.DatabaseURL)
 	if err != nil {
-		appLogger.Errorf("Failed to initialize postgres: %v", err)
 		return 1
 	}
+	defer db.Close()
+
+	redis, err := repository.InitializeRedis(ctx, cfg.RedisURL)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize redis")
+		return 1
+	}
+	defer redis.Close()
+
+	repo := repository.NewArtistRepo(db, redis)
+
+	var wg sync.WaitGroup
 
 	if cfg.ScraperConfig.ScrapeLastFMTopArtistsForAllTags {
-		err = scrapeLastFMTopArtistsForAllTags(ctx, appLogger, db, cfg.ScraperConfig.LastFMAPIKey)
-		if err != nil {
-			appLogger.Errorf("Failed to scrape LastFM artists: %v", err)
-		}
+		wg.Go(func() {
+			err := scrapeLastFMTopArtistsForAllTags(ctx, repo, cfg.ScraperConfig.LastFMAPIKey)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to scrape LastFM artists")
+			}
+		})
 	}
 
 	if cfg.ScraperConfig.ScrapeMusicBrainzArtistsForAllRegions {
-		err = scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, db)
-		if err != nil {
-			appLogger.Errorf("Failed to scrape MusicBrainz artists by regions: %v", err)
-		}
+		wg.Go(func() {
+			err := scrapeMusicBrainzArtistsForAllRegions(ctx, repo)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to scrape MusicBrainz artists by regions")
+			}
+		})
 	}
 
 	if cfg.ScraperConfig.ScrapePhonkersDBArtists {
-		err = scrapePhonkersDB(ctx, appLogger, db)
-		if err != nil {
-			appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
-		}
+		wg.Go(func() {
+			err := scrapePhonkersDB(ctx, repo)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to scrape PhonkersDB artists")
+			}
+		})
 	}
 
-	redisClient, err := redis_client.NewRedisClient(cfg.RedisURL)
-	if err != nil {
-		appLogger.Warnf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
-		return 0
-	} 
-	repo := repository.NewRepo(appLogger, db, redisClient, nil)
+	wg.Wait()
+
 	repo.LoadRussianArtistsToRedis(ctx)
 
 	return 0

@@ -3,28 +3,24 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log"
+	"fmt"
+	stdlog "log"
 	"os"
 	"time"
 
-	"github.com/lib/pq"
-	_ "modernc.org/sqlite"
-
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/pressly/goose/v3"
+	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/spotiscan/internal/config"
 	"github.com/chivta/spotiscan/internal/handlers"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/middlewares"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
-	"github.com/chivta/spotiscan/internal/repository/redis_client"
-	"github.com/chivta/spotiscan/internal/repository/spotify_client"
 	"github.com/chivta/spotiscan/internal/services"
-	"github.com/chivta/spotiscan/migrations"
+	"github.com/chivta/spotiscan/internal/spotify"
 	"github.com/chivta/spotiscan/scripts"
 )
 
@@ -32,151 +28,27 @@ func main() {
 	os.Exit(runApp())
 }
 
-func runMigrations(db *db_client.DBClient) error {
-	goose.SetBaseFS(migrations.FS)
-
-	err := goose.SetDialect("postgres")
-	if err != nil {
-		return err
-	}
-
-	return goose.Up(db.GetConnection(), ".")
-}
-
-// migrateFromSQLite checks for a bot_data.db file and, if present, bulk-inserts
-// all artist names into postgres. Safe to call on every startup — the INSERT uses
-// ON CONFLICT DO NOTHING so duplicates are silently skipped.
-func migrateFromSQLite(appLogger *logger.Logger, db *db_client.DBClient) {
-	if _, err := os.Stat("bot_data.db"); os.IsNotExist(err) {
-		appLogger.Infof("bot_data.db not found, skipping SQLite migration")
-		return
-	}
-
-	appLogger.Infof("bot_data.db found, migrating artists to PostgreSQL")
-
-	sqliteDB, err := sql.Open("sqlite", "file:bot_data.db")
-	if err != nil {
-		appLogger.Warnf("Failed to open bot_data.db: %v", err)
-		return
-	}
-	defer sqliteDB.Close()
-
-	rows, err := sqliteDB.Query("SELECT name FROM artists")
-	if err != nil {
-		appLogger.Warnf("Failed to query artists from SQLite: %v", err)
-		return
-	}
-	defer rows.Close()
-
-	artists := make(map[string]struct{}, 25138) // known size of the old db
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			appLogger.Warnf("Failed to scan artist row: %v", err)
-			return
-		}
-		artists[name] = struct{}{}
-	}
-
-	artistsSlice := make([]string, 0, len(artists))
-	for name := range artists {
-		artistsSlice = append(artistsSlice, name)
-	}
-	artists = nil // free memory before the bulk insert
-
-	if len(artistsSlice) == 0 {
-		appLogger.Infof("No artists found in bot_data.db, nothing to migrate")
-		return
-	}
-
-	_, err = db.GetConnection().Exec(
-		"INSERT INTO ru_artists (name) SELECT unnest($1::text[]) ON CONFLICT (name) DO NOTHING",
-		pq.Array(artistsSlice),
-	)
-	if err != nil {
-		appLogger.Warnf("Failed to insert artists into PostgreSQL: %v", err)
-		return
-	}
-
-	appLogger.Infof("Successfully migrated %d artists from SQLite", len(artistsSlice))
-}
-
-func initializeDatabase(dbUrl string, appLogger *logger.Logger) (*db_client.DBClient, error) {
-	// db_client.NewDBClient blocks on Ping; wrap it in a goroutine so we can
-	// apply a timeout without needing a context-aware driver.
-	dbCh := make(chan *db_client.DBClient, 1)
-	errCh := make(chan error, 1)
-	go func() {
-		client, err := db_client.NewDBClient(dbUrl)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		dbCh <- client
-	}()
-
-	var db *db_client.DBClient
-	select {
-	case result := <-dbCh:
-		db = result
-		appLogger.Infof("Successfully connected to PostgreSQL")
-	case err := <-errCh:
-		appLogger.Errorf("Failed to initialize postgres: %v", err)
-		return nil, err
-	case <-time.After(5 * time.Second):
-		appLogger.Errorf("Could not initialize postgres: connection timed out")
-		return nil, context.DeadlineExceeded
-	}
-
-	if err := runMigrations(db); err != nil {
-		appLogger.Errorf("Failed to run database migrations: %v", err)
-		return nil, err
-	}
-	appLogger.Infof("Database migrations completed successfully")
-	return db, nil
-}
-
 func runApp() int {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		stdlog.Fatalf("Failed to load config: %v", err)
 	}
 
-	appLogger := logger.NewLogger(
-		cfg.Log.EnableDebug,
-		cfg.Log.EnableInfo,
-		cfg.Log.ErrorOutput,
-		cfg.Log.InfoOutput,
-		cfg.Log.DebugOutput,
-	)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
-	db, err := initializeDatabase(cfg.DatabaseURL, appLogger)
+	// redirect stdlib log to zerolog
+	stdlog.SetOutput(log.Logger)
+	stdlog.SetFlags(0)
+
+	c, err := initApp(cfg)
 	if err != nil {
+		log.Err(err).Msg("Failed to initialize app")
 		return 1
 	}
-	defer db.Close()
-
-	migrateFromSQLite(appLogger, db)
-
-	var cacheClient repository.CacheClient
-	redisClient, err := redis_client.NewRedisClient(cfg.RedisURL)
-	if err != nil {
-		appLogger.Warnf("Failed to initialize redis (rate limiting and caching disabled): %v", err)
-	} else {
-		defer redisClient.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		scriptErr := redisClient.LoadRateLimitScript(ctx, scripts.RateLimitScript)
-		cancel()
-		if scriptErr != nil {
-			appLogger.Warnf("Failed to load rate limit script to redis (rate limiting disabled): %v", scriptErr)
-		} else {
-			cacheClient = redisClient
-		}
-	}
-
-	spotifyClient := spotify_client.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
-	repo := repository.NewRepo(appLogger, db, cacheClient, spotifyClient)
-	repo.LoadRussianArtistsToRedis(context.Background())
+	defer c.db.Close()
+	defer c.redis.Close()
 
 	r := gin.New()
 	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
@@ -187,43 +59,111 @@ func runApp() int {
 
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
 
-	validate := validator.New()
-
-	spotifyService := services.NewSpotifyService(appLogger, repo)
-	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
-
-	authService := services.NewAuthService(repo, appLogger, []byte(cfg.JWTSecret))
-	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
-	spotifyMiddleware := middlewares.NewSpotifyMiddleware(spotifyService)
-	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies, appLogger)
-
-	var rateLimitCache middlewares.Cache
-	if redisClient != nil {
-		rateLimitCache = redisClient
-	}
-	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(rateLimitCache, appLogger)
-
 	api := r.Group("/api")
-	api.Use(jwtMiddleware.ParseAuth())
-	api.Use(spotifyMiddleware.AttachSpotifyClientCreds())
-	api.Use(rateLimitMiddleware.LimitRequests(cfg.RateLimit.RequestLimit, cfg.RateLimit.WindowSeconds))
+	api.Use(c.jwtMiddleware.ParseAuth())
+	// api.Use(c.spotifyMiddleware.AttachSpotifyClientCreds())
+	api.Use(c.rateLimitMiddleware.LimitRequests(models.RateLimitRequestLimit, models.RateLimitWindowSeconds))
 	{
-		api.GET("/me", authHandler.Me)
-		api.POST("/auth/signup", authHandler.Signup)
-		api.POST("/auth/login", authHandler.Login)
-		api.GET("/playlist/:id/rucontent", jwtMiddleware.RequireAnonQuota("/playlist", models.AnonRequestLimit), spotifyHandler.GetPlaylistRuContent)
+		api.GET("/me", c.authHandler.Me)
+		api.POST("/auth/signup", c.authHandler.Signup)
+		api.POST("/auth/login", c.authHandler.Login)
+		api.GET("/playlist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/playlist", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
 
 		userEndpoints := api.Group("")
-		userEndpoints.Use(jwtMiddleware.RequireUserRole())
+		userEndpoints.Use(c.jwtMiddleware.RequireUserRole())
 		{
-			userEndpoints.POST("/auth/logout", authHandler.Logout)
+			userEndpoints.POST("/auth/logout", c.authHandler.Logout)
 		}
 	}
 
 	if err = r.Run(); err != nil {
-		appLogger.Errorf("Failed to run server: %v", err)
+		log.Err(err).Msg("Failed to run server")
 		return 1
 	}
 
 	return 0
+}
+
+type appContainer struct {
+	ratelimitRepo       *repository.RatelimitRepo
+	artistRepo          *repository.ArtistRepo
+	tokenRepo           *repository.TokenRepo
+	userRepo            *repository.UserRepo
+	playlistRepo        *repository.PlaylistRepo
+	authHandler         *handlers.AuthHandler
+	spotifyHandler      *handlers.SpotifyHandler
+	authService         *services.AuthService
+	spotifyService      *services.SpotifyService
+	jwtMiddleware       *middlewares.JWTMiddleware
+	rateLimitMiddleware *middlewares.RateLimitMiddleware
+	db                  *sql.DB
+	redis               *redis.Client
+}
+
+func initApp(cfg *config.Config) (*appContainer, error) {
+	initCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	db, err := repository.InitializeDatabase(initCtx, cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	err = repository.RunMigrations(initCtx, db)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to run database migrations: %w", err)
+	}
+
+	redis, err := repository.InitializeRedis(initCtx, cfg.RedisURL)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to initialize redis: %w", err)
+	}
+	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	ratelimitRepo := repository.NewRatelimitRepo(redis)
+	artistRepo := repository.NewArtistRepo(db, redis)
+	tokenRepo := repository.NewTokenRepo(db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	userRepo := repository.NewUserRepo(db, redis)
+	playlistRepo := repository.NewPlaylistRepo(db, spotifyClient)
+
+	err = ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
+	if err != nil {
+		redis.Close()
+		db.Close()
+		return nil, fmt.Errorf("Failed to load rate limit script to redis: %v", err)
+	}
+
+	err = artistRepo.LoadRussianArtistsToRedis(initCtx)
+	if err != nil {
+		redis.Close()
+		db.Close()
+		return nil, fmt.Errorf("Failed to load Russian artists to redis: %v", err)
+	}
+	validate := validator.New()
+
+	spotifyService := services.NewSpotifyService(artistRepo, playlistRepo)
+	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
+
+	authService := services.NewAuthService([]byte(cfg.JWTSecret), tokenRepo, userRepo)
+	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
+	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
+
+	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo)
+
+	return &appContainer{
+		ratelimitRepo:       ratelimitRepo,
+		artistRepo:          artistRepo,
+		tokenRepo:           tokenRepo,
+		userRepo:            userRepo,
+		playlistRepo:        playlistRepo,
+		authHandler:         authHandler,
+		spotifyHandler:      spotifyHandler,
+		authService:         authService,
+		spotifyService:      spotifyService,
+		jwtMiddleware:       jwtMiddleware,
+		rateLimitMiddleware: rateLimitMiddleware,
+		db:                  db,
+		redis:               redis,
+	}, nil
 }

@@ -7,6 +7,7 @@ services:
       POSTGRES_DB: spotiscan
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -20,7 +21,7 @@ services:
       context: ./backend
       target: dev
     volumes:
-      - ./backend:/app          # dev-only: includes bot_data.db (triggers SQLite migration on startup)
+      - ./backend:/app          # dev-only
       - backend_tmp:/app/tmp
     env_file:
       - ./backend/.env
@@ -62,9 +63,9 @@ services:
       postgres:
         condition: service_healthy
       backend:
-        condition: service_healthy
+        condition: service_healthy # scraper needs backend to be healthy to ensure DB migrations have run
       redis:
-        condition: service_started
+        condition: service_started # to load new artists into cache after update
 
   frontend:
     build:

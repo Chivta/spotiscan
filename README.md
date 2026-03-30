@@ -33,9 +33,9 @@ Backend: http://localhost:8080
 
 - Docker & Docker Compose (for containerized setup)
 - Node.js 18+ (for local frontend dev)
-- Go 1.25+ (for local backend dev)
+- Go 1.26+ (for local backend dev)
 - PostgreSQL 14+ (for local database)
-- Redis (required env var; app degrades gracefully if unavailable — caching and rate limiting disabled)
+- Redis (required env var)
 
 ## Setup
 

@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository/db_client"
 )
 
 // LastFMTopArtistsResponse matches the payload from tag.getTopArtists.
@@ -110,26 +110,26 @@ func scrapeLastFMArtists(ctx context.Context, method string, tag string, apiKey 
 	return artists, nil
 }
 
-func scrapeLastFMTopArtistsForAllTags(ctx context.Context, appLogger *logger.Logger, db *db_client.DBClient, apiKey string) error {
+func scrapeLastFMTopArtistsForAllTags(ctx context.Context, repo artistsRepo, apiKey string) error {
 	method := "tag.getTopArtists"
 
-	ruTags, err := db.GetRuTags(ctx)
+	ruTags, err := repo.GetRuTags(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get ru tags: %w", err)
 	}
 
 	for _, tag := range ruTags {
-		appLogger.Infof("Scraping artists for tag '%s'", tag)
+		log.Info().Str("tag", tag).Msg("Scraping artists for tag")
 		artists, err := scrapeLastFMArtists(ctx, method, tag, apiKey)
 		if err != nil {
-			appLogger.Errorf("Failed to scrape artists for tag '%s': %v", tag, err)
+			log.Error().Err(err).Str("tag", tag).Msg("Failed to scrape artists for tag")
 			continue
 		}
-		if err = db.InsertArtists(ctx, artists); err != nil {
-			appLogger.Errorf("Failed to insert artists for tag '%s': %v", tag, err)
+		if err = repo.InsertArtists(ctx, artists); err != nil {
+			log.Error().Err(err).Str("tag", tag).Msg("Failed to insert artists for tag")
 			continue
 		}
-		appLogger.Infof("LastFM tag '%s': inserted %d artists", tag, len(artists))
+		log.Info().Str("tag", tag).Int("count", len(artists)).Msg("LastFM tag: inserted artists")
 	}
 
 	return nil

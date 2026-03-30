@@ -13,6 +13,7 @@ var (
 	ErrInternal           = &AppError{500, "INTERNAL_ERROR", "internal server error"}
 	ErrDatabaseFailure    = &AppError{500, "DATABASE_ERROR", "database error"}
 	ErrSpotifyAPIError    = &AppError{500, "SPOTIFY_API_ERROR", "spotify api error"}
+	ErrTooManyRequests    = &AppError{429, "TOO_MANY_REQUESTS", "too many requests"}
 	ErrPlaylistNotFound   = &AppError{404, "PLAYLIST_NOT_FOUND", "playlist not found"}
 	ErrNotFound           = &AppError{404, "NOT_FOUND", "not found"}
 	ErrBadRequest         = &AppError{400, "BAD_REQUEST", "bad request"}
