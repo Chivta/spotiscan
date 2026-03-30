@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chivta/spotiscan/internal/logger"
@@ -26,13 +27,17 @@ func NewSpotifyClient(spotifyId, spotifySecret string, appLogger *logger.Logger)
 }
 
 type SpotifyClient struct {
-	log                 *logger.Logger
-	httpClient          *http.Client
-	tokenExpiry         time.Time
-	accessToken         string
-	spotifyId           string
-	spotifySecret       string
+	log           *logger.Logger
+	httpClient    *http.Client
+	spotifyId     string
+	spotifySecret string
+
 	spotifyBlockedUntil time.Time
+	blockMu             sync.RWMutex
+
+	tokenExpiry time.Time
+	accessToken string
+	tokenMu     sync.RWMutex
 }
 
 type Error struct {
@@ -44,11 +49,20 @@ func (e Error) Error() string {
 }
 
 func (c *SpotifyClient) getValidToken(ctx context.Context) (string, error) {
+	c.tokenMu.RLock()
+	if c.accessToken != "" && c.tokenExpiry.UTC().After(time.Now().UTC()) {
+		token := c.accessToken
+		c.tokenMu.RUnlock()
+		return token, nil
+	}
+	c.tokenMu.RUnlock()
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+	// Recheck after acquiring write lock in case another goroutine refreshed the token
 	if c.accessToken != "" && c.tokenExpiry.UTC().After(time.Now().UTC()) {
 		return c.accessToken, nil
 	}
-
-	// Token is expired or not set, refresh it
+	
 	token, expiry, err := c.getToken(ctx)
 	if err != nil {
 		return "", err
@@ -91,11 +105,16 @@ func (c *SpotifyClient) getToken(ctx context.Context) (string, time.Time, error)
 }
 
 func (c *SpotifyClient) blockSpotifyRequests(duration time.Duration) {
+	c.blockMu.Lock()
+	defer c.blockMu.Unlock()
 	c.spotifyBlockedUntil = time.Now().Add(duration)
 }
 
 func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Playlist, error) {
-	if c.spotifyBlockedUntil.After(time.Now()) {
+	c.blockMu.RLock()
+	spotifyBlocked := c.spotifyBlockedUntil.After(time.Now())
+	c.blockMu.RUnlock()
+	if spotifyBlocked {
 		return nil, &Error{Status: http.StatusTooManyRequests}
 	}
 
