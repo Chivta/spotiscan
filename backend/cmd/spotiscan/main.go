@@ -2,20 +2,20 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"log"
+	stdlog "log"
 	"os"
 	"time"
-
-	"database/sql"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/spotiscan/internal/config"
 	"github.com/chivta/spotiscan/internal/handlers"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/middlewares"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
@@ -31,21 +31,20 @@ func main() {
 func runApp() int {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		stdlog.Fatalf("Failed to load config: %v", err)
 	}
 
-	// TODO: remove hardcodes
-	appLogger := logger.NewLogger(
-		true,
-		true,
-		"stdout",
-		"stdout",
-		"stdout",
-	)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
-	c, err := initApp(cfg, appLogger)
+	// redirect stdlib log to zerolog
+	stdlog.SetOutput(log.Logger)
+	stdlog.SetFlags(0)
+
+	c, err := initApp(cfg)
 	if err != nil {
-		log.Printf("Failed to initialize app: %v", err)
+		log.Err(err).Msg("Failed to initialize app")
 		return 1
 	}
 	defer c.db.Close()
@@ -78,7 +77,7 @@ func runApp() int {
 	}
 
 	if err = r.Run(); err != nil {
-		appLogger.Errorf("Failed to run server: %v", err)
+		log.Err(err).Msg("Failed to run server")
 		return 1
 	}
 
@@ -101,7 +100,7 @@ type appContainer struct {
 	redis               *redis.Client
 }
 
-func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error) {
+func initApp(cfg *config.Config) (*appContainer, error) {
 	initCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -121,38 +120,36 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
-	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret, appLogger)
-	ratelimitRepo := repository.NewRatelimitRepo(appLogger, redis)
-	artistRepo := repository.NewArtistRepo(appLogger, db, redis)
-	tokenRepo := repository.NewTokenRepo(appLogger, db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
-	userRepo := repository.NewUserRepo(appLogger, db, redis)
-	playlistRepo := repository.NewPlaylistRepo(appLogger, db, spotifyClient)
+	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	ratelimitRepo := repository.NewRatelimitRepo(redis)
+	artistRepo := repository.NewArtistRepo(db, redis)
+	tokenRepo := repository.NewTokenRepo(db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	userRepo := repository.NewUserRepo(db, redis)
+	playlistRepo := repository.NewPlaylistRepo(db, spotifyClient)
 
 	err = ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
 	if err != nil {
-		appLogger.Errorf("Failed to load rate limit script to redis: %v", err)
 		redis.Close()
 		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("Failed to load rate limit script to redis: %v", err)
 	}
 
 	err = artistRepo.LoadRussianArtistsToRedis(initCtx)
 	if err != nil {
-		appLogger.Errorf("Failed to load Russian artists to redis: %v", err)
 		redis.Close()
 		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("Failed to load Russian artists to redis: %v", err)
 	}
 	validate := validator.New()
 
-	spotifyService := services.NewSpotifyService(appLogger, artistRepo, playlistRepo)
+	spotifyService := services.NewSpotifyService(artistRepo, playlistRepo)
 	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
 
-	authService := services.NewAuthService(appLogger, []byte(cfg.JWTSecret), tokenRepo, userRepo)
+	authService := services.NewAuthService([]byte(cfg.JWTSecret), tokenRepo, userRepo)
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
-	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies, appLogger)
+	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
 
-	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo, appLogger)
+	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo)
 
 	return &appContainer{
 		ratelimitRepo:       ratelimitRepo,

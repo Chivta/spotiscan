@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/rs/zerolog/log"
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -33,9 +33,8 @@ type (
 	}
 )
 
-func NewAuthService(logger *logger.Logger, jwtSecret []byte, tokenRepo sessionTokenRepo, userRepo userRepo) *AuthService {
+func NewAuthService(jwtSecret []byte, tokenRepo sessionTokenRepo, userRepo userRepo) *AuthService {
 	return &AuthService{
-		log:       logger,
 		jwtSecret: jwtSecret,
 		tokenRepo: tokenRepo,
 		userRepo:  userRepo,
@@ -45,7 +44,6 @@ func NewAuthService(logger *logger.Logger, jwtSecret []byte, tokenRepo sessionTo
 type AuthService struct {
 	tokenRepo sessionTokenRepo
 	userRepo  userRepo
-	log       *logger.Logger
 	jwtSecret []byte
 }
 
@@ -155,7 +153,7 @@ func (s *AuthService) ParseJWT(jwtStr string) (JWTClaims, error) {
 func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSession, error) {
 	anonID, err := generateAnonUserID()
 	if err != nil {
-		s.log.Errorf("Failed to generate anon user ID: %v", err)
+		log.Error().Err(err).Msg("Failed to generate anon user ID")
 		return nil, appErrors.ErrInternal
 	}
 

@@ -7,14 +7,14 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/redis/go-redis/v9"
 )
 
-func NewTokenRepo(logger *logger.Logger, db *sql.DB, redis *redis.Client, spotifyId, spotifySecret string) *TokenRepo {
+func NewTokenRepo(db *sql.DB, redis *redis.Client, spotifyId, spotifySecret string) *TokenRepo {
 	return &TokenRepo{
-		logger:        logger,
 		db:            db,
 		redis:         redis,
 		spotifyId:     spotifyId,
@@ -23,7 +23,6 @@ func NewTokenRepo(logger *logger.Logger, db *sql.DB, redis *redis.Client, spotif
 }
 
 type TokenRepo struct {
-	logger  *logger.Logger
 	db      *sql.DB
 	redis   *redis.Client
 
@@ -41,7 +40,7 @@ func (r *TokenRepo) GetRefreshTokenByUserID(ctx context.Context, userID int) (st
 		userID,
 	).Scan(&tokenHash, &expiresAt)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
 			return "", time.Time{}, appErrors.ErrUnauthorized
 		}
@@ -74,7 +73,7 @@ func (r *TokenRepo) StoreRefreshTokenHash(ctx context.Context, userID int, token
 		expiresAt.UTC(),
 	)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return appErrors.ErrDatabaseFailure
 	}
 
@@ -88,7 +87,7 @@ func (r *TokenRepo) DeleteRefreshTokenHash(ctx context.Context, userID int) erro
 		userID,
 	)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return appErrors.ErrDatabaseFailure
 	}
 	return nil

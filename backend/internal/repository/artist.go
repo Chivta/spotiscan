@@ -5,8 +5,9 @@ import (
 
 	"strings"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/lib/pq"
 
@@ -15,22 +16,20 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewArtistRepo(logger *logger.Logger, db *sql.DB, redis *redis.Client) *ArtistRepo {
+func NewArtistRepo(db *sql.DB, redis *redis.Client) *ArtistRepo {
 	return &ArtistRepo{
-		logger: logger,
 		db:     db,
 		redis:  redis,
 	}
 }
 
 type ArtistRepo struct {
-	logger *logger.Logger
 	db     *sql.DB
 	redis  *redis.Client
 }
 
 func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
-	r.logger.Infof("loading ru_artists set from DB")
+	log.Info().Msg("loading ru_artists set from DB")
 	allNames, err := r.GetAllRussianArtistNames(ctx)
 	if err != nil {
 		return err
@@ -39,7 +38,7 @@ func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	r.logger.Infof("successfully loaded %d ru artists into redis", len(allNames))
+	log.Info().Msgf("successfully loaded %d ru artists into redis", len(allNames))
 	return nil
 }
 
@@ -82,7 +81,7 @@ func (r *ArtistRepo) FilterRussian(ctx context.Context, names []string) ([]strin
 	if r.redis != nil {
 		ruNames, err := r.FilterRussianArtistNames(ctx, names)
 		if err != nil {
-			r.logger.Warnf("redis error: %T: %v", err, err)
+			log.Warn().Msgf("redis error: %T: %v", err, err)
 		} else {
 			return ruNames, nil
 		}
@@ -90,7 +89,7 @@ func (r *ArtistRepo) FilterRussian(ctx context.Context, names []string) ([]strin
 	// fallback to db
 	ruNames, err := r.filterRussianWithDB(ctx, names)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return nil, appErrors.ErrDatabaseFailure
 	}
 	return ruNames, nil
@@ -132,7 +131,7 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 func (r *ArtistRepo) filterRussianWithDB(ctx context.Context, names []string) ([]string, error) {
 	ruNames, err := r.GetRussianArtistNames(ctx, names)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return nil, appErrors.ErrDatabaseFailure
 	}
 	return ruNames, nil
@@ -240,7 +239,7 @@ func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []models.Artist)
 		pq.Array(confirmed),
 	)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return appErrors.ErrDatabaseFailure
 	}
 	return nil

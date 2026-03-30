@@ -2,19 +2,16 @@ package repository
 
 import (
 	"context"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRatelimitRepo(logger *logger.Logger, redis *redis.Client) *RatelimitRepo {
+func NewRatelimitRepo(redis *redis.Client) *RatelimitRepo {
 	return &RatelimitRepo{
-		logger:  logger,
 		redis:   redis,
 	}
 }
 
 type RatelimitRepo struct {
-	logger  *logger.Logger
 	redis   *redis.Client
 
 	rateLimitScriptSHA string

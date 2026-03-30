@@ -4,8 +4,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -18,16 +19,14 @@ type (
 	}
 )
 
-func NewSpotifyService(logger *logger.Logger, artistRepo filterArtistsRepo, playlistRepo getPlaylistRepo) *SpotifyService {
+func NewSpotifyService(artistRepo filterArtistsRepo, playlistRepo getPlaylistRepo) *SpotifyService {
 	return &SpotifyService{
-		log:          logger,
 		artistRepo:   artistRepo,
 		playlistRepo: playlistRepo,
 	}
 }
 
 type SpotifyService struct {
-	log          *logger.Logger
 	artistRepo   filterArtistsRepo
 	playlistRepo getPlaylistRepo
 }
@@ -35,11 +34,11 @@ type SpotifyService struct {
 // formRuContent filters the provided tracks and returns rusContent containing only Russian artists and tracks
 // that have at least one Russian artist.
 func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Track) (*models.RuContent, error) {
-	s.log.Debugf("forming RU content for %d tracks", len(tracks))
+	log.Debug().Msgf("forming RU content for %d tracks", len(tracks))
 	var ruContent models.RuContent
 
 	if len(tracks) == 0 {
-		s.log.Debugf("no tracks provided, returning empty RU content")
+		log.Debug().Msgf("no tracks provided, returning empty RU content")
 		return &ruContent, nil
 	}
 
@@ -60,7 +59,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	// filter Russian artists using the repository
 	ruArtistNames, err := s.artistRepo.FilterRussian(ctx, artistNames)
 	if err != nil {
-		s.log.Errorf("failed to filter Russian artists: %v", err)
+		log.Error().Err(err).Msg("failed to filter Russian artists")
 		return nil, appErrors.ErrDatabaseFailure
 	}
 
@@ -93,24 +92,24 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		ruContent.Artists = append(ruContent.Artists, artist)
 	}
 
-	s.log.Debugf("formed RU content with %d tracks and %d artists", len(ruContent.Tracks), len(ruContent.Artists))
+	log.Debug().Msgf("formed RU content with %d tracks and %d artists", len(ruContent.Tracks), len(ruContent.Artists))
 	return &ruContent, nil
 }
 
 func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId string) (*models.RuContent, error) {
-	s.log.Debugf("getting RU content for playlist %s", playlistId)
+	log.Debug().Msgf("getting RU content for playlist %s", playlistId)
 	playlist, err := s.playlistRepo.GetPlaylistWithTracks(ctx, playlistId)
 	if err != nil {
-		s.log.Errorf("failed to get playlist with tracks: %v", err)
+		log.Error().Err(err).Msg("failed to get playlist with tracks")
 		return nil, err
 	}
 
 	ruContent, err := s.formRuContent(ctx, playlist.Tracks)
 	if err != nil {
-		s.log.Errorf("failed to form RU content: %v", err)
+		log.Error().Err(err).Msg("failed to form RU content")
 		return nil, err
 	}
 
-	s.log.Debugf("successfully retrieved RU content for playlist %s", playlistId)
+	log.Debug().Msgf("successfully retrieved RU content for playlist %s", playlistId)
 	return ruContent, nil
 }

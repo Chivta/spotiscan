@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/repository"
 )
 
@@ -13,16 +12,14 @@ type Cache interface {
 	Allow(ctx context.Context, key string, limit int, windowSeconds int) (bool, error)
 }
 
-func NewRateLimitMiddleware(ratelimitRepo *repository.RatelimitRepo, appLogger *logger.Logger) *RateLimitMiddleware {
+func NewRateLimitMiddleware(ratelimitRepo *repository.RatelimitRepo) *RateLimitMiddleware {
 	return &RateLimitMiddleware{
-		log:         appLogger,
 		ratelimitRepo: ratelimitRepo,
 	}
 }
 
 type RateLimitMiddleware struct {
 	ratelimitRepo *repository.RatelimitRepo
-	log         *logger.Logger
 }
 
 const (

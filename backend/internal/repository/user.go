@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/lib/pq"
 
@@ -13,16 +14,14 @@ import (
 
 )
 
-func NewUserRepo(logger *logger.Logger, db *sql.DB, redis *redis.Client) *UserRepo {
+func NewUserRepo(db *sql.DB, redis *redis.Client) *UserRepo {
 	return &UserRepo{
-		logger:  logger,
 		db:      db,
 		redis:   redis,
 	}
 }
 
 type UserRepo struct {
-	logger  *logger.Logger
 	db      *sql.DB
 	redis   *redis.Client
 }
@@ -37,7 +36,7 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *models.User) (int, erro
 	).Scan(&userID)
 
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			return 0, appErrors.ErrEmailExists
 		}
@@ -54,7 +53,7 @@ func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*models.User, error
 		id,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
 			return nil, appErrors.ErrNotFound
 		}
@@ -72,7 +71,7 @@ func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*models.Us
 		email,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash)
 	if err != nil {
-		r.logger.Errorf("db error: %T: %v", err, err)
+		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
 			return nil, appErrors.ErrUnauthorized
 		}

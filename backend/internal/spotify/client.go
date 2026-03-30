@@ -9,7 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -17,17 +18,15 @@ const (
 	spotifyTokenURL = "https://accounts.spotify.com/api/token"
 )
 
-func NewSpotifyClient(spotifyId, spotifySecret string, appLogger *logger.Logger) *SpotifyClient {
+func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
 	return &SpotifyClient{
 		httpClient:    http.DefaultClient,
 		spotifyId:     spotifyId,
 		spotifySecret: spotifySecret,
-		log:           appLogger,
 	}
 }
 
 type SpotifyClient struct {
-	log           *logger.Logger
 	httpClient    *http.Client
 	spotifyId     string
 	spotifySecret string
@@ -62,7 +61,7 @@ func (c *SpotifyClient) getValidToken(ctx context.Context) (string, error) {
 	if c.accessToken != "" && c.tokenExpiry.UTC().After(time.Now().UTC()) {
 		return c.accessToken, nil
 	}
-	
+
 	token, expiry, err := c.getToken(ctx)
 	if err != nil {
 		return "", err
@@ -141,7 +140,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 			if retryAfter != "" {
 				retrySeconds, err := strconv.Atoi(retryAfter)
 				if err == nil {
-					c.log.Warnf("Spotify API rate limit hit, blocking requests for %d seconds", retrySeconds)
+					log.Warn().Int("retrySeconds", retrySeconds).Msg("Spotify API rate limit hit, blocking requests")
 					c.blockSpotifyRequests(time.Duration(retrySeconds) * time.Second)
 				}
 			}

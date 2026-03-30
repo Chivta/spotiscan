@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/config"
-	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
 )
@@ -24,20 +26,15 @@ type artistsRepo interface {
 }
 
 func runApp() int {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Printf("Failed to load config: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		return 1
 	}
-
-	// TODO: remove hardcodes
-	appLogger := logger.NewLogger(
-		false,
-		true,
-		"stdout",
-		"stdout",
-		"stdout",
-	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -50,38 +47,38 @@ func runApp() int {
 
 	redis, err := repository.InitializeRedis(ctx, cfg.RedisURL)
 	if err != nil {
-		appLogger.Errorf("Failed to initialize redis: %v", err)
+		log.Error().Err(err).Msg("Failed to initialize redis")
 		return 1
 	}
 	defer redis.Close()
 
-	repo := repository.NewArtistRepo(appLogger, db, redis)
+	repo := repository.NewArtistRepo(db, redis)
 
 	var wg sync.WaitGroup
 
 	if cfg.ScraperConfig.ScrapeLastFMTopArtistsForAllTags {
 		wg.Go(func() {
-			err := scrapeLastFMTopArtistsForAllTags(ctx, appLogger, repo, cfg.ScraperConfig.LastFMAPIKey)
+			err := scrapeLastFMTopArtistsForAllTags(ctx, repo, cfg.ScraperConfig.LastFMAPIKey)
 			if err != nil {
-				appLogger.Errorf("Failed to scrape LastFM artists: %v", err)
+				log.Error().Err(err).Msg("Failed to scrape LastFM artists")
 			}
 		})
 	}
 
 	if cfg.ScraperConfig.ScrapeMusicBrainzArtistsForAllRegions {
 		wg.Go(func() {
-			err := scrapeMusicBrainzArtistsForAllRegions(ctx, appLogger, repo)
+			err := scrapeMusicBrainzArtistsForAllRegions(ctx, repo)
 			if err != nil {
-				appLogger.Errorf("Failed to scrape MusicBrainz artists by regions: %v", err)
+				log.Error().Err(err).Msg("Failed to scrape MusicBrainz artists by regions")
 			}
 		})
 	}
 
 	if cfg.ScraperConfig.ScrapePhonkersDBArtists {
 		wg.Go(func() {
-			err := scrapePhonkersDB(ctx, appLogger, repo)
+			err := scrapePhonkersDB(ctx, repo)
 			if err != nil {
-				appLogger.Errorf("Failed to scrape PhonkersDB artists: %v", err)
+				log.Error().Err(err).Msg("Failed to scrape PhonkersDB artists")
 			}
 		})
 	}

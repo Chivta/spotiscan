@@ -8,7 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/chivta/spotiscan/internal/logger"
+	"github.com/rs/zerolog/log"
+
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -114,7 +115,7 @@ func scrapeMusicBrainzArtistsByArea(ctx context.Context, areaID string) ([]model
 	return artists, nil
 }
 
-func scrapeMusicBrainzArtistsForAllRegions(ctx context.Context, appLogger *logger.Logger, repo artistsRepo) error {
+func scrapeMusicBrainzArtistsForAllRegions(ctx context.Context, repo artistsRepo) error {
 	regionIDs, err := repo.GetRuRegionIds(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get ru region ids: %w", err)
@@ -124,16 +125,16 @@ func scrapeMusicBrainzArtistsForAllRegions(ctx context.Context, appLogger *logge
 	for _, id := range regionIDs {
 		artists, err := scrapeMusicBrainzArtistsByArea(ctx, id)
 		if err != nil {
-			appLogger.Errorf("Failed to scrape MusicBrainz artists for area '%s': %v", id, err)
+			log.Error().Err(err).Str("areaId", id).Msg("Failed to scrape MusicBrainz artists for area")
 			continue
 		}
 		if err := repo.InsertArtists(ctx, artists); err != nil {
-			appLogger.Errorf("Failed to insert MusicBrainz artists for area '%s': %v", id, err)
+			log.Error().Err(err).Str("areaId", id).Msg("Failed to insert MusicBrainz artists for area")
 			continue
 		}
 		totalInserted += len(artists)
 	}
-	appLogger.Infof("MusicBrainz: inserted %d artists across %d regions", totalInserted, len(regionIDs))
+	log.Info().Int("total", totalInserted).Int("regions", len(regionIDs)).Msg("MusicBrainz: inserted artists")
 
 	return nil
 }
