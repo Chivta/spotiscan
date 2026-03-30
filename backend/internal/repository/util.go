@@ -7,7 +7,6 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 
-
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/spotify"
 	"github.com/chivta/spotiscan/migrations"
@@ -55,7 +54,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 }
 
 func translateSpotifyError(err error) error {
-	if spotifyErr, ok := err.(spotify.Error); ok {
+	if spotifyErr, ok := err.(*spotify.Error); ok {
 		switch spotifyErr.Status {
 		case 404:
 			return appErrors.ErrPlaylistNotFound

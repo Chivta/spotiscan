@@ -119,7 +119,7 @@ func initApp(cfg *config.Config, appLogger *logger.Logger) (*appContainer, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
-	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret, appLogger)
 	ratelimitRepo := repository.NewRatelimitRepo(appLogger, redis)
 	artistRepo := repository.NewArtistRepo(appLogger, db, redis)
 	tokenRepo := repository.NewTokenRepo(appLogger, db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)

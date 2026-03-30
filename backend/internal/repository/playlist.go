@@ -32,6 +32,7 @@ type PlaylistRepo struct {
 func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
 	playlist, err := r.spotifyClient.GetSpotifyPlaylist(ctx, playlistId)
 	if err != nil {
+		r.log.Errorf("error fetching playlist %s: %v", playlistId, err)
 		return nil, translateSpotifyError(err)
 	}
 

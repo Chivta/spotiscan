@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chivta/spotiscan/internal/logger"
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -15,20 +16,23 @@ const (
 	spotifyTokenURL = "https://accounts.spotify.com/api/token"
 )
 
-func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
+func NewSpotifyClient(spotifyId, spotifySecret string, appLogger *logger.Logger) *SpotifyClient {
 	return &SpotifyClient{
 		httpClient:    http.DefaultClient,
 		spotifyId:     spotifyId,
 		spotifySecret: spotifySecret,
+		log:           appLogger,
 	}
 }
 
 type SpotifyClient struct {
-	httpClient    *http.Client
-	tokenExpiry   time.Time
-	accessToken   string
-	spotifyId     string
-	spotifySecret string
+	log                 *logger.Logger
+	httpClient          *http.Client
+	tokenExpiry         time.Time
+	accessToken         string
+	spotifyId           string
+	spotifySecret       string
+	spotifyBlockedUntil time.Time
 }
 
 type Error struct {
@@ -39,7 +43,7 @@ func (e Error) Error() string {
 	return "spotify API error: status code " + strconv.Itoa(e.Status)
 }
 
-func (c *SpotifyClient) GetValidToken(ctx context.Context) (string, error) {
+func (c *SpotifyClient) getValidToken(ctx context.Context) (string, error) {
 	if c.accessToken != "" && c.tokenExpiry.UTC().After(time.Now().UTC()) {
 		return c.accessToken, nil
 	}
@@ -86,8 +90,16 @@ func (c *SpotifyClient) getToken(ctx context.Context) (string, time.Time, error)
 	return tokenResp.AccessToken, time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second), nil
 }
 
+func (c *SpotifyClient) blockSpotifyRequests(duration time.Duration) {
+	c.spotifyBlockedUntil = time.Now().Add(duration)
+}
+
 func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Playlist, error) {
-	token, err := c.GetValidToken(ctx)
+	if c.spotifyBlockedUntil.After(time.Now()) {
+		return nil, &Error{Status: http.StatusTooManyRequests}
+	}
+
+	token, err := c.getValidToken(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +116,17 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// block further requests if we hit rate limit, using Retry-After header if available
+		if resp.StatusCode == http.StatusTooManyRequests {
+			retryAfter := resp.Header.Get("Retry-After")
+			if retryAfter != "" {
+				retrySeconds, err := strconv.Atoi(retryAfter)
+				if err == nil {
+					c.log.Warnf("Spotify API rate limit hit, blocking requests for %d seconds", retrySeconds)
+					c.blockSpotifyRequests(time.Duration(retrySeconds) * time.Second)
+				}
+			}
+		}
 		return nil, &Error{Status: resp.StatusCode}
 	}
 
@@ -171,6 +194,7 @@ func (c *SpotifyClient) translateItemsToTracks(items []SpotifyItem, targetTracks
 		track.Name = item.Track.Name
 		for _, artist := range item.Track.Artists {
 			track.Artists = append(track.Artists, models.Artist{
+				ID:         artist.ID,
 				Name:       artist.Name,
 				SpotifyURL: "https://open.spotify.com/artist/" + artist.ID,
 			})
