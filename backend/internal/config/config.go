@@ -16,8 +16,6 @@ type Config struct {
 	SpotifyClientID     string `validate:"required,alphanum,min=1"`
 	SpotifyClientSecret string `validate:"required,min=1"`
 	SecureCookies       bool
-	// Log                 LogConfig       `json:"log" validate:"required"`
-	// RateLimit           RateLimitConfig `json:"rate_limit" validate:"required"`
 	ScraperConfig       ScraperConfig   `json:"scraper_config" validate:"required"`
 }
 
@@ -28,19 +26,6 @@ type ScraperConfig struct {
 	LastFMAPIKey                          string `validate:"required,min=1"`
 	LastFMSharedSecret                    string `validate:"min=1"`
 }
-
-// type LogConfig struct {
-// 	EnableDebug bool   `json:"enable_debug"`
-// 	EnableInfo  bool   `json:"enable_info"`
-// 	ErrorOutput string `json:"error_output"`
-// 	InfoOutput  string `json:"info_output"`
-// 	DebugOutput string `json:"debug_output"`
-// }
-
-// type RateLimitConfig struct {
-// 	RequestLimit  int `json:"request_limit" validate:"required,gt=0"`
-// 	WindowSeconds int `json:"window_seconds" validate:"required,gt=0"`
-// }
 
 func Load() (*Config, error) {
 	godotenv.Load("./.env")

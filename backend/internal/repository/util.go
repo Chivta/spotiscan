@@ -25,6 +25,8 @@ func InitializeDatabase(ctx context.Context, dbUrl string) (*sql.DB, error) {
 		err = db.Ping()
 		if err != nil {
 			errCh <- err
+			db.Close()
+			return 
 		}
 		dbCh <- db
 	}()
