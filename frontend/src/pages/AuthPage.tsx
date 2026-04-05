@@ -43,6 +43,8 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
         const code = body?.code;
         if (res.status === 401) {
           setError("Incorrect email or password.");
+        } else if (res.status === 409 || code === "EMAIL_EXISTS") {
+          setError("An account with this email already exists.");
         } else if (res.status === 400 || code === "BAD_REQUEST") {
           setError("Please check your email and password.");
         } else {
