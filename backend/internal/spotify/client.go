@@ -3,6 +3,7 @@ package spotify
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,8 +16,9 @@ import (
 )
 
 const (
-	spotifyTokenURL = "https://accounts.spotify.com/api/token"
-	spotifyLimit    = 50
+	spotifyTokenURL       = "https://accounts.spotify.com/api/token"
+	spotifyLimit          = 50
+	maxConcurrentRequests = 10
 )
 
 func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
@@ -100,7 +102,7 @@ func (c *SpotifyClient) getToken(ctx context.Context) (string, time.Time, error)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-
+	log.Info().Str("qwe", tokenResp.AccessToken).Msg("Obtained Spotify access token")
 	return tokenResp.AccessToken, time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second), nil
 }
 
@@ -176,12 +178,15 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 		fetchErrors []error
 		mu          sync.Mutex
 		wg          sync.WaitGroup
+		sem         = make(chan struct{}, maxConcurrentRequests)
 	)
 
 	// fetch all pages concurently
 	for offset < total {
 		wg.Add(1)
 		go func(offset int) {
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			defer wg.Done()
 			if c.isSpotifyBlocked() {
 				mu.Lock()
@@ -189,7 +194,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 				mu.Unlock()
 				return
 			}
-			url := "https://api.spotify.com/v1/playlists/" + playlistId + "/tracks?offset=" + strconv.Itoa(offset) + "&limit=" + strconv.Itoa(spotifyLimit)
+			url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks?offset=%d&limit=%d", playlistId, offset, spotifyLimit)
 			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 			if err != nil {
 				mu.Lock()
