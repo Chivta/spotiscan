@@ -11,10 +11,10 @@ resources:
 images:
 - name: ghcr.io/chivta/spotiscan/spotiscan-backend
   newName: ghcr.io/chivta/spotiscan/spotiscan-backend
-  newTag: 56b69cfed6c286fdeaf1ac5ea0add368314c7f16
+  newTag: 1a6422d267035bfec2258267fe74a768b9fc742d
 - name: ghcr.io/chivta/spotiscan/spotiscan-frontend
   newName: ghcr.io/chivta/spotiscan/spotiscan-frontend
-  newTag: aed8590bbc6afcafeba6485c57d6af772122831f
+  newTag: 1a6422d267035bfec2258267fe74a768b9fc742d
 - name: ghcr.io/chivta/spotiscan/spotiscan-scraper
   newName: ghcr.io/chivta/spotiscan/spotiscan-scraper
-  newTag: 56b69cfed6c286fdeaf1ac5ea0add368314c7f16
+  newTag: 1a6422d267035bfec2258267fe74a768b9fc742d
