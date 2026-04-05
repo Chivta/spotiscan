@@ -181,7 +181,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 		sem         = make(chan struct{}, maxConcurrentRequests)
 	)
 
-	// fetch all pages concurently
+	// fetch all pages concurrently
 	for offset < total {
 		wg.Add(1)
 		go func(offset int) {
