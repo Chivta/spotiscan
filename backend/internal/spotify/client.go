@@ -16,6 +16,7 @@ import (
 
 const (
 	spotifyTokenURL = "https://accounts.spotify.com/api/token"
+	spotifyLimit    = 50
 )
 
 func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
@@ -109,11 +110,14 @@ func (c *SpotifyClient) blockSpotifyRequests(duration time.Duration) {
 	c.spotifyBlockedUntil = time.Now().Add(duration)
 }
 
-func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Playlist, error) {
+func (c *SpotifyClient) isSpotifyBlocked() bool {
 	c.blockMu.RLock()
-	spotifyBlocked := c.spotifyBlockedUntil.After(time.Now())
-	c.blockMu.RUnlock()
-	if spotifyBlocked {
+	defer c.blockMu.RUnlock()
+	return c.spotifyBlockedUntil.After(time.Now())
+}
+
+func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Playlist, error) {
+	if c.isSpotifyBlocked() {
 		return nil, &Error{Status: http.StatusTooManyRequests}
 	}
 
@@ -166,33 +170,78 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 	result.Tracks = make([]models.Track, 0, len(playlist.Tracks.Items))
 	c.translateItemsToTracks(playlist.Tracks.Items, &result.Tracks, addedTracks)
 
-	for playlist.Tracks.Next != nil {
-		req, err := http.NewRequestWithContext(ctx, "GET", *playlist.Tracks.Next, nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Authorization", "Bearer "+token)
+	var (
+		total       = playlist.Tracks.Total
+		offset      = len(playlist.Tracks.Items)
+		fetchErrors []error
+		mu          sync.Mutex
+		wg          sync.WaitGroup
+	)
 
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			return nil, err
-		}
+	// fetch all pages concurently
+	for offset < total {
+		wg.Add(1)
+		go func(offset int) {
+			defer wg.Done()
+			if c.isSpotifyBlocked() {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, &Error{Status: http.StatusTooManyRequests})
+				mu.Unlock()
+				return
+			}
+			url := "https://api.spotify.com/v1/playlists/" + playlistId + "/tracks?offset=" + strconv.Itoa(offset) + "&limit=" + strconv.Itoa(spotifyLimit)
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, err)
+				mu.Unlock()
+				return
+			}
+			req.Header.Set("Authorization", "Bearer "+token)
 
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return nil, &Error{Status: resp.StatusCode}
-		}
+			resp, err := c.httpClient.Do(req)
+			if err != nil {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, err)
+				mu.Unlock()
+				return
+			}
+			defer resp.Body.Close()
 
-		var page SpotifyPlaylistItemsResponse
-		err = json.NewDecoder(resp.Body).Decode(&page)
-		if err != nil {
-			resp.Body.Close()
-			return nil, err
-		}
-		c.translateItemsToTracks(page.Items, &result.Tracks, addedTracks)
+			if resp.StatusCode != http.StatusOK {
+				if resp.StatusCode == http.StatusTooManyRequests {
+					retryAfter := resp.Header.Get("Retry-After")
+					if retryAfter != "" {
+						retrySeconds, err := strconv.Atoi(retryAfter)
+						if err == nil {
+							log.Warn().Int("retrySeconds", retrySeconds).Msg("Spotify API rate limit hit, blocking requests")
+							c.blockSpotifyRequests(time.Duration(retrySeconds) * time.Second)
+						}
+					}
+				}
+				mu.Lock()
+				fetchErrors = append(fetchErrors, &Error{Status: resp.StatusCode})
+				mu.Unlock()
+				return
+			}
 
-		playlist.Tracks.Next = page.Next
-		resp.Body.Close()
+			var page SpotifyPlaylistItemsResponse
+			err = json.NewDecoder(resp.Body).Decode(&page)
+			if err != nil {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, err)
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			c.translateItemsToTracks(page.Items, &result.Tracks, addedTracks)
+			mu.Unlock()
+		}(offset)
+		offset += spotifyLimit
+	}
+	wg.Wait()
+	if len(fetchErrors) > 0 {
+		return nil, fetchErrors[0] // return the first error encountered
 	}
 
 	return &result, nil
