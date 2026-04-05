@@ -53,15 +53,17 @@ func runApp() int {
 	r := gin.New()
 	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/", "/api/me"},
+		SkipPaths: []string{"/", "/health", "/api/me"},
 	}))
 	r.Use(gin.Recovery())
+	r.Use(c.metrics.Middleware("/metrics", "/health", "/", "/api/me"))
+	r.GET("/metrics", gin.WrapH(c.metrics.Handler()))
+	r.GET("/health", func(c *gin.Context) { c.Status(204) })
 
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
 
 	api := r.Group("/api")
 	api.Use(c.jwtMiddleware.ParseAuth())
-	// api.Use(c.spotifyMiddleware.AttachSpotifyClientCreds())
 	api.Use(c.rateLimitMiddleware.LimitRequests(models.RateLimitRequestLimit, models.RateLimitWindowSeconds))
 	{
 		api.GET("/me", c.authHandler.Me)
@@ -96,6 +98,7 @@ type appContainer struct {
 	spotifyService      *services.SpotifyService
 	jwtMiddleware       *middlewares.JWTMiddleware
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
+	metrics             *middlewares.Metrics
 	db                  *sql.DB
 	redis               *redis.Client
 }
@@ -150,6 +153,7 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
 
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo)
+	metrics := middlewares.NewMetrics("spotiscan")
 
 	return &appContainer{
 		ratelimitRepo:       ratelimitRepo,
@@ -163,6 +167,7 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		spotifyService:      spotifyService,
 		jwtMiddleware:       jwtMiddleware,
 		rateLimitMiddleware: rateLimitMiddleware,
+		metrics:             metrics,
 		db:                  db,
 		redis:               redis,
 	}, nil
