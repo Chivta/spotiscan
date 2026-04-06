@@ -2,16 +2,15 @@ package repository
 
 import (
 	"context"
-
+	"database/sql"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/lib/pq"
-
-	"database/sql"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -21,15 +20,16 @@ const (
 )
 
 func NewArtistRepo(db *sql.DB, redisClient *redis.Client) *ArtistRepo {
-    return &ArtistRepo{
-        db:    db,
-        redis: redisClient,
-    }
+	return &ArtistRepo{
+		db:    db,
+		redis: redisClient,
+	}
 }
 
 type ArtistRepo struct {
 	db     *sql.DB
 	redis  *redis.Client
+	loadMu sync.Mutex
 }
 
 func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
@@ -47,7 +47,7 @@ func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
 }
 
 func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
-	rows, err := r.db.Query(`SELECT name FROM ru_artists`)
+	rows, err := r.db.QueryContext(ctx, `SELECT name FROM ru_artists`)
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +108,22 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 		return nil, err
 	}
 	if exists == 0 {
-		log.Warn().Msg("ru_artists set not found in redis, loading from DB")
-
-		err = r.LoadRussianArtistsToRedis(ctx)
+		r.loadMu.Lock()
+		// Re-check after acquiring lock in case another goroutine already loaded
+		exists, err = r.redis.Exists(ctx, ruArtistsRedisKey).Result()
 		if err != nil {
-			log.Error().Msgf("Failed to load ru_artists to redis: %v", err)
 			return nil, err
 		}
+
+		if exists == 0 {
+			log.Warn().Msg("ru_artists set not found in redis, loading from DB")
+			err = r.LoadRussianArtistsToRedis(ctx)
+			if err != nil {
+				log.Error().Msgf("Failed to load ru_artists to redis: %v", err)
+				return nil, err
+			}
+		}
+		r.loadMu.Unlock()
 	}
 
 	// Use a pipeline to batch SISMEMBER commands
