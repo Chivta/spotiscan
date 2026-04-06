@@ -109,6 +109,7 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 	}
 	if exists == 0 {
 		r.loadMu.Lock()
+		defer r.loadMu.Unlock()
 		// Re-check after acquiring lock in case another goroutine already loaded
 		exists, err = r.redis.Exists(ctx, ruArtistsRedisKey).Result()
 		if err != nil {
@@ -123,7 +124,6 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 				return nil, err
 			}
 		}
-		r.loadMu.Unlock()
 	}
 
 	// Use a pipeline to batch SISMEMBER commands
