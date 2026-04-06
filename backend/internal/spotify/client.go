@@ -102,7 +102,7 @@ func (c *SpotifyClient) getToken(ctx context.Context) (string, time.Time, error)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	log.Info().Str("qwe", tokenResp.AccessToken).Msg("Obtained Spotify access token")
+
 	return tokenResp.AccessToken, time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second), nil
 }
 
