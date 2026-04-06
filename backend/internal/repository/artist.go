@@ -16,6 +16,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	ruArtistsRedisKey = "ru_artists"
+)
+
 func NewArtistRepo(db *sql.DB, redisClient *redis.Client) *ArtistRepo {
     return &ArtistRepo{
         db:    db,
@@ -66,12 +70,11 @@ func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, er
 }
 
 func (r *ArtistRepo) SetRussianArtistNames(ctx context.Context, names []string) error {
-	key := "ru_artists"
 	// Clear existing set and add new names
 	pipe := r.redis.Pipeline()
-	pipe.Del(ctx, key)
+	pipe.Del(ctx, ruArtistsRedisKey)
 	if len(names) > 0 {
-		pipe.SAdd(ctx, key, names)
+		pipe.SAdd(ctx, ruArtistsRedisKey, names)
 	}
 	_, err := pipe.Exec(ctx)
 	return err
@@ -96,12 +99,11 @@ func (r *ArtistRepo) FilterRussian(ctx context.Context, names []string) ([]strin
 }
 
 func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
-	key := "ru_artists"
 	if len(names) == 0 {
 		return []string{}, nil
 	}
 
-	exists, err := r.redis.Exists(ctx, "ru_artists").Result()
+	exists, err := r.redis.Exists(ctx, ruArtistsRedisKey).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +121,7 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 	pipe := r.redis.Pipeline()
 	cmds := make([]*redis.BoolCmd, len(names))
 	for i, name := range names {
-		cmds[i] = pipe.SIsMember(ctx, key, name)
+		cmds[i] = pipe.SIsMember(ctx, ruArtistsRedisKey, name)
 	}
 
 	// Execute the pipeline
