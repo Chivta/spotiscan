@@ -2,8 +2,9 @@ package repository
 
 import (
 	"context"
-
+	"database/sql"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 
@@ -11,21 +12,24 @@ import (
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/lib/pq"
 
-	"database/sql"
-
 	"github.com/redis/go-redis/v9"
 )
 
-func NewArtistRepo(db *sql.DB, redis *redis.Client) *ArtistRepo {
+const (
+	ruArtistsRedisKey = "ru_artists"
+)
+
+func NewArtistRepo(db *sql.DB, redisClient *redis.Client) *ArtistRepo {
 	return &ArtistRepo{
-		db:     db,
-		redis:  redis,
+		db:    db,
+		redis: redisClient,
 	}
 }
 
 type ArtistRepo struct {
 	db     *sql.DB
 	redis  *redis.Client
+	loadMu sync.Mutex
 }
 
 func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
@@ -43,7 +47,7 @@ func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
 }
 
 func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
-	rows, err := r.db.Query(`SELECT name FROM ru_artists`)
+	rows, err := r.db.QueryContext(ctx, `SELECT name FROM ru_artists`)
 	if err != nil {
 		return nil, err
 	}
@@ -66,12 +70,11 @@ func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, er
 }
 
 func (r *ArtistRepo) SetRussianArtistNames(ctx context.Context, names []string) error {
-	key := "ru_artists"
 	// Clear existing set and add new names
 	pipe := r.redis.Pipeline()
-	pipe.Del(ctx, key)
+	pipe.Del(ctx, ruArtistsRedisKey)
 	if len(names) > 0 {
-		pipe.SAdd(ctx, key, names)
+		pipe.SAdd(ctx, ruArtistsRedisKey, names)
 	}
 	_, err := pipe.Exec(ctx)
 	return err
@@ -96,20 +99,42 @@ func (r *ArtistRepo) FilterRussian(ctx context.Context, names []string) ([]strin
 }
 
 func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
-	key := "ru_artists"
 	if len(names) == 0 {
 		return []string{}, nil
+	}
+
+	exists, err := r.redis.Exists(ctx, ruArtistsRedisKey).Result()
+	if err != nil {
+		return nil, err
+	}
+	if exists == 0 {
+		r.loadMu.Lock()
+		defer r.loadMu.Unlock()
+		// Re-check after acquiring lock in case another goroutine already loaded
+		exists, err = r.redis.Exists(ctx, ruArtistsRedisKey).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		if exists == 0 {
+			log.Warn().Msg("ru_artists set not found in redis, loading from DB")
+			err = r.LoadRussianArtistsToRedis(ctx)
+			if err != nil {
+				log.Error().Msgf("Failed to load ru_artists to redis: %v", err)
+				return nil, err
+			}
+		}
 	}
 
 	// Use a pipeline to batch SISMEMBER commands
 	pipe := r.redis.Pipeline()
 	cmds := make([]*redis.BoolCmd, len(names))
 	for i, name := range names {
-		cmds[i] = pipe.SIsMember(ctx, key, name)
+		cmds[i] = pipe.SIsMember(ctx, ruArtistsRedisKey, name)
 	}
 
 	// Execute the pipeline
-	_, err := pipe.Exec(ctx)
+	_, err = pipe.Exec(ctx)
 	if err != nil {
 		return nil, err
 	}
