@@ -16,11 +16,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewArtistRepo(db *sql.DB, redis *redis.Client) *ArtistRepo {
-	return &ArtistRepo{
-		db:     db,
-		redis:  redis,
-	}
+func NewArtistRepo(db *sql.DB, redisClient *redis.Client) *ArtistRepo {
+    ar := &ArtistRepo{
+        db:    db,
+        redis: redisClient,
+    }
+    return ar
 }
 
 type ArtistRepo struct {
@@ -101,6 +102,20 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 		return []string{}, nil
 	}
 
+	exists, err := r.redis.Exists(ctx, "ru_artists").Result()
+	if err != nil {
+		return nil, err
+	}
+	if exists == 0 {
+		log.Warn().Msg("ru_artists set not found in redis, loading from DB")
+
+		err = r.LoadRussianArtistsToRedis(ctx)
+		if err != nil {
+			log.Error().Msgf("Failed to load ru_artists to redis: %v", err)
+			return nil, err
+		}
+	}
+
 	// Use a pipeline to batch SISMEMBER commands
 	pipe := r.redis.Pipeline()
 	cmds := make([]*redis.BoolCmd, len(names))
@@ -109,7 +124,7 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 	}
 
 	// Execute the pipeline
-	_, err := pipe.Exec(ctx)
+	_, err = pipe.Exec(ctx)
 	if err != nil {
 		return nil, err
 	}
