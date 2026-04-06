@@ -17,11 +17,10 @@ import (
 )
 
 func NewArtistRepo(db *sql.DB, redisClient *redis.Client) *ArtistRepo {
-    ar := &ArtistRepo{
+    return &ArtistRepo{
         db:    db,
         redis: redisClient,
     }
-    return ar
 }
 
 type ArtistRepo struct {
