@@ -26,6 +26,7 @@ func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
 		httpClient:    http.DefaultClient,
 		spotifyId:     spotifyId,
 		spotifySecret: spotifySecret,
+		sem:           make(chan struct{}, maxConcurrentRequests),
 	}
 }
 
@@ -36,6 +37,7 @@ type SpotifyClient struct {
 
 	spotifyBlockedUntil time.Time
 	blockMu             sync.RWMutex
+	sem                 chan struct{}
 
 	tokenExpiry time.Time
 	accessToken string
@@ -178,13 +180,12 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 		fetchErrors []error
 		mu          sync.Mutex
 		wg          sync.WaitGroup
-		sem         = make(chan struct{}, maxConcurrentRequests)
 	)
 
 	// fetch all pages concurrently
 	for offset < total {
 		wg.Add(1)
-		go func(offset int) {
+		go func(offset int, sem chan struct{}) {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			defer wg.Done()
@@ -241,7 +242,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 			mu.Lock()
 			c.translateItemsToTracks(page.Items, &result.Tracks, addedTracks)
 			mu.Unlock()
-		}(offset)
+		}(offset, c.sem)
 		offset += spotifyLimit
 	}
 	wg.Wait()
