@@ -23,7 +23,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
       boxSizing: "border-box",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <img src="/logo.png" alt="SpotiScan" style={{ height: 32, width: 32 }} />
+        <img src="/logo.png" alt="" aria-hidden={true} style={{ height: 32, width: 32 }} />
         <span style={{
           fontFamily: "'Outfit', sans-serif",
           fontWeight: 800,
