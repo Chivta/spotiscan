@@ -163,7 +163,7 @@ func (r *ArtistRepo) filterRussianWithDB(ctx context.Context, names []string) ([
 }
 
 func (r *ArtistRepo) GetRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
-	rows, err := r.db.Query(`
+	rows, err := r.db.QueryContext(ctx, `
         SELECT name FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))
 	if err != nil {
@@ -188,7 +188,7 @@ func (r *ArtistRepo) GetRussianArtistNames(ctx context.Context, names []string) 
 }
 
 func (r *ArtistRepo) GetArtistsInfo(ctx context.Context, names []string) ([]models.Artist, error) {
-	rows, err := r.db.Query(`
+	rows, err := r.db.QueryContext(ctx, `
         SELECT name,description_ua,description_en,source,source_url,country,confirmed FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))
 	if err != nil {
