@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AnimatedList from "./react-bits/AnimatedList";
 import type { Artist, Track, RuContent } from "../types/models";
@@ -138,6 +138,7 @@ export default function PlaylistScanner() {
   type TooltipState = { artist: Artist; x: number; y: number };
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current); }, []);
 
   const showTooltip = (artist: Artist, e: React.MouseEvent) => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
