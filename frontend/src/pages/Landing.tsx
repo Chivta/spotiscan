@@ -1,9 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import Aurora from "../components/react-bits/Aurora";
 import PlaylistScanner from "../components/PlaylistScanner";
+import { useLanguage } from "../context/LanguageContext";
+import { translations } from "../i18n";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { lang } = useLanguage();
+  const tx = translations[lang];
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", width: "100%", overflow: "hidden" }}>
@@ -27,12 +32,17 @@ export default function Landing() {
         zIndex: 10,
         boxSizing: "border-box",
       }}>
-        <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, color: "#fff", fontSize: "1.1rem" }}>
-          SpotiScan
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img src="/logo.png" alt="" aria-hidden={true} style={{ height: 32, width: 32 }} />
+          <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, color: "#fff", fontSize: "1.1rem" }}>
+            SpotiScan
+          </span>
+        </div>
         <div style={{ display: "flex", gap: 10 }}>
+          <LanguageSwitcher />
           <button
             onClick={() => navigate("/login")}
+
             style={{
               padding: "7px 18px",
               background: "transparent",
@@ -47,7 +57,7 @@ export default function Landing() {
             onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.6)"; e.currentTarget.style.color = "#fff"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"; e.currentTarget.style.color = "rgba(255,255,255,0.8)"; }}
           >
-            Sign in
+            {tx.signIn}
           </button>
           <button
             onClick={() => navigate("/signup")}
@@ -65,7 +75,7 @@ export default function Landing() {
             onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
           >
-            Create account
+            {tx.createAccount}
           </button>
         </div>
       </div>
@@ -97,18 +107,9 @@ export default function Landing() {
             lineHeight: 1.6,
             margin: "0 auto 12px",
           }}>
-            Scan your Spotify playlists to find and remove tracks by Russian artists.
+            {tx.landingHeadline}
           </p>
 
-          <p style={{
-            fontSize: 14,
-            color: "rgba(255, 255, 255, 0.35)",
-            maxWidth: 400,
-            lineHeight: 1.6,
-            margin: "0 auto",
-          }}>
-            Paste a playlist URL below — no sign-in required for a few scans.
-          </p>
         </div>
 
         {/* Scanner */}
