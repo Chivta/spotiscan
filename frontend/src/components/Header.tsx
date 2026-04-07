@@ -1,4 +1,7 @@
 import type { User } from "../types/models";
+import { useLanguage } from "../context/LanguageContext";
+import { translations } from "../i18n";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 interface HeaderProps {
   user: User;
@@ -6,6 +9,8 @@ interface HeaderProps {
 }
 
 export default function Header({ user, onLogout }: HeaderProps) {
+  const { lang } = useLanguage();
+  const tx = translations[lang];
   return (
     <header style={{
       position: "fixed",
@@ -39,6 +44,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
             {user.Email}
           </span>
         )}
+        <LanguageSwitcher />
         <button
           onClick={onLogout}
           style={{
@@ -59,7 +65,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
             e.currentTarget.style.color = "rgba(255,255,255,0.7)";
           }}
         >
-          Log out
+          {tx.logOut}
         </button>
       </div>
     </header>

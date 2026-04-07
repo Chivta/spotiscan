@@ -3,9 +3,15 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AnimatedList from "./react-bits/AnimatedList";
 import type { Artist, Track, RuContent } from "../types/models";
+import { useLanguage } from "../context/LanguageContext";
+import { translations } from "../i18n";
 
 const SPOTIFY_PLAYLIST_BASE = "https://open.spotify.com/playlist/";
 const BASE62_ID_REGEX = /^[A-Za-z0-9]{22}$/;
+
+function countryFlag(country: string): string {
+  return `/countries/${country.toLowerCase().trim()}.svg`;
+}
 
 const extractPlaylistId = (input: string): string => {
   if (BASE62_ID_REGEX.test(input.trim())) return input.trim();
@@ -44,10 +50,18 @@ const buttonStyle: React.CSSProperties = {
   transition: "all 0.2s ease",
 };
 
-type ErrorState = { message: string; type: "warning" | "error" | "auth" };
+type ErrorKey = "invalidPlaylistId" | "anonQuotaExceeded" | "playlistNotFound" | "badRequest" | "databaseError" | "spotifyApiError" | "internalError" | "somethingWentWrong";
+type ErrorState = { key: ErrorKey; type: "warning" | "error" | "auth" };
+
+function artistDesc(artist: Artist, lang: "uk" | "en"): string {
+  if (lang === "uk") return artist.DescriptionUA || artist.DescriptionEN;
+  return artist.DescriptionEN || artist.DescriptionUA;
+}
 
 export default function PlaylistScanner() {
   const navigate = useNavigate();
+  const { lang } = useLanguage();
+  const tx = translations[lang];
   const [playlistId, setPlaylistId] = useState("");
   const [ruContent, setRuContent] = useState<RuContent | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,7 +94,7 @@ export default function PlaylistScanner() {
   const handleScanPlaylist = async (targetId?: string, forceRefresh = false) => {
     const id = targetId || playlistId;
     if (!id || !BASE62_ID_REGEX.test(id)) {
-      setError({ message: "Invalid playlist ID. Check the URL or ID and try again.", type: "warning" });
+      setError({ key: "invalidPlaylistId", type: "warning" });
       return;
     }
     setError(null);
@@ -109,19 +123,19 @@ export default function PlaylistScanner() {
     } catch (e: any) {
       const code = e.code as string | undefined;
       if (code === "ANON_QUOTA_EXCEEDED") {
-        setError({ message: "You've used your trial scans. Sign in to keep scanning, it's free!", type: "auth" });
+        setError({ key: "anonQuotaExceeded", type: "auth" });
         return;
       }
-      const messages: Record<string, string> = {
-        PLAYLIST_NOT_FOUND: "Playlist not found. Check the URL or ID and try again.",
-        BAD_REQUEST: "Invalid request. Please check your input.",
-        DATABASE_ERROR: "A server error occurred. Please try again later.",
-        SPOTIFY_API_ERROR: "Failed to communicate with Spotify. Please try again later.",
-        INTERNAL_ERROR: "An unexpected error occurred. Please try again later.",
+      const codeToKey: Record<string, ErrorKey> = {
+        PLAYLIST_NOT_FOUND: "playlistNotFound",
+        BAD_REQUEST: "badRequest",
+        DATABASE_ERROR: "databaseError",
+        SPOTIFY_API_ERROR: "spotifyApiError",
+        INTERNAL_ERROR: "internalError",
       };
       const isWarning = code === "PLAYLIST_NOT_FOUND" || code === "BAD_REQUEST";
       setError({
-        message: code && messages[code] ? messages[code] : (e.message || "Something went wrong"),
+        key: (code && codeToKey[code]) ? codeToKey[code] : "somethingWentWrong",
         type: isWarning ? "warning" : "error",
       });
     } finally {
@@ -184,7 +198,7 @@ export default function PlaylistScanner() {
       {/* Artist hover tooltip */}
       {tooltip && (() => {
         const a = tooltip.artist;
-        const desc = a.DescriptionEN || a.DescriptionUA;
+        const desc = artistDesc(a, lang);
         const isPhonkers = a.Source?.toLowerCase().replace(/\s+/g, "").includes("phonkersbase") || a.Source?.toLowerCase().replace(/\s+/g, "") === "phonkers";
         const sourceHref = isPhonkers ? "https://phonkersbase.com" : a.SourceURL;
         // Clamp tooltip so it doesn't overflow right edge
@@ -217,11 +231,14 @@ export default function PlaylistScanner() {
               <span style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{a.Name}</span>
               {a.Confirmed && (
                 <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "rgba(231,76,60,0.2)", border: "1px solid rgba(231,76,60,0.4)", color: "#e74c3c" }}>
-                  confirmed
+                  {tx.confirmed}
                 </span>
               )}
               {a.Country && (
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{a.Country}</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", display: "flex", alignItems: "center", gap: 5 }}>
+                  <img src={countryFlag(a.Country)} alt="" style={{ width: 18, height: 14, borderRadius: 2, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  {a.Country}
+                </span>
               )}
             </div>
             {desc && (
@@ -229,7 +246,7 @@ export default function PlaylistScanner() {
             )}
             {a.Source && (
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", display: "flex", gap: 4 }}>
-                <span>Source:</span>
+                <span>{tx.source}</span>
                 {sourceHref ? (
                   <a href={sourceHref} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "underline", textUnderlineOffset: 2 }}>
                     {a.Source}
@@ -244,7 +261,7 @@ export default function PlaylistScanner() {
       })()}
       {/* Scan Controls */}
       <div style={cardStyle}>
-        <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>Scan Playlist</h3>
+        <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>{tx.scanPlaylist}</h3>
         {playlistId && (
           <div style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: 12, marginBottom: 6, animation: "fadeIn 0.2s ease" }}>
             {SPOTIFY_PLAYLIST_BASE}
@@ -252,7 +269,7 @@ export default function PlaylistScanner() {
         )}
         <input
           type="text"
-          placeholder="Paste playlist URL or ID..."
+          placeholder={tx.playlistPlaceholder}
           value={playlistId}
           onChange={e => handlePlaylistInput((e.target as HTMLInputElement).value)}
           style={{
@@ -274,7 +291,7 @@ export default function PlaylistScanner() {
             cursor: loading || !playlistId ? "not-allowed" : "pointer",
           }}
         >
-          {loading ? "Scanning..." : "Scan Playlist"}
+          {loading ? tx.scanning : tx.scanPlaylist}
         </button>
       </div>
 
@@ -295,7 +312,7 @@ export default function PlaylistScanner() {
           color: error.type === "warning" ? "#f1c40f" : error.type === "auth" ? "#1DB954" : "#e74c3c",
           textAlign: "center",
         }}>
-          <p style={{ margin: 0 }}>{error.message}</p>
+          <p style={{ margin: 0 }}>{tx[error.key]}</p>
           {error.type === "auth" && (
             <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
               <button
@@ -304,7 +321,7 @@ export default function PlaylistScanner() {
                 onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
               >
-                Create account
+                {tx.createAccount}
               </button>
             </div>
           )}
@@ -320,12 +337,12 @@ export default function PlaylistScanner() {
           color: "#3498db",
           textAlign: "center",
         }}>
-          Showing results from a previous scan.{" "}
+          {tx.showingCachedResults}{" "}
           <span
             onClick={() => handleScanPlaylist(lastPlaylistId ?? undefined, true)}
             style={{ textDecoration: "underline", cursor: "pointer", fontWeight: 600 }}
           >
-            Rescan?
+            {tx.rescan}
           </span>
         </div>
       )}
@@ -338,7 +355,7 @@ export default function PlaylistScanner() {
             .loader { width: 50px; aspect-ratio: 1; border-radius: 50%; border: 8px solid; border-color: #1DB954 #0000; animation: l1 1s infinite; }
           `}</style>
           <div className="loader" />
-          <p style={{ color: "rgba(255, 255, 255, 0.6)", margin: 0 }}>Scanning...</p>
+          <p style={{ color: "rgba(255, 255, 255, 0.6)", margin: 0 }}>{tx.scanning}</p>
         </div>
       )}
 
@@ -349,7 +366,7 @@ export default function PlaylistScanner() {
           {loading && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 20 }}>
               <div className="loader" />
-              <p style={{ color: "rgba(255, 255, 255, 0.6)", margin: 0 }}>Scanning...</p>
+              <p style={{ color: "rgba(255, 255, 255, 0.6)", margin: 0 }}>{tx.scanning}</p>
             </div>
           )}
 
@@ -371,7 +388,7 @@ export default function PlaylistScanner() {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  Tracks ({(ruContent?.Tracks ?? []).length})
+                  {tx.tracksTab((ruContent?.Tracks ?? []).length)}
                 </button>
                 <button
                   onClick={() => setResultTab("artists")}
@@ -387,7 +404,7 @@ export default function PlaylistScanner() {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  Artists ({ruContent?.Artists?.length ?? 0})
+                  {tx.artistsTab(ruContent?.Artists?.length ?? 0)}
                 </button>
               </div>
 
@@ -397,14 +414,14 @@ export default function PlaylistScanner() {
                   {(ruContent?.Tracks ?? []).length > 0 && (
                     <input
                       type="text"
-                      placeholder="Search tracks..."
+                      placeholder={tx.searchTracks}
                       value={tracksSearch}
                       onChange={e => setTracksSearch(e.target.value)}
                       style={{ ...inputStyle, width: "100%", marginBottom: 12 }}
                     />
                   )}
                   <h3 style={{ color: "#fff", margin: "0 0 16px 0", fontSize: "1.1rem" }}>
-                    Tracks with Russian Artists ({filteredTracks.length})
+                    {tx.tracksWithRussianArtists(filteredTracks.length)}
                   </h3>
                   <AnimatedList
                     items={filteredTracks.map((t: Track) => t.ID)}
@@ -476,12 +493,12 @@ export default function PlaylistScanner() {
                   />
                   {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length === 0 && (
                     <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
-                      No Russian tracks found. This playlist is clean!
+                      {tx.noRussianTracks}
                     </div>
                   )}
                   {filteredTracks.length === 0 && (ruContent?.Tracks ?? []).length > 0 && (
                     <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
-                      No tracks match your search
+                      {tx.noTracksMatch}
                     </div>
                   )}
                 </div>
@@ -493,7 +510,7 @@ export default function PlaylistScanner() {
                   {(ruContent?.Artists ?? []).length > 0 && (
                     <input
                       type="text"
-                      placeholder="Search artists..."
+                      placeholder={tx.searchArtists}
                       value={artistsSearch}
                       onChange={e => setArtistsSearch(e.target.value)}
                       style={{ ...inputStyle, width: "100%", marginBottom: 12 }}
@@ -501,18 +518,19 @@ export default function PlaylistScanner() {
                   )}
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length === 0 && (
-                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>No artists found</div>
+                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>{tx.noArtistsFound}</div>
                     )}
                     {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length > 0 && (
-                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>No artists match your search</div>
+                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>{tx.noArtistsMatch}</div>
                     )}
                     {filteredArtists
                       .map((artist: Artist) => ({
                         artist,
                         trackCount: artistTrackCount.get(artist.ID) ?? 0,
+                        desc: artistDesc(artist, lang),
                       }))
                       .sort((a, b) => b.trackCount - a.trackCount)
-                      .map(({ artist, trackCount }) => (
+                      .map(({ artist, trackCount, desc }) => (
                         <div
                           key={artist.ID}
                           style={{
@@ -545,11 +563,12 @@ export default function PlaylistScanner() {
                               </a>
                               {artist.Confirmed && (
                                 <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "rgba(231, 76, 60, 0.2)", border: "1px solid rgba(231, 76, 60, 0.4)", color: "#e74c3c", whiteSpace: "nowrap" }}>
-                                  confirmed
+                                  {tx.confirmed}
                                 </span>
                               )}
                               {artist.Country && (
-                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                                  <img src={countryFlag(artist.Country)} alt="" style={{ width: 18, height: 14, borderRadius: 2, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                   {artist.Country}
                                 </span>
                               )}
@@ -572,21 +591,17 @@ export default function PlaylistScanner() {
                               onMouseEnter={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)"; }}
                               onMouseLeave={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)"; }}
                             >
-                              {trackCount} track{trackCount !== 1 ? "s" : ""}
+                              {tx.trackCount(trackCount)}
                             </button>
                           </div>
 
                           {/* Description */}
-                          {(artist.DescriptionEN || artist.DescriptionUA) && (
-                            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
-                              {artist.DescriptionEN || artist.DescriptionUA}
-                            </p>
-                          )}
+                          {desc && <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>{desc}</p>}
 
                           {/* Source */}
                           {artist.Source && (
                             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", gap: 4 }}>
-                              <span>Source:</span>
+                              <span>{tx.source}</span>
                               {(() => {
                                 const isPhonkers = artist.Source.toLowerCase().replace(/\s+/g, "").includes("phonkersbase") || artist.Source.toLowerCase().replace(/\s+/g, "") === "phonkers";
                                 const href = isPhonkers ? "https://phonkersbase.com" : artist.SourceURL;
@@ -621,8 +636,8 @@ export default function PlaylistScanner() {
           <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.3, marginBottom: 16 }}>
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
           </svg>
-          <p style={{ fontSize: 16, marginBottom: 8, margin: "0 0 8px 0" }}>No scan results yet</p>
-          <p style={{ fontSize: 13, opacity: 0.7, margin: 0 }}>Enter a playlist ID or URL to get started</p>
+          <p style={{ fontSize: 16, marginBottom: 8, margin: "0 0 8px 0" }}>{tx.noScanResults}</p>
+          <p style={{ fontSize: 13, opacity: 0.7, margin: 0 }}>{tx.noScanResultsHint}</p>
         </div>
       )}
     </div>

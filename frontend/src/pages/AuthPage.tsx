@@ -2,20 +2,25 @@ import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Aurora from "../components/react-bits/Aurora";
+import { useLanguage } from "../context/LanguageContext";
+import { translations } from "../i18n";
 
 interface AuthPageProps {
   initialMode?: "login" | "signup";
 }
 
 type Mode = "login" | "signup";
+type AuthErrorKey = "incorrectCredentials" | "emailExists" | "checkEmailPassword" | "tryAgain";
 
 export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AuthErrorKey | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { lang } = useLanguage();
+  const tx = translations[lang];
 
   const handleModeSwitch = (newMode: Mode) => {
     setMode(newMode);
@@ -42,17 +47,17 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
         const body = await res.json().catch(() => null);
         const code = body?.code;
         if (res.status === 401) {
-          setError("Incorrect email or password.");
+          setError("incorrectCredentials");
         } else if (res.status === 409 || code === "EMAIL_EXISTS") {
-          setError("An account with this email already exists.");
+          setError("emailExists");
         } else if (res.status === 400 || code === "BAD_REQUEST") {
-          setError("Please check your email and password.");
+          setError("checkEmailPassword");
         } else {
-          setError("Something went wrong. Please try again.");
+          setError("tryAgain");
         }
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("tryAgain");
     } finally {
       setLoading(false);
     }
@@ -134,7 +139,7 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
                   transition: "all 0.2s ease",
                 }}
               >
-                {m === "login" ? "Log In" : "Sign Up"}
+                {m === "login" ? tx.logIn : tx.signUp}
               </button>
             ))}
           </div>
@@ -142,7 +147,7 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <input
               type="email"
-              placeholder="Email"
+              placeholder={tx.emailPlaceholder}
               value={email}
               onChange={e => setEmail(e.target.value)}
               style={inputStyle}
@@ -151,7 +156,7 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
             />
             <input
               type="password"
-              placeholder="Password"
+              placeholder={tx.passwordPlaceholder}
               value={password}
               onChange={e => setPassword(e.target.value)}
               style={inputStyle}
@@ -161,7 +166,7 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
 
             {error && (
               <div style={{ color: "#e74c3c", fontSize: 14, textAlign: "center" }}>
-                {error}
+                {tx[error]}
               </div>
             )}
 
@@ -182,13 +187,13 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
               }}
             >
               {loading
-                ? (mode === "login" ? "Logging in…" : "Signing up…")
-                : (mode === "login" ? "Log In" : "Sign Up")}
+                ? (mode === "login" ? tx.loggingIn : tx.signingUp)
+                : (mode === "login" ? tx.logIn : tx.signUp)}
             </button>
           </form>
 
           <p style={{ marginTop: 20, textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
-            {mode === "signup" ? "Already have an account? " : "Don't have an account? "}
+            {mode === "signup" ? tx.alreadyHaveAccount : tx.dontHaveAccount}
             <span
               onClick={() => handleModeSwitch(mode === "signup" ? "login" : "signup")}
               style={{
@@ -199,7 +204,7 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
                 textUnderlineOffset: 2,
               }}
             >
-              {mode === "signup" ? "Log in" : "Sign up"}
+              {mode === "signup" ? tx.logInLink : tx.signUpLink}
             </span>
           </p>
         </div>

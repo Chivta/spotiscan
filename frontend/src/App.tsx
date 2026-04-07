@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import Header from "./components/Header.tsx";
 import type { User } from "./types/models.ts";
+import { LanguageProvider } from "./context/LanguageContext.tsx";
 
 function RootRoute({ onUser }: { onUser: (user: User) => void }) {
   const [checked, setChecked] = useState(false);
@@ -69,10 +70,12 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <Router>
-      <main>
-        <AppRoutes />
-      </main>
-    </Router>
+    <LanguageProvider>
+      <Router>
+        <main>
+          <AppRoutes />
+        </main>
+      </Router>
+    </LanguageProvider>
   );
 }
