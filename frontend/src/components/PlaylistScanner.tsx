@@ -372,7 +372,16 @@ export default function PlaylistScanner() {
                                       {artist.Name}
                                     </a>
                                   ) : (
-                                    <span style={{ color: "rgba(255,255,255,0.6)" }}>{artist.Name}</span>
+                                    <a
+                                      href={artist.URL}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", cursor: "pointer", transition: "color 0.2s ease" }}
+                                      onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
+                                      onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
+                                    >
+                                      {artist.Name}
+                                    </a>
                                   )}
                                   {idx < (track.Artists ?? []).length - 1 && (
                                     <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>
