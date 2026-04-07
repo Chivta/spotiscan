@@ -196,7 +196,7 @@ func (r *ArtistRepo) GetArtistsInfo(ctx context.Context, names []string) ([]mode
 	}
 	defer rows.Close()
 
-	var ruNames []models.Artist
+	var ruArtists []models.Artist
 	for rows.Next() {
 		var artist models.Artist
 		var descUA, descEN, source, sourceURL, country sql.NullString
@@ -208,14 +208,14 @@ func (r *ArtistRepo) GetArtistsInfo(ctx context.Context, names []string) ([]mode
 		artist.Source = source.String
 		artist.SourceURL = sourceURL.String
 		artist.Country = country.String
-		ruNames = append(ruNames, artist)
+		ruArtists = append(ruArtists, artist)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return ruNames, nil
+	return ruArtists, nil
 }
 
 func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []models.Artist) error {
