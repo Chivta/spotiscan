@@ -8,6 +8,12 @@ export interface Artist {
   ID: string;
   URL: string;
   Name: string;
+  DescriptionUA: string;
+  DescriptionEN: string;
+  Source: string;
+  SourceURL: string;
+  Country: string;
+  Confirmed: boolean;
 }
 
 export interface Track {
