@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
-import type { Lang } from "../context/LanguageContext";
+import type { Lang } from "../i18n";
 
 const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: "en", label: "English", flag: "/countries/uk.svg" },
@@ -9,6 +9,8 @@ const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
 
 const FLAG_STYLE = { width: 28, height: 21, borderRadius: 2, objectFit: "cover" as const, display: "block", flexShrink: 0 };
 
+const MENU_ID = "lang-switcher-menu";
+
 export default function LanguageSwitcher() {
   const { lang, setLang } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -16,11 +18,18 @@ export default function LanguageSwitcher() {
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
+    const onMouseDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [open]);
 
   const current = LANGUAGES.find(l => l.code === lang)!;
@@ -29,6 +38,9 @@ export default function LanguageSwitcher() {
     <div ref={ref} style={{ position: "relative" }}>
       <button
         onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={MENU_ID}
         style={{
           display: "flex",
           alignItems: "center",
@@ -51,21 +63,28 @@ export default function LanguageSwitcher() {
       </button>
 
       {open && (
-        <div style={{
-          position: "absolute",
-          top: "calc(100% + 6px)",
-          right: 0,
-          background: "rgba(18,18,18,0.97)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 10,
-          overflow: "hidden",
-          minWidth: 148,
-          zIndex: 100,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-        }}>
+        <div
+          id={MENU_ID}
+          role="listbox"
+          aria-label="Select language"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            background: "rgba(18,18,18,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 10,
+            overflow: "hidden",
+            minWidth: 148,
+            zIndex: 100,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+          }}
+        >
           {LANGUAGES.map(l => (
             <button
               key={l.code}
+              role="option"
+              aria-selected={l.code === lang}
               onClick={() => { setLang(l.code); setOpen(false); }}
               style={{
                 display: "flex",

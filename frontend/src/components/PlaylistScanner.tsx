@@ -527,9 +527,10 @@ export default function PlaylistScanner() {
                       .map((artist: Artist) => ({
                         artist,
                         trackCount: artistTrackCount.get(artist.ID) ?? 0,
+                        desc: artistDesc(artist, lang),
                       }))
                       .sort((a, b) => b.trackCount - a.trackCount)
-                      .map(({ artist, trackCount }) => (
+                      .map(({ artist, trackCount, desc }) => (
                         <div
                           key={artist.ID}
                           style={{
@@ -595,11 +596,7 @@ export default function PlaylistScanner() {
                           </div>
 
                           {/* Description */}
-                          {artistDesc(artist, lang) && (
-                            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
-                              {artistDesc(artist, lang)}
-                            </p>
-                          )}
+                          {desc && <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>{desc}</p>}
 
                           {/* Source */}
                           {artist.Source && (

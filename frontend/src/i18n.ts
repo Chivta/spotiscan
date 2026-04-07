@@ -1,3 +1,5 @@
+export type Lang = "en" | "uk";
+
 const trackCountUK = (n: number): string => {
   const mod10 = n % 10;
   const mod100 = n % 100;
@@ -6,61 +8,65 @@ const trackCountUK = (n: number): string => {
   return `${n} треків`;
 };
 
+const en = {
+  // Landing
+  signIn: "Sign in",
+  createAccount: "Create account",
+  landingHeadline: "Scan your Spotify playlists to find and remove tracks by Russian artists.",
+
+  // Header
+  logOut: "Log out",
+
+  // PlaylistScanner
+  scanPlaylist: "Scan Playlist",
+  playlistPlaceholder: "Paste playlist URL or ID...",
+  scanning: "Scanning...",
+  invalidPlaylistId: "Invalid playlist ID. Check the URL or ID and try again.",
+  anonQuotaExceeded: "You've used your trial scans. Sign in to keep scanning, it's free!",
+  playlistNotFound: "Playlist not found. Check the URL or ID and try again.",
+  badRequest: "Invalid request. Please check your input.",
+  databaseError: "A server error occurred. Please try again later.",
+  spotifyApiError: "Failed to communicate with Spotify. Please try again later.",
+  internalError: "An unexpected error occurred. Please try again later.",
+  somethingWentWrong: "Something went wrong",
+  showingCachedResults: "Showing results from a previous scan.",
+  rescan: "Rescan?",
+  tracksTab: (n: number) => `Tracks (${n})`,
+  artistsTab: (n: number) => `Artists (${n})`,
+  searchTracks: "Search tracks...",
+  tracksWithRussianArtists: (n: number) => `Tracks with Russian Artists (${n})`,
+  noRussianTracks: "No Russian tracks found. This playlist is clean!",
+  noTracksMatch: "No tracks match your search",
+  searchArtists: "Search artists...",
+  noArtistsFound: "No artists found",
+  noArtistsMatch: "No artists match your search",
+  source: "Source:",
+  confirmed: "confirmed",
+  trackCount: (n: number) => `${n} track${n !== 1 ? "s" : ""}`,
+  noScanResults: "No scan results yet",
+  noScanResultsHint: "Enter a playlist ID or URL to get started",
+
+  // AuthPage
+  logIn: "Log In",
+  signUp: "Sign Up",
+  emailPlaceholder: "Email",
+  passwordPlaceholder: "Password",
+  incorrectCredentials: "Incorrect email or password.",
+  emailExists: "An account with this email already exists.",
+  checkEmailPassword: "Please check your email and password.",
+  tryAgain: "Something went wrong. Please try again.",
+  loggingIn: "Logging in…",
+  signingUp: "Signing up…",
+  alreadyHaveAccount: "Already have an account? ",
+  dontHaveAccount: "Don't have an account? ",
+  logInLink: "Log in",
+  signUpLink: "Sign up",
+};
+
+export type T = typeof en;
+
 export const translations = {
-  en: {
-    // Landing
-    signIn: "Sign in",
-    createAccount: "Create account",
-    landingHeadline: "Scan your Spotify playlists to find and remove tracks by Russian artists.",
-
-    // Header
-    logOut: "Log out",
-
-    // PlaylistScanner
-    scanPlaylist: "Scan Playlist",
-    playlistPlaceholder: "Paste playlist URL or ID...",
-    scanning: "Scanning...",
-    invalidPlaylistId: "Invalid playlist ID. Check the URL or ID and try again.",
-    anonQuotaExceeded: "You've used your trial scans. Sign in to keep scanning, it's free!",
-    playlistNotFound: "Playlist not found. Check the URL or ID and try again.",
-    badRequest: "Invalid request. Please check your input.",
-    databaseError: "A server error occurred. Please try again later.",
-    spotifyApiError: "Failed to communicate with Spotify. Please try again later.",
-    internalError: "An unexpected error occurred. Please try again later.",
-    somethingWentWrong: "Something went wrong",
-    showingCachedResults: "Showing results from a previous scan.",
-    rescan: "Rescan?",
-    tracksTab: (n: number) => `Tracks (${n})`,
-    artistsTab: (n: number) => `Artists (${n})`,
-    searchTracks: "Search tracks...",
-    tracksWithRussianArtists: (n: number) => `Tracks with Russian Artists (${n})`,
-    noRussianTracks: "No Russian tracks found. This playlist is clean!",
-    noTracksMatch: "No tracks match your search",
-    searchArtists: "Search artists...",
-    noArtistsFound: "No artists found",
-    noArtistsMatch: "No artists match your search",
-    source: "Source:",
-    confirmed: "confirmed",
-    trackCount: (n: number) => `${n} track${n !== 1 ? "s" : ""}`,
-    noScanResults: "No scan results yet",
-    noScanResultsHint: "Enter a playlist ID or URL to get started",
-
-    // AuthPage
-    logIn: "Log In",
-    signUp: "Sign Up",
-    emailPlaceholder: "Email",
-    passwordPlaceholder: "Password",
-    incorrectCredentials: "Incorrect email or password.",
-    emailExists: "An account with this email already exists.",
-    checkEmailPassword: "Please check your email and password.",
-    tryAgain: "Something went wrong. Please try again.",
-    loggingIn: "Logging in…",
-    signingUp: "Signing up…",
-    alreadyHaveAccount: "Already have an account? ",
-    dontHaveAccount: "Don't have an account? ",
-    logInLink: "Log in",
-    signUpLink: "Sign up",
-  },
+  en,
   uk: {
     // Landing
     signIn: "Увійти",
@@ -115,7 +121,4 @@ export const translations = {
     logInLink: "Увійти",
     signUpLink: "Зареєструватися",
   },
-} as const;
-
-export type Lang = "en" | "uk";
-export type T = typeof translations.en;
+} satisfies Record<Lang, T>;

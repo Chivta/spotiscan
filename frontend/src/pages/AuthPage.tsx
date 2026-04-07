@@ -10,12 +10,12 @@ interface AuthPageProps {
 }
 
 type Mode = "login" | "signup";
+type AuthErrorKey = "incorrectCredentials" | "emailExists" | "checkEmailPassword" | "tryAgain";
 
 export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  type AuthErrorKey = "incorrectCredentials" | "emailExists" | "checkEmailPassword" | "tryAgain";
   const [error, setError] = useState<AuthErrorKey | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

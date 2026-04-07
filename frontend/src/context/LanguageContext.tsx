@@ -1,13 +1,18 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import type { ReactNode } from "react";
+import type { Lang } from "../i18n";
 
-export type Lang = "uk" | "en";
+export type { Lang };
 
 const LS_KEY = "spotiscan_lang";
 
 function detectLang(): Lang {
-  const stored = localStorage.getItem(LS_KEY);
-  if (stored === "uk" || stored === "en") return stored;
+  try {
+    const stored = localStorage.getItem(LS_KEY);
+    if (stored === "uk" || stored === "en") return stored;
+  } catch {
+    // localStorage unavailable (privacy mode, SSR, etc.)
+  }
   return navigator.language?.startsWith("uk") ? "uk" : "en";
 }
 
@@ -25,7 +30,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(detectLang);
 
   const setLang = useCallback((next: Lang) => {
-    localStorage.setItem(LS_KEY, next);
+    try {
+      localStorage.setItem(LS_KEY, next);
+    } catch {
+      // Ignore if localStorage is unavailable
+    }
     setLangState(next);
   }, []);
 
