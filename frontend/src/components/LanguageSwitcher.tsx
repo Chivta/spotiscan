@@ -3,7 +3,7 @@ import { useLanguage } from "../context/LanguageContext";
 import type { Lang } from "../context/LanguageContext";
 
 const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
-  { code: "en", label: "English", flag: "/countries/sh.svg" },
+  { code: "en", label: "English", flag: "/countries/uk.svg" },
   { code: "uk", label: "Українська", flag: "/countries/ua.svg" },
 ];
 
