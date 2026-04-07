@@ -22,14 +22,17 @@ export default function Header({ user, onLogout }: HeaderProps) {
       zIndex: 10,
       boxSizing: "border-box",
     }}>
-      <span style={{
-        fontFamily: "'Outfit', sans-serif",
-        fontWeight: 800,
-        color: "#fff",
-        fontSize: "1.1rem",
-      }}>
-        SpotiScan
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <img src="/logo.png" alt="SpotiScan" style={{ height: 32, width: 32 }} />
+        <span style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontWeight: 800,
+          color: "#fff",
+          fontSize: "1.1rem",
+        }}>
+          SpotiScan
+        </span>
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {user.Email && (
           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: 13 }}>
