@@ -13,6 +13,7 @@ import (
 type (
 	filterArtistsRepo interface {
 		FilterRussian(ctx context.Context, names []string) ([]string, error)
+		GetArtistsInfo(ctx context.Context, names []string) ([]models.Artist, error)
 	}
 	getPlaylistRepo interface {
 		GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
@@ -42,7 +43,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		return &ruContent, nil
 	}
 
-	// fill artists map
+	// fill artists map with lowercase names as keys for easier matching later
 	artistsMap := make(map[string]models.Artist)
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
@@ -50,7 +51,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		}
 	}
 
-	// create list of unique artist names
+	// create slice of unique artist names
 	artistNames := make([]string, 0, len(artistsMap))
 	for name := range artistsMap {
 		artistNames = append(artistNames, name)
@@ -63,8 +64,27 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		return nil, appErrors.ErrDatabaseFailure
 	}
 
+	ruArtistsWithInfo, err := s.artistRepo.GetArtistsInfo(ctx, ruArtistNames)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get Russian artists info")
+		return nil, appErrors.ErrDatabaseFailure
+	}
+
+	// update artistsMap with info from the database for Russian artists
+	for _, artistInfo := range ruArtistsWithInfo {
+		artist := artistsMap[strings.ToLower(artistInfo.Name)] 
+		artist.DescriptionUA = artistInfo.DescriptionUA
+		artist.DescriptionEN = artistInfo.DescriptionEN
+		artist.Source = artistInfo.Source
+		artist.SourceURL = artistInfo.SourceURL
+		artist.Country = artistInfo.Country
+		artist.Confirmed = artistInfo.Confirmed
+		artistsMap[strings.ToLower(artistInfo.Name)] = artist
+	}
+
+
 	// names should all be in lowercase at this point
-	// fill ruArtistsMap
+	// fill ruArtistsMap for faster lookup when filtering tracks later
 	ruArtistsMap := make(map[string]models.Artist, len(ruArtistNames))
 	for _, name := range ruArtistNames {
 		ruArtistsMap[name] = artistsMap[name]

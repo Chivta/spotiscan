@@ -187,6 +187,37 @@ func (r *ArtistRepo) GetRussianArtistNames(ctx context.Context, names []string) 
 	return ruNames, nil
 }
 
+func (r *ArtistRepo) GetArtistsInfo(ctx context.Context, names []string) ([]models.Artist, error) {
+	rows, err := r.db.Query(`
+        SELECT name,description_ua,description_en,source,source_url,country,confirmed FROM ru_artists WHERE name = ANY($1)
+    `, pq.Array(names))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ruNames []models.Artist
+	for rows.Next() {
+		var artist models.Artist
+		var descUA, descEN, source, sourceURL, country sql.NullString
+		if err := rows.Scan(&artist.Name, &descUA, &descEN, &source, &sourceURL, &country, &artist.Confirmed); err != nil {
+			return nil, err
+		}
+		artist.DescriptionUA = descUA.String
+		artist.DescriptionEN = descEN.String
+		artist.Source = source.String
+		artist.SourceURL = sourceURL.String
+		artist.Country = country.String
+		ruNames = append(ruNames, artist)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return ruNames, nil
+}
+
 func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []models.Artist) error {
 	if len(artists) == 0 {
 		return nil
