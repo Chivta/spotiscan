@@ -145,15 +145,16 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 	}
 	validate := validator.New()
 
+	metrics := middlewares.NewMetrics("spotiscan")
+
 	spotifyService := services.NewSpotifyService(artistRepo, playlistRepo)
-	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
+	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate, metrics)
 
 	authService := services.NewAuthService([]byte(cfg.JWTSecret), tokenRepo, userRepo)
-	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
+	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies, metrics)
 	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
 
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo)
-	metrics := middlewares.NewMetrics("spotiscan")
 
 	return &appContainer{
 		ratelimitRepo:       ratelimitRepo,
