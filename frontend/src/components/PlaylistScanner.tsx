@@ -459,12 +459,10 @@ export default function PlaylistScanner() {
                                 <span key={artist.ID}>
                                   {ruArtistIds.has(artist.ID) ? (
                                     <a
-                                      href={artist.URL}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
                                       style={{ color: "#e74c3c", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer", transition: "color 0.2s ease" }}
                                       onMouseEnter={e => { e.currentTarget.style.color = "#ff6b5a"; const full = ruArtistMap.get(artist.ID); if (full) showTooltip(full, e); }}
                                       onMouseLeave={e => { e.currentTarget.style.color = "#e74c3c"; hideTooltip(); }}
+                                      onClick={() => { setResultTab("artists"); setArtistsSearch(artist.Name); }}
                                     >
                                       {artist.Name}
                                     </a>
