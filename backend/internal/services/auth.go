@@ -15,6 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/spotiscan/internal/metrics"
 	"github.com/rs/zerolog/log"
 	"github.com/chivta/spotiscan/internal/models"
 )
@@ -69,14 +70,21 @@ type AnonymousSession struct {
 func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Session, error) {
 	user, err := s.userRepo.GetUserByEmail(ctx, loginDTO.Email)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 
 	if err := comparePasswordHashWithSalt(user.PasswordHash, loginDTO.Password); err != nil {
+		metrics.ErrorsTotal.WithLabelValues("auth").Inc()
 		return nil, appErrors.ErrInvalidCredentials
 	}
 
-	return s.createSession(ctx, user)
+	session, err := s.createSession(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	metrics.UserLogins.Inc()
+	return session, nil
 }
 
 func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*Session, error) {
@@ -92,11 +100,17 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 	}
 	id, err := s.userRepo.CreateUser(ctx, &user)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 	user.ID = id
 
-	return s.createSession(ctx, &user)
+	session, err := s.createSession(ctx, &user)
+	if err != nil {
+		return nil, err
+	}
+	metrics.UserRegistrations.Inc()
+	return session, nil
 }
 
 // createSession issues a new JWT + refresh token, stores the refresh token hash, and returns session.

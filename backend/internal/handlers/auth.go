@@ -12,21 +12,14 @@ import (
 	"github.com/chivta/spotiscan/internal/services"
 )
 
-type authMetrics interface {
-	IncUserRegistrations()
-	IncUserLogins()
-	IncErrors(errorType string)
-}
-
-func NewAuthHandler(authService *services.AuthService, validate *validator.Validate, secureCookies bool, metrics authMetrics) *AuthHandler {
-	return &AuthHandler{authService: authService, validate: validate, secureCookies: secureCookies, metrics: metrics}
+func NewAuthHandler(authService *services.AuthService, validate *validator.Validate, secureCookies bool) *AuthHandler {
+	return &AuthHandler{authService: authService, validate: validate, secureCookies: secureCookies}
 }
 
 type AuthHandler struct {
 	authService   *services.AuthService
 	validate      *validator.Validate
 	secureCookies bool
-	metrics       authMetrics
 }
 
 func (h *AuthHandler) Signup(c *gin.Context) {
@@ -49,12 +42,10 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 
 	session, err := h.authService.Signup(c.Request.Context(), signupDTO)
 	if err != nil {
-		h.metrics.IncErrors(errorTypeLabel(err))
 		RespondWithError(c, err)
 		return
 	}
 
-	h.metrics.IncUserRegistrations()
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", h.secureCookies, true)
 	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", h.secureCookies, true)
@@ -81,12 +72,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	session, err := h.authService.Login(c.Request.Context(), loginDTO)
 	if err != nil {
-		h.metrics.IncErrors(errorTypeLabel(err))
 		RespondWithError(c, err)
 		return
 	}
 
-	h.metrics.IncUserLogins()
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", h.secureCookies, true)
 	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", h.secureCookies, true)

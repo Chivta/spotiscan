@@ -3,10 +3,12 @@ package services
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/spotiscan/internal/metrics"
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -118,18 +120,24 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 
 func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId string) (*models.RuContent, error) {
 	log.Debug().Msgf("getting RU content for playlist %s", playlistId)
+	start := time.Now()
+
 	playlist, err := s.playlistRepo.GetPlaylistWithTracks(ctx, playlistId)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get playlist with tracks")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 
 	ruContent, err := s.formRuContent(ctx, playlist.Tracks)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to form RU content")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 
+	metrics.ScansTotal.Inc()
+	metrics.ScanDuration.Observe(time.Since(start).Seconds())
 	log.Debug().Msgf("successfully retrieved RU content for playlist %s", playlistId)
 	return ruContent, nil
 }

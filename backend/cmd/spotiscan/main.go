@@ -16,6 +16,7 @@ import (
 
 	"github.com/chivta/spotiscan/internal/config"
 	"github.com/chivta/spotiscan/internal/handlers"
+	"github.com/chivta/spotiscan/internal/metrics"
 	"github.com/chivta/spotiscan/internal/middlewares"
 	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/repository"
@@ -56,8 +57,8 @@ func runApp() int {
 		SkipPaths: []string{"/", "/health", "/api/me"},
 	}))
 	r.Use(gin.Recovery())
-	r.Use(c.metrics.Middleware("/metrics", "/health", "/", "/api/me"))
-	r.GET("/metrics", gin.WrapH(c.metrics.Handler()))
+	r.Use(metrics.Middleware("/metrics", "/health", "/", "/api/me"))
+	r.GET("/metrics", gin.WrapH(metrics.Handler()))
 	r.GET("/health", func(c *gin.Context) { c.Status(204) })
 
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
@@ -98,7 +99,6 @@ type appContainer struct {
 	spotifyService      *services.SpotifyService
 	jwtMiddleware       *middlewares.JWTMiddleware
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
-	metrics             *middlewares.Metrics
 	db                  *sql.DB
 	redis               *redis.Client
 }
@@ -145,13 +145,11 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 	}
 	validate := validator.New()
 
-	metrics := middlewares.NewMetrics("spotiscan")
-
 	spotifyService := services.NewSpotifyService(artistRepo, playlistRepo)
-	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate, metrics)
+	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
 
 	authService := services.NewAuthService([]byte(cfg.JWTSecret), tokenRepo, userRepo)
-	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies, metrics)
+	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
 	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
 
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo)
@@ -168,7 +166,6 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		spotifyService:      spotifyService,
 		jwtMiddleware:       jwtMiddleware,
 		rateLimitMiddleware: rateLimitMiddleware,
-		metrics:             metrics,
 		db:                  db,
 		redis:               redis,
 	}, nil
