@@ -93,7 +93,6 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 		claims, err := m.authService.ParseJWT(jwtStr)
 		if err != nil {
 			if !errors.Is(err, jwt.ErrTokenExpired) {
-				log.Debug().Msgf("JWT parse error: %v:%T", err, err)
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
 				return
@@ -109,7 +108,6 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 			// JWT expired — attempt refresh
 			refreshStr, err := c.Cookie(models.CookieRefreshToken)
 			if err != nil {
-				log.Debug().Msgf("Refresh token cookie error: %v:%T", err, err)
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
 				return

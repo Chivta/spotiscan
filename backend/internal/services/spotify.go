@@ -37,11 +37,9 @@ type SpotifyService struct {
 // formRuContent filters the provided tracks and returns rusContent containing only Russian artists and tracks
 // that have at least one Russian artist.
 func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Track) (*models.RuContent, error) {
-	log.Debug().Msgf("forming RU content for %d tracks", len(tracks))
 	var ruContent models.RuContent
 
 	if len(tracks) == 0 {
-		log.Debug().Msgf("no tracks provided, returning empty RU content")
 		return &ruContent, nil
 	}
 
@@ -114,12 +112,10 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		ruContent.Artists = append(ruContent.Artists, artist)
 	}
 
-	log.Debug().Msgf("formed RU content with %d tracks and %d artists", len(ruContent.Tracks), len(ruContent.Artists))
 	return &ruContent, nil
 }
 
 func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId string) (*models.RuContent, error) {
-	log.Debug().Msgf("getting RU content for playlist %s", playlistId)
 	start := time.Now()
 
 	playlist, err := s.playlistRepo.GetPlaylistWithTracks(ctx, playlistId)
@@ -138,6 +134,5 @@ func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId st
 
 	metrics.ScansTotal.Inc()
 	metrics.ScanDuration.Observe(time.Since(start).Seconds())
-	log.Debug().Msgf("successfully retrieved RU content for playlist %s", playlistId)
 	return ruContent, nil
 }
