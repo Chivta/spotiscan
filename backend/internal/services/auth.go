@@ -81,6 +81,7 @@ func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Ses
 
 	session, err := s.createSession(ctx, user)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 	metrics.UserLogins.Inc()
@@ -107,6 +108,7 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 
 	session, err := s.createSession(ctx, &user)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 	metrics.UserRegistrations.Inc()

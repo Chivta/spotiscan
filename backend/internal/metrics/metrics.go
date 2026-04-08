@@ -147,6 +147,16 @@ func ErrorTypeLabel(err error) string {
 		return "db"
 	case "UNAUTHORIZED", "INVALID_CREDENTIALS", "FORBIDDEN":
 		return "auth"
+	case "BAD_REQUEST":
+		return "bad_request"
+	case "TOO_MANY_REQUESTS":
+		return "rate_limit"
+	case "PLAYLIST_NOT_FOUND":
+		return "playlist_not_found"
+	case "EMAIL_EXISTS":
+		return "email_exists"
+	case "ANON_QUOTA_EXCEEDED":
+		return "anon_quota_exceeded"
 	default:
 		return "internal"
 	}
