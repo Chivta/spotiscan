@@ -3,10 +3,12 @@ package services
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/spotiscan/internal/metrics"
 	"github.com/chivta/spotiscan/internal/models"
 )
 
@@ -35,11 +37,9 @@ type SpotifyService struct {
 // formRuContent filters the provided tracks and returns rusContent containing only Russian artists and tracks
 // that have at least one Russian artist.
 func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Track) (*models.RuContent, error) {
-	log.Debug().Msgf("forming RU content for %d tracks", len(tracks))
 	var ruContent models.RuContent
 
 	if len(tracks) == 0 {
-		log.Debug().Msgf("no tracks provided, returning empty RU content")
 		return &ruContent, nil
 	}
 
@@ -112,24 +112,32 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		ruContent.Artists = append(ruContent.Artists, artist)
 	}
 
-	log.Debug().Msgf("formed RU content with %d tracks and %d artists", len(ruContent.Tracks), len(ruContent.Artists))
 	return &ruContent, nil
 }
 
 func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId string) (*models.RuContent, error) {
-	log.Debug().Msgf("getting RU content for playlist %s", playlistId)
+	start := time.Now()
+
 	playlist, err := s.playlistRepo.GetPlaylistWithTracks(ctx, playlistId)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get playlist with tracks")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 
 	ruContent, err := s.formRuContent(ctx, playlist.Tracks)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to form RU content")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
 
-	log.Debug().Msgf("successfully retrieved RU content for playlist %s", playlistId)
+	elapsed := time.Since(start).Seconds()
+	metrics.ScansTotal.Inc()
+	metrics.ScanDuration.Observe(elapsed)
+	if role, _ := ctx.Value(models.UserRoleKey).(models.Role); role == models.RoleAnon {
+		metrics.AnonScansTotal.Inc()
+		metrics.AnonScanDuration.Observe(elapsed)
+	}
 	return ruContent, nil
 }
