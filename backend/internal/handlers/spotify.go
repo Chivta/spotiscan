@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/chivta/spotiscan/internal/models"
 	"github.com/chivta/spotiscan/internal/services"
 )
 
@@ -21,6 +22,8 @@ type SpotifyHandler struct {
 
 func (h *SpotifyHandler) GetPlaylistRuContent(c *gin.Context) {
 	ctx := context.WithValue(c.Request.Context(), "spotify_token", c.Value("spotify_token"))
+	userRole, _ := c.Get(models.UserRoleKey)
+	ctx = context.WithValue(ctx, models.UserRoleKey, userRole)
 
 	playlistId := c.Params.ByName("id")
 	if playlistId == "" {

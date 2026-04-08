@@ -132,7 +132,12 @@ func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId st
 		return nil, err
 	}
 
+	elapsed := time.Since(start).Seconds()
 	metrics.ScansTotal.Inc()
-	metrics.ScanDuration.Observe(time.Since(start).Seconds())
+	metrics.ScanDuration.Observe(elapsed)
+	if role, _ := ctx.Value(models.UserRoleKey).(models.Role); role == models.RoleAnon {
+		metrics.AnonScansTotal.Inc()
+		metrics.AnonScanDuration.Observe(elapsed)
+	}
 	return ruContent, nil
 }

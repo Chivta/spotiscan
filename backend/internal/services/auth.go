@@ -185,6 +185,7 @@ func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSes
 		return nil, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
 	}
 
+	metrics.AnonSessions.Inc()
 	return &AnonymousSession{
 		JWT:    signed,
 		UserID: anonID,

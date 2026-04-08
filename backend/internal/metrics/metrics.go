@@ -68,6 +68,25 @@ var (
 		},
 		[]string{"type"},
 	)
+
+	AnonSessions = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "spotiscan",
+		Name:      "anon_sessions_total",
+		Help:      "Total number of anonymous sessions created.",
+	})
+
+	AnonScansTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "spotiscan",
+		Name:      "anon_scans_total",
+		Help:      "Total number of successful playlist scans by anonymous users.",
+	})
+
+	AnonScanDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Namespace: "spotiscan",
+		Name:      "anon_scan_duration_seconds",
+		Help:      "Full playlist scan duration in seconds for anonymous users.",
+		Buckets:   prometheus.DefBuckets,
+	})
 )
 
 func init() {
@@ -76,6 +95,7 @@ func init() {
 		UserRegistrations, UserLogins,
 		ScansTotal, ScanDuration,
 		ErrorsTotal,
+		AnonSessions, AnonScansTotal, AnonScanDuration,
 	)
 }
 
