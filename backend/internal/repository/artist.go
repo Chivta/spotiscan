@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/ruscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/models"
 	"github.com/lib/pq"
 
 	"github.com/redis/go-redis/v9"

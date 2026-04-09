@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/spotify"
+	"github.com/chivta/ruscan/internal/models"
+	"github.com/chivta/ruscan/internal/spotify"
 )
 
 func NewPlaylistRepo(db *sql.DB, spotifyClient *spotify.SpotifyClient) *PlaylistRepo {

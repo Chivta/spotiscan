@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/appErrors"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -23,8 +23,8 @@ func NewTokenRepo(db *sql.DB, redis *redis.Client, spotifyId, spotifySecret stri
 }
 
 type TokenRepo struct {
-	db      *sql.DB
-	redis   *redis.Client
+	db    *sql.DB
+	redis *redis.Client
 
 	token         *oauth2.Token
 	spotifyId     string

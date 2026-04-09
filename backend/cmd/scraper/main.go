@@ -10,9 +10,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/config"
-	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository"
+	"github.com/chivta/ruscan/internal/config"
+	"github.com/chivta/ruscan/internal/models"
+	"github.com/chivta/ruscan/internal/repository"
 )
 
 func main() {

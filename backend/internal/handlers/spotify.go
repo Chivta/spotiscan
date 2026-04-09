@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/services"
+	"github.com/chivta/ruscan/internal/models"
+	"github.com/chivta/ruscan/internal/services"
 )
 
 func NewSpotifyHandler(service *services.SpotifyService, validate *validator.Validate) *SpotifyHandler {

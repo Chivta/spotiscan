@@ -10,47 +10,46 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/ruscan/internal/models"
 )
 
-
 const (
-	pdbUrl   = "https://www.phonkersbase.com/api/artists"
+	pdbUrl       = "https://www.phonkersbase.com/api/artists"
 	pdbPageSize  = 50
-	pdbUserAgent = "spotiscan/1.0 (https://spotiscan.chivtar.dev)"
+	pdbUserAgent = "ruscan/1.0 (https://ruscan.chivtar.dev)"
 )
 
 type PhonkersDBResponse struct {
-	Data PhonkersDBData `json:"data"`
-	Errors []string `json:"errors"`
+	Data   PhonkersDBData `json:"data"`
+	Errors []string       `json:"errors"`
 }
 
 type PhonkersDBData struct {
 	Items []PhonkersDBArtist `json:"items"`
-	Info PhonkersDBInfo   `json:"info"`
+	Info  PhonkersDBInfo     `json:"info"`
 }
 
 type PhonkersDBArtist struct {
 	Name          string                  `json:"name"`
 	Link          string                  `json:"link"`
-	DescriptionUA   *string               `json:"description"`
+	DescriptionUA *string                 `json:"description"`
 	DescriptionEN *string                 `json:"descriptionEn"`
 	Countries     []PhonkersDBCountry     `json:"countries"`
 	ListenLabels  []PhonkersDBListenLabel `json:"listenLabels"`
 }
 
 type PhonkersDBCountry struct {
-	Name         string `json:"name"`
+	Name string `json:"name"`
 }
 
 type PhonkersDBListenLabel struct {
-	Name         string `json:"name"` // "blocked" for russians
+	Name string `json:"name"` // "blocked" for russians
 }
 
 type PhonkersDBInfo struct {
-	Limit       int `json:"limit"`
-	Offset   int `json:"offset"`
-	Total int `json:"total"`
+	Limit      int `json:"limit"`
+	Offset     int `json:"offset"`
+	Total      int `json:"total"`
 	TotalPages int `json:"totalPages"`
 }
 

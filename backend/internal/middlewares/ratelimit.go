@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/chivta/spotiscan/internal/repository"
+	"github.com/chivta/ruscan/internal/repository"
 )
 
 type Cache interface {

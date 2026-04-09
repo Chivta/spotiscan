@@ -1,4 +1,4 @@
-module github.com/chivta/spotiscan
+module github.com/chivta/ruscan
 
 go 1.26.1
 

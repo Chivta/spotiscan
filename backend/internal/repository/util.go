@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"net/url"
+
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/spotify"
-	"github.com/chivta/spotiscan/migrations"
+	"github.com/chivta/ruscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/spotify"
+	"github.com/chivta/ruscan/migrations"
 )
 
 func InitializeDatabase(ctx context.Context, dbUrl string) (*sql.DB, error) {
@@ -26,7 +27,7 @@ func InitializeDatabase(ctx context.Context, dbUrl string) (*sql.DB, error) {
 		if err != nil {
 			errCh <- err
 			db.Close()
-			return 
+			return
 		}
 		dbCh <- db
 	}()
