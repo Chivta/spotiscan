@@ -11,10 +11,10 @@ resources:
 images:
 - name: ghcr.io/chivta/ruscan/ruscan-backend
   newName: ghcr.io/chivta/ruscan/ruscan-backend
-  newTag: a4f3f0e430f121516388319588af362d679b1b86
+  newTag: d47b2a4457e0450a8f1a41dcaa04a3f2b6019d0b
 - name: ghcr.io/chivta/ruscan/ruscan-frontend
   newName: ghcr.io/chivta/ruscan/ruscan-frontend
   newTag: a4f3f0e430f121516388319588af362d679b1b86
 - name: ghcr.io/chivta/ruscan/ruscan-scraper
   newName: ghcr.io/chivta/ruscan/ruscan-scraper
-  newTag: a4f3f0e430f121516388319588af362d679b1b86
+  newTag: d47b2a4457e0450a8f1a41dcaa04a3f2b6019d0b
