@@ -4,7 +4,7 @@ import type { Lang } from "../i18n";
 
 export type { Lang };
 
-const LS_KEY = "spotiscan_lang";
+const LS_KEY = "ruscan_lang";
 
 function detectLang(): Lang {
   try {

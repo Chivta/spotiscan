@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: scraper
-  namespace: spotiscan
+  namespace: ruscan
   labels:
     app: scraper
 spec:
@@ -23,7 +23,7 @@ spec:
             - name: ghcr-secret
           containers:
             - name: scraper
-              image: ghcr.io/chivta/spotiscan/spotiscan-scraper:latest
+              image: ghcr.io/chivta/ruscan/ruscan-scraper:latest
               envFrom:
                 - secretRef:
                     name: app-secrets

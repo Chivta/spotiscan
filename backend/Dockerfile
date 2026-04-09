@@ -29,7 +29,7 @@ CMD ["./scraper"]
 
 # Build stage
 FROM source AS builder
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/spotiscan
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/ruscan
 
 # Production stage
 FROM alpine:3.19
