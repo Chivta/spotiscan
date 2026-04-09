@@ -7,9 +7,9 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/metrics"
-	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/ruscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/metrics"
+	"github.com/chivta/ruscan/internal/models"
 )
 
 type (
@@ -72,7 +72,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 
 	// update artistsMap with info from the database for Russian artists
 	for _, artistInfo := range ruArtistsWithInfo {
-		artist := artistsMap[strings.ToLower(artistInfo.Name)] 
+		artist := artistsMap[strings.ToLower(artistInfo.Name)]
 		artist.DescriptionUA = artistInfo.DescriptionUA
 		artist.DescriptionEN = artistInfo.DescriptionEN
 		artist.Source = artistInfo.Source
@@ -81,7 +81,6 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 		artist.Confirmed = artistInfo.Confirmed
 		artistsMap[strings.ToLower(artistInfo.Name)] = artist
 	}
-
 
 	// names should all be in lowercase at this point
 	// fill ruArtistsMap for faster lookup when filtering tracks later

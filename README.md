@@ -1,7 +1,7 @@
-# SpotiScan
+# RuScan
 
-[![CI](https://github.com/chivta/spotiscan/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/chivta/spotiscan/actions/workflows/ci-cd.yaml)
-[![codecov](https://codecov.io/gh/chivta/spotiscan/branch/main/graph/badge.svg)](https://codecov.io/gh/chivta/spotiscan)
+[![CI](https://github.com/chivta/ruscan/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/chivta/ruscan/actions/workflows/ci-cd.yaml)
+[![codecov](https://codecov.io/gh/chivta/ruscan/branch/main/graph/badge.svg)](https://codecov.io/gh/chivta/ruscan)
 
 Scan your Spotify playlists to identify tracks by Russian artists.
 
@@ -41,7 +41,7 @@ Backend: http://localhost:8080
 
 1. Create `.env` in `backend/`:
 ```
-DB_URL=postgres://user:password@localhost:5432/spotiscan
+DB_URL=postgres://user:password@localhost:5432/ruscan
 REDIS_URL=redis://localhost:6379
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
@@ -55,7 +55,7 @@ Database migrations run automatically on startup.
 ## Project Structure
 
 ```
-spotiscan/
+ruscan/
 ├── frontend/              # React app
 │   └── src/
 │       ├── pages/         # Landing, AuthPage, Dashboard

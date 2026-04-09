@@ -9,12 +9,12 @@ resources:
 - redis/deployment.yaml
 - ingress.yaml
 images:
-- name: ghcr.io/chivta/spotiscan/spotiscan-backend
-  newName: ghcr.io/chivta/spotiscan/spotiscan-backend
+- name: ghcr.io/chivta/ruscan/ruscan-backend
+  newName: ghcr.io/chivta/ruscan/ruscan-backend
   newTag: 04075cd530d6d6c18a177acb706329265a21087b
-- name: ghcr.io/chivta/spotiscan/spotiscan-frontend
-  newName: ghcr.io/chivta/spotiscan/spotiscan-frontend
+- name: ghcr.io/chivta/ruscan/ruscan-frontend
+  newName: ghcr.io/chivta/ruscan/ruscan-frontend
   newTag: 04075cd530d6d6c18a177acb706329265a21087b
-- name: ghcr.io/chivta/spotiscan/spotiscan-scraper
-  newName: ghcr.io/chivta/spotiscan/spotiscan-scraper
+- name: ghcr.io/chivta/ruscan/ruscan-scraper
+  newName: ghcr.io/chivta/ruscan/ruscan-scraper
   newTag: 04075cd530d6d6c18a177acb706329265a21087b

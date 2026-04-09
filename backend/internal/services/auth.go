@@ -14,10 +14,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/metrics"
+	"github.com/chivta/ruscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/metrics"
+	"github.com/chivta/ruscan/internal/models"
 	"github.com/rs/zerolog/log"
-	"github.com/chivta/spotiscan/internal/models"
 )
 
 type (
@@ -25,7 +25,7 @@ type (
 		StoreRefreshTokenHash(ctx context.Context, userID int, refreshTokenHash string, expiresAt time.Time) error
 		GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error)
 		DeleteRefreshTokenHash(ctx context.Context, userID int) error
-		IncrementAnonRequestCounter(ctx context.Context, anonID, path string, expiration time.Duration) (int, error)	
+		IncrementAnonRequestCounter(ctx context.Context, anonID, path string, expiration time.Duration) (int, error)
 	}
 	userRepo interface {
 		GetUserByEmail(ctx context.Context, email string) (*models.User, error)

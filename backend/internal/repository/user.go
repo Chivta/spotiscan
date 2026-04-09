@@ -6,24 +6,23 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/ruscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/models"
 	"github.com/lib/pq"
 
 	"github.com/redis/go-redis/v9"
-
 )
 
 func NewUserRepo(db *sql.DB, redis *redis.Client) *UserRepo {
 	return &UserRepo{
-		db:      db,
-		redis:   redis,
+		db:    db,
+		redis: redis,
 	}
 }
 
 type UserRepo struct {
-	db      *sql.DB
-	redis   *redis.Client
+	db    *sql.DB
+	redis *redis.Client
 }
 
 func (r *UserRepo) CreateUser(ctx context.Context, user *models.User) (int, error) {

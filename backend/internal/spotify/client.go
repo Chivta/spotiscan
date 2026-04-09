@@ -12,7 +12,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/ruscan/internal/models"
 )
 
 const (

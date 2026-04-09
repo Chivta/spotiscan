@@ -8,10 +8,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
-	"github.com/chivta/spotiscan/internal/handlers"
-	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/services"
+	"github.com/chivta/ruscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/handlers"
+	"github.com/chivta/ruscan/internal/models"
+	"github.com/chivta/ruscan/internal/services"
 )
 
 type JWTMiddleware struct {

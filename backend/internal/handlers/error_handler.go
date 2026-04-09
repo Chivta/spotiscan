@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/appErrors"
 )
 
 func RespondWithError(c *gin.Context, err error) {

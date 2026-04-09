@@ -14,15 +14,15 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/config"
-	"github.com/chivta/spotiscan/internal/handlers"
-	"github.com/chivta/spotiscan/internal/metrics"
-	"github.com/chivta/spotiscan/internal/middlewares"
-	"github.com/chivta/spotiscan/internal/models"
-	"github.com/chivta/spotiscan/internal/repository"
-	"github.com/chivta/spotiscan/internal/services"
-	"github.com/chivta/spotiscan/internal/spotify"
-	"github.com/chivta/spotiscan/scripts"
+	"github.com/chivta/ruscan/internal/config"
+	"github.com/chivta/ruscan/internal/handlers"
+	"github.com/chivta/ruscan/internal/metrics"
+	"github.com/chivta/ruscan/internal/middlewares"
+	"github.com/chivta/ruscan/internal/models"
+	"github.com/chivta/ruscan/internal/repository"
+	"github.com/chivta/ruscan/internal/services"
+	"github.com/chivta/ruscan/internal/spotify"
+	"github.com/chivta/ruscan/scripts"
 )
 
 func main() {

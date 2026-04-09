@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/chivta/spotiscan/internal/appErrors"
+	"github.com/chivta/ruscan/internal/appErrors"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 
 	HTTPRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: "spotiscan",
+			Namespace: "ruscan",
 			Name:      "http_requests_total",
 			Help:      "Total number of HTTP requests.",
 		},
@@ -27,7 +27,7 @@ var (
 
 	HTTPRequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: "spotiscan",
+			Namespace: "ruscan",
 			Name:      "http_request_duration_seconds",
 			Help:      "HTTP request duration in seconds.",
 			Buckets:   []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5},
@@ -36,25 +36,25 @@ var (
 	)
 
 	UserRegistrations = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "spotiscan",
+		Namespace: "ruscan",
 		Name:      "user_registrations_total",
 		Help:      "Total number of successful user registrations.",
 	})
 
 	UserLogins = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "spotiscan",
+		Namespace: "ruscan",
 		Name:      "user_logins_total",
 		Help:      "Total number of successful user logins.",
 	})
 
 	ScansTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "spotiscan",
+		Namespace: "ruscan",
 		Name:      "scans_total",
 		Help:      "Total number of successful playlist scan completions.",
 	})
 
 	ScanDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Namespace: "spotiscan",
+		Namespace: "ruscan",
 		Name:      "scan_duration_seconds",
 		Help:      "Full playlist scan duration in seconds.",
 		Buckets:   prometheus.DefBuckets,
@@ -62,7 +62,7 @@ var (
 
 	ErrorsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: "spotiscan",
+			Namespace: "ruscan",
 			Name:      "errors_total",
 			Help:      "Total number of application errors by type.",
 		},
@@ -70,19 +70,19 @@ var (
 	)
 
 	AnonSessions = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "spotiscan",
+		Namespace: "ruscan",
 		Name:      "anon_sessions_total",
 		Help:      "Total number of anonymous sessions created.",
 	})
 
 	AnonScansTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "spotiscan",
+		Namespace: "ruscan",
 		Name:      "anon_scans_total",
 		Help:      "Total number of successful playlist scans by anonymous users.",
 	})
 
 	AnonScanDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Namespace: "spotiscan",
+		Namespace: "ruscan",
 		Name:      "anon_scan_duration_seconds",
 		Help:      "Full playlist scan duration in seconds for anonymous users.",
 		Buckets:   prometheus.DefBuckets,

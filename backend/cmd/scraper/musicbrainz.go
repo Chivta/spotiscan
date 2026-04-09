@@ -10,13 +10,13 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/spotiscan/internal/models"
+	"github.com/chivta/ruscan/internal/models"
 )
 
 const (
 	mbBaseURL   = "https://musicbrainz.org/ws/2"
 	mbPageSize  = 100
-	mbUserAgent = "spotiscan/1.0 (https://spotiscan.chivtar.dev)"
+	mbUserAgent = "ruscan/1.0 (https://ruscan.chivtar.dev)"
 )
 
 type MusicBrainzArtistsResponse struct {

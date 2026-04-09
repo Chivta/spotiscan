@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: spotiscan
+  namespace: ruscan
   labels:
     app: frontend
 spec:
@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/chivta/spotiscan/spotiscan-frontend:latest
+          image: ghcr.io/chivta/ruscan/ruscan-frontend:latest
           ports:
             - containerPort: 80
           resources:
@@ -48,7 +48,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend-svc
-  namespace: spotiscan
+  namespace: ruscan
   labels:
     app: frontend
 spec:
