@@ -110,7 +110,7 @@ export default function AuthPage({ initialMode = "signup" }: AuthPageProps) {
             textAlign: "center",
             marginBottom: 24,
           }}>
-            SpotiScan
+            RuScan
           </h1>
 
           {/* Pill toggle */}

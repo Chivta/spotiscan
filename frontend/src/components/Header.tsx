@@ -35,7 +35,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
           color: "#fff",
           fontSize: "1.1rem",
         }}>
-          SpotiScan
+          RuScan
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

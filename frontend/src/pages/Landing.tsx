@@ -35,7 +35,7 @@ export default function Landing() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <img src="/logo.png" alt="" aria-hidden={true} style={{ height: 32, width: 32 }} />
           <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, color: "#fff", fontSize: "1.1rem" }}>
-            SpotiScan
+            RuScan
           </span>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -97,7 +97,7 @@ export default function Landing() {
             marginBottom: 16,
             lineHeight: 1.1,
           }}>
-            SpotiScan
+            RuScan
           </h1>
 
           <p style={{
