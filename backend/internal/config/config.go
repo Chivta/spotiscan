@@ -24,7 +24,6 @@ type ScraperConfig struct {
 	ScrapePhonkersDBArtists               bool
 	ScrapeMusicBrainzArtistsForAllRegions bool
 	LastFMAPIKey                          string `validate:"required,min=1"`
-	LastFMSharedSecret                    string `validate:"min=1"`
 }
 
 func Load() (*Config, error) {
@@ -42,7 +41,6 @@ func Load() (*Config, error) {
 			ScrapePhonkersDBArtists:               func() bool { v, _ := strconv.ParseBool(os.Getenv("SCRAPE_PHONKERS_DB_ARTISTS")); return v }(),
 			ScrapeMusicBrainzArtistsForAllRegions: func() bool { v, _ := strconv.ParseBool(os.Getenv("SCRAPE_MUSICBRAINZ_ARTISTS_FOR_ALL_REGIONS")); return v }(),
 			LastFMAPIKey:                          os.Getenv("LASTFM_API_KEY"),
-			LastFMSharedSecret:                    os.Getenv("LASTFM_SHARED_SECRET"),
 		},
 	}
 
