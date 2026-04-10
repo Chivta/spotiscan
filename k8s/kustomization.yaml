@@ -14,7 +14,7 @@ images:
   newTag: 3e72d64cb84f3cf330e65e28defb6fffe25a8b0b
 - name: ghcr.io/chivta/ruscan/ruscan-frontend
   newName: ghcr.io/chivta/ruscan/ruscan-frontend
-  newTag: 3e72d64cb84f3cf330e65e28defb6fffe25a8b0b
+  newTag: d18a2714c47b1d38f5b828d2b4dcdb0d86f9a479
 - name: ghcr.io/chivta/ruscan/ruscan-scraper
   newName: ghcr.io/chivta/ruscan/ruscan-scraper
   newTag: 3e72d64cb84f3cf330e65e28defb6fffe25a8b0b
