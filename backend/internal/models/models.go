@@ -18,7 +18,7 @@ const (
 const (
 	AnonSessionDuration  = 60 * 60 * 24 // 24 hours
 	AnonSessionCookieAge = 60 * 60 * 24 // 24 hours
-	AnonRequestLimit     = 3
+	AnonRequestLimit     = 5
 )
 
 const (
@@ -69,12 +69,13 @@ type Artist struct {
 }
 
 type Playlist struct {
-	ID          string  `json:"ID"`
-	Name        string  `json:"Name"`
-	Description string  `json:"Description"`
-	ImageURL    string  `json:"ImageURL"`
-	TrackCount  int     `json:"TrackCount"`
-	Tracks      []Track `json:"Tracks"`
+	SpotifyID string  `json:"SpotifyID"`
+	Tracks    []Track `json:"Tracks"`
+}
+
+type Album struct {
+	SpotifyID string  `json:"SpotifyID"`
+	Tracks    []Track `json:"Tracks"`
 }
 
 type RuContent struct {

@@ -6,18 +6,22 @@ import type { Artist, TrackArtist, Track, RuContent } from "../types/models";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
 
-const SPOTIFY_PLAYLIST_BASE = "https://open.spotify.com/playlist/";
 const BASE62_ID_REGEX = /^[A-Za-z0-9]{22}$/;
+
+type ResourceType = "playlist" | "track" | "album" | "artist";
 
 function countryFlag(country: string): string {
   return `/countries/${country.toLowerCase().trim()}.svg`;
 }
 
-const extractPlaylistId = (input: string): string => {
-  if (BASE62_ID_REGEX.test(input.trim())) return input.trim();
-  const match = /(?:playlist\/|spotify:playlist:)([A-Za-z0-9]{22})/.exec(input);
-  return match ? match[1] : input.trim();
-};
+function detectResource(input: string): { type: ResourceType; id: string } | null {
+  const urlMatch = /open\.spotify\.com\/(playlist|track|album|artist)\/([A-Za-z0-9]{22})/.exec(input);
+  if (urlMatch) return { type: urlMatch[1] as ResourceType, id: urlMatch[2] };
+  const uriMatch = /spotify:(playlist|track|album|artist):([A-Za-z0-9]{22})/.exec(input);
+  if (uriMatch) return { type: uriMatch[1] as ResourceType, id: uriMatch[2] };
+  if (BASE62_ID_REGEX.test(input.trim())) return { type: "playlist", id: input.trim() };
+  return null;
+}
 
 const cardStyle: React.CSSProperties = {
   background: "rgba(255, 255, 255, 0.05)",
@@ -50,7 +54,7 @@ const buttonStyle: React.CSSProperties = {
   transition: "all 0.2s ease",
 };
 
-type ErrorKey = "invalidPlaylistId" | "anonQuotaExceeded" | "playlistNotFound" | "badRequest" | "databaseError" | "spotifyApiError" | "internalError" | "tooManyRequests" | "unauthorized" | "somethingWentWrong";
+type ErrorKey = "invalidInput" | "anonQuotaExceeded" | "notFound" | "badRequest" | "databaseError" | "spotifyApiError" | "internalError" | "tooManyRequests" | "unauthorized" | "somethingWentWrong";
 type ErrorState = { key: ErrorKey; type: "warning" | "error" | "auth" };
 
 function artistDesc(artist: Artist, lang: "uk" | "en"): string {
@@ -62,24 +66,21 @@ export default function PlaylistScanner() {
   const navigate = useNavigate();
   const { lang } = useLanguage();
   const tx = translations[lang];
-  const [playlistId, setPlaylistId] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [ruContent, setRuContent] = useState<RuContent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ErrorState | null>(null);
-  const [lastPlaylistId, setLastPlaylistId] = useState<string | null>(null);
+  const [lastInput, setLastInput] = useState<string | null>(null);
   const [resultTab, setResultTab] = useState<"tracks" | "artists">("tracks");
   const [tracksSearch, setTracksSearch] = useState("");
   const [artistsSearch, setArtistsSearch] = useState("");
   const [scanCache, setScanCache] = useState<Record<string, RuContent>>({});
   const [fromCache, setFromCache] = useState(false);
 
-  const handlePlaylistInput = (value: string) => {
-    setPlaylistId(extractPlaylistId(value));
-  };
+  const detected = detectResource(inputValue);
 
-  const fetchPlaylistRuContent = async (id: string): Promise<RuContent> => {
-    if (!id || !BASE62_ID_REGEX.test(id)) throw new Error("Invalid playlist ID");
-    const response = await fetch(`/api/playlist/${encodeURIComponent(id)}/rucontent`);
+  const fetchRuContent = async (type: ResourceType, id: string): Promise<RuContent> => {
+    const response = await fetch(`/api/${type}/${encodeURIComponent(id)}/rucontent`);
     if (!response.ok) {
       const body = await response.json().catch(() => null);
       const err = new Error(body?.error || "Something went wrong") as Error & { code?: string };
@@ -91,17 +92,20 @@ export default function PlaylistScanner() {
     });
   };
 
-  const handleScanPlaylist = async (targetId?: string, forceRefresh = false) => {
-    const id = targetId || playlistId;
-    if (!id || !BASE62_ID_REGEX.test(id)) {
-      setError({ key: "invalidPlaylistId", type: "warning" });
+  const handleScan = async (targetInput?: string, forceRefresh = false) => {
+    const raw = targetInput ?? inputValue;
+    const resource = detectResource(raw);
+    if (!resource) {
+      setError({ key: "invalidInput", type: "warning" });
       return;
     }
+    const { type, id } = resource;
+    const cacheKey = `${type}:${id}`;
     setError(null);
 
-    if (!forceRefresh && scanCache[id]) {
-      setRuContent(scanCache[id]);
-      setLastPlaylistId(id);
+    if (!forceRefresh && scanCache[cacheKey]) {
+      setRuContent(scanCache[cacheKey]);
+      setLastInput(raw);
       setFromCache(true);
       setResultTab("tracks");
       setTracksSearch("");
@@ -113,10 +117,10 @@ export default function PlaylistScanner() {
     setFromCache(false);
     setLoading(true);
     try {
-      const data = await fetchPlaylistRuContent(id);
+      const data = await fetchRuContent(type, id);
       setRuContent(data);
-      setLastPlaylistId(id);
-      setScanCache(prev => ({ ...prev, [id]: data }));
+      setLastInput(raw);
+      setScanCache(prev => ({ ...prev, [cacheKey]: data }));
       setResultTab("tracks");
       setTracksSearch("");
       setArtistsSearch("");
@@ -127,8 +131,8 @@ export default function PlaylistScanner() {
         return;
       }
       const codeToKey: Record<string, ErrorKey> = {
-        PLAYLIST_NOT_FOUND: "playlistNotFound",
-        NOT_FOUND: "playlistNotFound",
+        PLAYLIST_NOT_FOUND: "notFound",
+        NOT_FOUND: "notFound",
         BAD_REQUEST: "badRequest",
         DATABASE_ERROR: "databaseError",
         SPOTIFY_API_ERROR: "spotifyApiError",
@@ -217,10 +221,9 @@ export default function PlaylistScanner() {
         const desc = artistDesc(a, lang);
         const isPhonkers = a.Source?.toLowerCase().replace(/\s+/g, "").includes("phonkersbase") || a.Source?.toLowerCase().replace(/\s+/g, "") === "phonkers";
         const sourceHref = isPhonkers ? "https://phonkersbase.com" : a.SourceURL;
-        // Clamp tooltip so it doesn't overflow right edge
         const tooltipW = 280;
         const left = Math.min(tooltip.x, window.innerWidth - tooltipW - 12);
-        const top = tooltip.y - 8; // will use translateY(-100%) to flip above
+        const top = tooltip.y - 8;
         return (
           <div
             onMouseEnter={() => { if (hideTimer.current) clearTimeout(hideTimer.current); }}
@@ -275,39 +278,52 @@ export default function PlaylistScanner() {
           </div>
         );
       })()}
+
       {/* Scan Controls */}
       <div style={cardStyle}>
-        <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>{tx.scanPlaylist}</h3>
-        {playlistId && (
-          <div style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: 12, marginBottom: 6, animation: "fadeIn 0.2s ease" }}>
-            {SPOTIFY_PLAYLIST_BASE}
+        <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>{tx.scan}</h3>
+        {detected && (
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            marginBottom: 8,
+            padding: "3px 10px",
+            background: "rgba(255, 255, 255, 0.08)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: 6,
+            fontSize: 12,
+            color: "rgba(255, 255, 255, 0.6)",
+            animation: "fadeIn 0.2s ease",
+          }}>
+            {tx.resourceType[detected.type]}
           </div>
         )}
         <input
           type="text"
-          placeholder={tx.playlistPlaceholder}
-          value={playlistId}
-          onChange={e => handlePlaylistInput((e.target as HTMLInputElement).value)}
+          placeholder={tx.placeholder}
+          value={inputValue}
+          onChange={e => setInputValue((e.target as HTMLInputElement).value)}
           style={{
             ...inputStyle,
             width: "100%",
             marginBottom: 12,
-            borderColor: playlistId ? "#1DB954" : "rgba(255, 255, 255, 0.2)",
+            marginTop: detected ? 8 : 0,
+            borderColor: detected ? "#1DB954" : "rgba(255, 255, 255, 0.2)",
             transition: "border-color 0.2s ease",
           }}
           disabled={loading}
         />
         <button
-          onClick={() => handleScanPlaylist()}
-          disabled={loading || !playlistId}
+          onClick={() => handleScan()}
+          disabled={loading || !detected}
           style={{
             ...buttonStyle,
             width: "100%",
-            opacity: loading || !playlistId ? 0.5 : 1,
-            cursor: loading || !playlistId ? "not-allowed" : "pointer",
+            opacity: loading || !detected ? 0.5 : 1,
+            cursor: loading || !detected ? "not-allowed" : "pointer",
           }}
         >
-          {loading ? tx.scanning : tx.scanPlaylist}
+          {loading ? tx.scanning : tx.scan}
         </button>
       </div>
 
@@ -329,9 +345,9 @@ export default function PlaylistScanner() {
           textAlign: "center",
         }}>
           <p style={{ margin: 0 }}>{tx[error.key]}</p>
-          {error.key === "playlistNotFound" && (
+          {error.key === "notFound" && (
             <ul style={{ margin: "12px 0 0", paddingLeft: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 6 }}>
-              {tx.playlistNotFoundHints.map((hint, i) => (
+              {tx.notFoundHints.map((hint, i) => (
                 <li key={i} style={{ lineHeight: 1.5 }}>{hint}</li>
               ))}
             </ul>
@@ -362,7 +378,7 @@ export default function PlaylistScanner() {
         }}>
           {tx.showingCachedResults}{" "}
           <span
-            onClick={() => handleScanPlaylist(lastPlaylistId ?? undefined, true)}
+            onClick={() => handleScan(lastInput ?? undefined, true)}
             style={{ textDecoration: "underline", cursor: "pointer", fontWeight: 600 }}
           >
             {tx.rescan}

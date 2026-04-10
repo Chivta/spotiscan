@@ -70,7 +70,10 @@ func runApp() int {
 		api.GET("/me", c.authHandler.Me)
 		api.POST("/auth/signup", c.authHandler.Signup)
 		api.POST("/auth/login", c.authHandler.Login)
-		api.GET("/playlist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/playlist", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
+		api.GET("/playlist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
+		api.GET("/track/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetTrackRuContent)
+		api.GET("/album/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetAlbumRuContent)
+		api.GET("/artist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContent)
 
 		userEndpoints := api.Group("")
 		userEndpoints.Use(c.jwtMiddleware.RequireUserRole())

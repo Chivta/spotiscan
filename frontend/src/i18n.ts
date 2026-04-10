@@ -12,19 +12,19 @@ const en = {
   // Landing
   signIn: "Sign in",
   createAccount: "Create account",
-  landingHeadline: "Scan your Spotify playlists to find and remove tracks by Russian artists.",
+  landingHeadline: "Scan your Spotify music to find and remove tracks by Russian artists.",
 
   // Header
   logOut: "Log out",
 
-  // PlaylistScanner
-  scanPlaylist: "Scan Playlist",
-  playlistPlaceholder: "Paste playlist URL or ID...",
+  // Scanner
+  scan: "Scan",
+  placeholder: "Paste Spotify URL or ID...",
   scanning: "Scanning...",
-  invalidPlaylistId: "Invalid playlist ID. Check the URL or ID and try again.",
+  invalidInput: "Invalid URL or ID. Please check and try again.",
   anonQuotaExceeded: "You've used your trial scans. Sign in to keep scanning, it's free!",
-  playlistNotFound: "Playlist not found. Check the URL or ID and try again.",
-  playlistNotFoundHints: [
+  notFound: "Not found. Check the URL or ID and try again.",
+  notFoundHints: [
     "Make sure the playlist is not set to private.",
     "Spotify restricts API access to algorithm-generated playlists — this includes Discover Weekly, Release Radar, and genre playlists owned by Spotify. You can copy the playlist contents into your own playlist and scan that instead.",
     "Liked Songs cannot be scanned directly either — copy them into a regular playlist first.",
@@ -42,8 +42,8 @@ const en = {
   artistsTab: (n: number) => `Artists (${n})`,
   searchTracks: "Search tracks...",
   tracksWithRussianArtists: (n: number) => `Tracks with Russian Artists (${n})`,
-  russianArtistsFound: (n: number) => `Russian Artists found in playlist (${n})`,
-  noRussianTracks: "No Russian tracks found. This playlist is clean!",
+  russianArtistsFound: (n: number) => `Russian Artists found (${n})`,
+  noRussianTracks: "No Russian tracks found. This content is clean!",
   noTracksMatch: "No tracks match your search",
   searchArtists: "Search artists...",
   noArtistsFound: "No artists found",
@@ -53,7 +53,13 @@ const en = {
   trackCount: (n: number) => `${n} track${n !== 1 ? "s" : ""}`,
   dataProvidedBySpotify: "Data provided by Spotify",
   noScanResults: "No scan results yet",
-  noScanResultsHint: "Enter a playlist ID or URL to get started",
+  noScanResultsHint: "Enter a Spotify URL or ID to get started",
+  resourceType: {
+    playlist: "Playlist",
+    track: "Track",
+    album: "Album",
+    artist: "Artist",
+  },
 
   // AuthPage
   logIn: "Log In",
@@ -80,19 +86,19 @@ export const translations = {
     // Landing
     signIn: "Увійти",
     createAccount: "Створити акаунт",
-    landingHeadline: "Скануйте плейлисти Spotify, щоб знайти та прибрати треки від російських артистів.",
+    landingHeadline: "Скануйте музику у Spotify, щоб знайти та прибрати треки від російських артистів.",
 
     // Header
     logOut: "Вийти",
 
-    // PlaylistScanner
-    scanPlaylist: "Сканувати плейлист",
-    playlistPlaceholder: "Вставте посилання або ID плейлиста...",
+    // Scanner
+    scan: "Сканувати",
+    placeholder: "Вставте посилання Spotify або ID...",
     scanning: "Сканування...",
-    invalidPlaylistId: "Неправильний ID плейлиста. Перевірте посилання або ID та спробуйте ще раз.",
+    invalidInput: "Неправильне посилання або ID. Перевірте та спробуйте ще раз.",
     anonQuotaExceeded: "Ви використали пробні сканування. Увійдіть, щоб продовжити — це безкоштовно!",
-    playlistNotFound: "Плейлист не знайдено. Перевірте посилання або ID та спробуйте ще раз.",
-    playlistNotFoundHints: [
+    notFound: "Не знайдено. Перевірте посилання або ID та спробуйте ще раз.",
+    notFoundHints: [
       "Переконайтеся, що плейлист не приватний.",
       "Spotify обмежує доступ через API до плейлистів, згенерованих їхніми алгоритмами — зокрема Discover Weekly, Release Radar та жанрових плейлистів, власником яких є Spotify. Ви можете скопіювати вміст такого плейлиста у свій власний і сканувати його.",
       "Збережені треки (Liked Songs) також не можна сканувати напряму — спочатку скопіюйте їх у звичайний плейлист.",
@@ -110,8 +116,8 @@ export const translations = {
     artistsTab: (n: number) => `Артисти (${n})`,
     searchTracks: "Пошук треків...",
     tracksWithRussianArtists: (n: number) => `Треки з російськими артистами (${n})`,
-    russianArtistsFound: (n: number) => `Російські артисти у плейлисті (${n})`,
-    noRussianTracks: "Російських треків не знайдено. Плейлист чистий!",
+    russianArtistsFound: (n: number) => `Російських артистів знайдено (${n})`,
+    noRussianTracks: "Російських треків не знайдено. Контент чистий!",
     noTracksMatch: "Треків за вашим запитом не знайдено",
     searchArtists: "Пошук артистів...",
     noArtistsFound: "Артистів не знайдено",
@@ -121,7 +127,13 @@ export const translations = {
     trackCount: trackCountUK,
     dataProvidedBySpotify: "Дані надано Spotify",
     noScanResults: "Результатів сканування ще немає",
-    noScanResultsHint: "Введіть ID або посилання на плейлист, щоб розпочати",
+    noScanResultsHint: "Введіть посилання Spotify або ID, щоб розпочати",
+    resourceType: {
+      playlist: "Плейлист",
+      track: "Трек",
+      album: "Альбом",
+      artist: "Артист",
+    },
 
     // AuthPage
     logIn: "Увійти",
