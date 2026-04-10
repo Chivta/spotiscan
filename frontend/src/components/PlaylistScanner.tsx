@@ -143,9 +143,9 @@ export default function PlaylistScanner() {
     }
   };
 
-  const ruArtistIds = new Set((ruContent?.Artists ?? []).map((a: Artist) => a.ID));
+  const ruArtistIds = new Set((ruContent?.Artists ?? []).map((a: Artist) => a.SpotifyID));
   const ruArtistMap = useMemo(
-    () => new Map((ruContent?.Artists ?? []).map((a: Artist) => [a.ID, a])),
+    () => new Map<string, Artist>((ruContent?.Artists ?? []).map((a: Artist) => [a.SpotifyID, a])),
     [ruContent?.Artists],
   );
 
@@ -174,7 +174,7 @@ export default function PlaylistScanner() {
   });
 
   const filteredTracksMap = useMemo(
-    () => new Map(filteredTracks.map((t: Track) => [t.ID, t])),
+    () => new Map(filteredTracks.map((t: Track) => [t.SpotifyID, t])),
     [filteredTracks],
   );
 
@@ -182,7 +182,7 @@ export default function PlaylistScanner() {
     const counts = new Map<string, number>();
     for (const track of ruContent?.Tracks ?? []) {
       for (const artist of track.Artists ?? []) {
-        counts.set(artist.ID, (counts.get(artist.ID) ?? 0) + 1);
+        counts.set(artist.SpotifyID, (counts.get(artist.SpotifyID) ?? 0) + 1);
       }
     }
     return counts;
@@ -196,13 +196,13 @@ export default function PlaylistScanner() {
   const filteredArtistsSorted = useMemo(
     () =>
       [...filteredArtists]
-        .map((artist: Artist) => ({ artist, trackCount: artistTrackCount.get(artist.ID) ?? 0, desc: artistDesc(artist, lang) }))
+        .map((artist: Artist) => ({ artist, trackCount: artistTrackCount.get(artist.SpotifyID) ?? 0, desc: artistDesc(artist, lang) }))
         .sort((a, b) => b.trackCount - a.trackCount),
     [filteredArtists, artistTrackCount, lang],
   );
 
   const filteredArtistsSortedMap = useMemo(
-    () => new Map(filteredArtistsSorted.map(entry => [entry.artist.ID, entry])),
+    () => new Map(filteredArtistsSorted.map(entry => [entry.artist.SpotifyID, entry])),
     [filteredArtistsSorted],
   );
 
@@ -443,7 +443,7 @@ export default function PlaylistScanner() {
                     {tx.tracksWithRussianArtists(filteredTracks.length)}
                   </h3>
                   <AnimatedList
-                    items={filteredTracks.map((t: Track) => t.ID)}
+                    items={filteredTracks.map((t: Track) => t.SpotifyID)}
                     showGradients={false}
                     displayScrollbar={true}
                     enableArrowNavigation={true}
@@ -470,16 +470,25 @@ export default function PlaylistScanner() {
                             />
                           )}
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, color: "#fff", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {track.Name}
+                            <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              <a
+                                href={`https://open.spotify.com/track/${track.SpotifyID}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontWeight: 600, color: "#fff", fontSize: 15, textDecoration: "none", transition: "color 0.2s ease" }}
+                                onMouseEnter={e => { e.currentTarget.style.color = "#1DB954"; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = "#fff"; }}
+                              >
+                                {track.Name}
+                              </a>
                             </div>
                             <div style={{ marginTop: 4, fontSize: 13 }}>
                               {(track.Artists ?? []).map((artist: Artist, idx: number) => (
-                                <span key={artist.ID}>
-                                  {ruArtistIds.has(artist.ID) ? (
+                                <span key={artist.SpotifyID}>
+                                  {ruArtistIds.has(artist.SpotifyID) ? (
                                     <a
                                       style={{ color: "#e74c3c", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer", transition: "color 0.2s ease" }}
-                                      onMouseEnter={e => { e.currentTarget.style.color = "#ff6b5a"; const full = ruArtistMap.get(artist.ID); if (full) showTooltip(full, e); }}
+                                      onMouseEnter={e => { e.currentTarget.style.color = "#ff6b5a"; const full = ruArtistMap.get(artist.SpotifyID); if (full) showTooltip(full, e); }}
                                       onMouseLeave={e => { e.currentTarget.style.color = "#e74c3c"; hideTooltip(); }}
                                       onClick={() => { setResultTab("artists"); setArtistsSearch(artist.Name); setTooltip(null); }}
                                     >
@@ -487,7 +496,7 @@ export default function PlaylistScanner() {
                                     </a>
                                   ) : (
                                     <a
-                                      href={artist.URL}
+                                      href={`https://open.spotify.com/artist/${artist.SpotifyID}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", cursor: "pointer", transition: "color 0.2s ease" }}
@@ -537,7 +546,7 @@ export default function PlaylistScanner() {
                     {tx.russianArtistsFound(filteredArtists.length)}
                   </h3>
                   <AnimatedList
-                    items={filteredArtistsSorted.map(({ artist }) => artist.ID)}
+                    items={filteredArtistsSorted.map(({ artist }) => artist.SpotifyID)}
                     showGradients={false}
                     displayScrollbar={true}
                     enableArrowNavigation={true}
@@ -559,7 +568,7 @@ export default function PlaylistScanner() {
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                               <a
-                                href={artist.URL}
+                                href={`https://open.spotify.com/artist/${artist.SpotifyID}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{ color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 16, cursor: "pointer", transition: "all 0.2s ease", display: "flex", alignItems: "center", gap: 6 }}

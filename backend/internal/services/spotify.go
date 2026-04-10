@@ -47,7 +47,10 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	artistsMap := make(map[string]models.Artist)
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
-			artistsMap[strings.ToLower(artist.Name)] = artist
+			artistsMap[strings.ToLower(artist.Name)] = models.Artist{
+				Name:      artist.Name,
+				SpotifyID: artist.SpotifyID,
+			}
 		}
 	}
 
@@ -73,6 +76,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	// update artistsMap with info from the database for Russian artists
 	for _, artistInfo := range ruArtistsWithInfo {
 		artist := artistsMap[strings.ToLower(artistInfo.Name)]
+		artist.ID = artistInfo.ID
 		artist.DescriptionUA = artistInfo.DescriptionUA
 		artist.DescriptionEN = artistInfo.DescriptionEN
 		artist.Source = artistInfo.Source
@@ -94,7 +98,7 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
 			if _, isRu := ruArtistsMap[strings.ToLower(artist.Name)]; isRu {
-				ruTracksMap[track.ID] = track
+				ruTracksMap[track.SpotifyID] = track
 				break
 			}
 		}

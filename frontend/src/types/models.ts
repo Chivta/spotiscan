@@ -5,8 +5,8 @@ export interface User {
 }
 
 export interface Artist {
-  ID: string;
-  URL: string;
+  ID: number;
+  SpotifyID: string;
   Name: string;
   DescriptionUA: string;
   DescriptionEN: string;
@@ -17,7 +17,7 @@ export interface Artist {
 }
 
 export interface Track {
-  ID: string;
+  SpotifyID: string;
   Name: string;
   ImageURL: string;
   Artists: Artist[];

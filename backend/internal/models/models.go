@@ -45,16 +45,21 @@ type SignupDTO struct {
 }
 
 type Track struct {
-	ID       string   `json:"ID"`
-	Name     string   `json:"Name"`
-	ImageURL string   `json:"ImageURL"`
-	Artists  []Artist `json:"Artists"`
+	SpotifyID string          `json:"SpotifyID"`
+	Name      string          `json:"Name"`
+	ImageURL  string          `json:"ImageURL"`
+	Artists   []SpotifyArtist `json:"Artists"`
+}
+
+type SpotifyArtist struct {
+	SpotifyID string `json:"SpotifyID"`
+	Name      string `json:"Name"`
 }
 
 type Artist struct {
-	ID            string `json:"ID"`
+	ID            int    `json:"ID"`
 	Name          string `json:"Name"`
-	SpotifyURL    string `json:"URL"`
+	SpotifyID     string `json:"SpotifyID"`
 	DescriptionUA string `json:"DescriptionUA"`
 	DescriptionEN string `json:"DescriptionEN"`
 	Source        string `json:"Source"`
