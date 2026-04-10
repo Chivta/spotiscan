@@ -60,7 +60,7 @@ func translateSpotifyError(err error) error {
 	if spotifyErr, ok := err.(*spotify.Error); ok {
 		switch spotifyErr.Status {
 		case 404:
-			return appErrors.ErrPlaylistNotFound
+			return appErrors.ErrSpotifyNotFound
 		case 400:
 			return appErrors.ErrBadRequest
 		case 429:
