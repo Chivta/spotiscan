@@ -95,7 +95,7 @@ export const translations = {
 
     // Scanner
     scan: "Сканер",
-    placeholder: "Вставте посилання Spotify ім'я артисту...",
+    placeholder: "Вставте посилання Spotify або ім'я артисту...",
     scanning: "Сканування...",
     invalidInput: "Неправильне посилання або ID. Перевірте та спробуйте ще раз.",
     anonQuotaExceeded: "Ви використали пробні сканування. Увійдіть, щоб продовжити — це безкоштовно!",
