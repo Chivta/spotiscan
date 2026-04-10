@@ -326,6 +326,13 @@ export default function PlaylistScanner() {
           textAlign: "center",
         }}>
           <p style={{ margin: 0 }}>{tx[error.key]}</p>
+          {error.key === "playlistNotFound" && (
+            <ul style={{ margin: "12px 0 0", paddingLeft: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 6 }}>
+              {tx.playlistNotFoundHints.map((hint, i) => (
+                <li key={i} style={{ lineHeight: 1.5 }}>{hint}</li>
+              ))}
+            </ul>
+          )}
           {error.type === "auth" && (
             <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
               <button
