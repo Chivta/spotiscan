@@ -371,24 +371,112 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 		return nil, err
 	}
 
-	var album models.Album
-	album.SpotifyID = albumResp.ID
-	for _, track := range albumResp.Tracks.Items {
-		var t models.Track
-		t.SpotifyID = track.ID
-		t.Name = track.Name
-		for _, artist := range track.Artists {
-			t.Artists = append(t.Artists, models.SpotifyArtist{
+	var imageURL string
+	if len(albumResp.Images) > 0 {
+		imageURL = albumResp.Images[0].URL
+	}
+
+	album := models.Album{SpotifyID: albumResp.ID}
+	album.Tracks = make([]models.Track, 0, albumResp.Tracks.Total)
+	c.translateAlbumTracksToTracks(albumResp.Tracks.Items, &album.Tracks, imageURL)
+
+	var (
+		total       = albumResp.Tracks.Total
+		offset      = len(albumResp.Tracks.Items)
+		fetchErrors []error
+		mu          sync.Mutex
+		wg          sync.WaitGroup
+	)
+
+	for offset < total {
+		wg.Add(1)
+		go func(offset int, sem chan struct{}) {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			defer wg.Done()
+			if c.isSpotifyBlocked() {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, &Error{Status: http.StatusTooManyRequests})
+				mu.Unlock()
+				return
+			}
+			url := fmt.Sprintf("https://api.spotify.com/v1/albums/%s/tracks?offset=%d&limit=%d", albumId, offset, spotifyLimit)
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, err)
+				mu.Unlock()
+				return
+			}
+			req.Header.Set("Authorization", "Bearer "+token)
+
+			resp, err := c.httpClient.Do(req)
+			if err != nil {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, err)
+				mu.Unlock()
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				if resp.StatusCode == http.StatusTooManyRequests {
+					retryAfter := resp.Header.Get("Retry-After")
+					if retryAfter != "" {
+						retrySeconds, err := strconv.Atoi(retryAfter)
+						if err == nil {
+							log.Warn().Int("retrySeconds", retrySeconds).Msg("Spotify API rate limit hit, blocking requests")
+							c.blockSpotifyRequests(time.Duration(retrySeconds) * time.Second)
+						}
+					}
+				}
+				mu.Lock()
+				fetchErrors = append(fetchErrors, &Error{Status: resp.StatusCode})
+				mu.Unlock()
+				return
+			}
+
+			var page struct {
+				Items []SpotifyAlbumTrack `json:"items"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+				mu.Lock()
+				fetchErrors = append(fetchErrors, err)
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			c.translateAlbumTracksToTracks(page.Items, &album.Tracks, imageURL)
+			mu.Unlock()
+		}(offset, c.sem)
+		offset += spotifyLimit
+	}
+	wg.Wait()
+	if len(fetchErrors) > 0 {
+		return nil, fetchErrors[0]
+	}
+
+	return &album, nil
+}
+
+func (c *SpotifyClient) translateAlbumTracksToTracks(items []SpotifyAlbumTrack, targetTracks *[]models.Track, imageURL string) {
+	for _, item := range items {
+		if item.ID == "" {
+			continue
+		}
+		track := models.Track{
+			SpotifyID: item.ID,
+			Name:      item.Name,
+			ImageURL:  imageURL,
+		}
+		for _, artist := range item.Artists {
+			track.Artists = append(track.Artists, models.SpotifyArtist{
 				SpotifyID: artist.ID,
 				Name:      artist.Name,
 			})
 		}
-		if len(albumResp.Images) > 0 {
-			t.ImageURL = albumResp.Images[0].URL
-		}
-		album.Tracks = append(album.Tracks, t)
+		*targetTracks = append(*targetTracks, track)
 	}
-	return &album, nil
 }
 
 func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (*models.Artist, error) {

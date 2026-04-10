@@ -198,7 +198,7 @@ func (s *SpotifyService) GetArtistRuContent(ctx context.Context, artistId string
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get artist")
 		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
-		return nil, appErrors.ErrSpotifyAPIError
+		return nil, err
 	}
 
 	// TODO: maybe add singular artist check method
