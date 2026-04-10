@@ -16,11 +16,16 @@ export interface Artist {
   Confirmed: boolean;
 }
 
+export interface TrackArtist {
+  SpotifyID: string;
+  Name: string;
+}
+
 export interface Track {
   SpotifyID: string;
   Name: string;
   ImageURL: string;
-  Artists: Artist[];
+  Artists: TrackArtist[];
 }
 
 export interface Playlist {

@@ -2,7 +2,7 @@ import * as React from "react";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AnimatedList from "./react-bits/AnimatedList";
-import type { Artist, Track, RuContent } from "../types/models";
+import type { Artist, TrackArtist, Track, RuContent } from "../types/models";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
 
@@ -169,7 +169,7 @@ export default function PlaylistScanner() {
     const searchLower = tracksSearch.toLowerCase();
     return (
       track.Name.toLowerCase().includes(searchLower) ||
-      (track.Artists ?? []).some((a: Artist) => a.Name.toLowerCase().includes(searchLower))
+      (track.Artists ?? []).some((a: TrackArtist) => a.Name.toLowerCase().includes(searchLower))
     );
   });
 
@@ -423,7 +423,7 @@ export default function PlaylistScanner() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, paddingBottom: 8, opacity: 0.45 }}>
                   <img src="/spotify.svg" alt="Spotify" style={{ width: 16, height: 16 }} />
-                  <span style={{ fontSize: 11, color: "#fff", whiteSpace: "nowrap" }}>Data provided by Spotify</span>
+                  <span style={{ fontSize: 11, color: "#fff", whiteSpace: "nowrap" }}>{tx.dataProvidedBySpotify}</span>
                 </div>
               </div>
 
@@ -483,7 +483,7 @@ export default function PlaylistScanner() {
                               </a>
                             </div>
                             <div style={{ marginTop: 4, fontSize: 13 }}>
-                              {(track.Artists ?? []).map((artist: Artist, idx: number) => (
+                              {(track.Artists ?? []).map((artist: TrackArtist, idx: number) => (
                                 <span key={artist.SpotifyID}>
                                   {ruArtistIds.has(artist.SpotifyID) ? (
                                     <a

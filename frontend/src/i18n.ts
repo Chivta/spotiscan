@@ -44,6 +44,7 @@ const en = {
   source: "Source:",
   confirmed: "confirmed",
   trackCount: (n: number) => `${n} track${n !== 1 ? "s" : ""}`,
+  dataProvidedBySpotify: "Data provided by Spotify",
   noScanResults: "No scan results yet",
   noScanResultsHint: "Enter a playlist ID or URL to get started",
 
@@ -104,6 +105,7 @@ export const translations = {
     source: "Джерело:",
     confirmed: "підтверджено",
     trackCount: trackCountUK,
+    dataProvidedBySpotify: "Дані надано Spotify",
     noScanResults: "Результатів сканування ще немає",
     noScanResultsHint: "Введіть ID або посилання на плейлист, щоб розпочати",
 
