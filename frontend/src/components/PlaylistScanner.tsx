@@ -54,7 +54,7 @@ const buttonStyle: React.CSSProperties = {
   transition: "all 0.2s ease",
 };
 
-type ErrorKey = "invalidInput" | "anonQuotaExceeded" | "notFound" | "badRequest" | "databaseError" | "spotifyApiError" | "internalError" | "tooManyRequests" | "unauthorized" | "somethingWentWrong";
+type ErrorKey = "invalidInput" | "anonQuotaExceeded" | "notFound" | "spotifyNotFound" | "badRequest" | "databaseError" | "spotifyApiError" | "internalError" | "tooManyRequests" | "unauthorized" | "forbidden" | "somethingWentWrong";
 type ErrorState = { key: ErrorKey; type: "warning" | "error" | "auth" };
 
 function artistDesc(artist: Artist, lang: "uk" | "en"): string {
@@ -156,14 +156,16 @@ export default function PlaylistScanner() {
       const codeToKey: Record<string, ErrorKey> = {
         PLAYLIST_NOT_FOUND: "notFound",
         NOT_FOUND: "notFound",
+        SPOTIFY_NOT_FOUND: "spotifyNotFound",
         BAD_REQUEST: "badRequest",
         DATABASE_ERROR: "databaseError",
         SPOTIFY_API_ERROR: "spotifyApiError",
         INTERNAL_ERROR: "internalError",
         TOO_MANY_REQUESTS: "tooManyRequests",
         UNAUTHORIZED: "unauthorized",
+        FORBIDDEN: "forbidden",
       };
-      const warningCodes = new Set(["PLAYLIST_NOT_FOUND", "NOT_FOUND", "BAD_REQUEST", "TOO_MANY_REQUESTS"]);
+      const warningCodes = new Set(["PLAYLIST_NOT_FOUND", "NOT_FOUND", "SPOTIFY_NOT_FOUND", "BAD_REQUEST", "TOO_MANY_REQUESTS", "FORBIDDEN"]);
       setError({
         key: (code && codeToKey[code]) ? codeToKey[code] : "somethingWentWrong",
         type: (code && warningCodes.has(code)) ? "warning" : "error",
@@ -330,7 +332,7 @@ export default function PlaylistScanner() {
           placeholder={tx.placeholder}
           value={inputValue}
           onChange={e => setInputValue((e.target as HTMLInputElement).value)}
-          onPaste={e => { e.preventDefault(); const input = e.currentTarget; input.setSelectionRange(0, input.value.length); document.execCommand("insertText", false, e.clipboardData.getData("text")); }}
+          onPaste={e => { e.currentTarget.select(); }}
           style={{
             ...inputStyle,
             width: "100%",
