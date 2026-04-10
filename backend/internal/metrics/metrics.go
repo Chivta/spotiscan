@@ -47,16 +47,19 @@ var (
 		Help:      "Total number of successful user logins.",
 	})
 
-	ScansTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "ruscan",
-		Name:      "scans_total",
-		Help:      "Total number of successful playlist scan completions.",
-	})
+	ScansTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "ruscan",
+			Name:      "scans_total",
+			Help:      "Total number of successful scan completions by type.",
+		},
+		[]string{"type"},
+	)
 
 	ScanDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Namespace: "ruscan",
 		Name:      "scan_duration_seconds",
-		Help:      "Full playlist scan duration in seconds.",
+		Help:      "Scan duration in seconds.",
 		Buckets:   prometheus.DefBuckets,
 	})
 
@@ -75,16 +78,19 @@ var (
 		Help:      "Total number of anonymous sessions created.",
 	})
 
-	AnonScansTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "ruscan",
-		Name:      "anon_scans_total",
-		Help:      "Total number of successful playlist scans by anonymous users.",
-	})
+	AnonScansTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "ruscan",
+			Name:      "anon_scans_total",
+			Help:      "Total number of successful scans by anonymous users by type.",
+		},
+		[]string{"type"},
+	)
 
 	AnonScanDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Namespace: "ruscan",
 		Name:      "anon_scan_duration_seconds",
-		Help:      "Full playlist scan duration in seconds for anonymous users.",
+		Help:      "Scan duration in seconds for anonymous users.",
 		Buckets:   prometheus.DefBuckets,
 	})
 )
