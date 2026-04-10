@@ -19,6 +19,9 @@ type (
 	}
 	getPlaylistRepo interface {
 		GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error)
+		GetTrack(ctx context.Context, trackId string) (*models.Track, error)
+		GetAlbum(ctx context.Context, albumId string) (*models.Album, error)
+		GetArtist(ctx context.Context, artistId string) (*models.Artist, error)
 	}
 )
 
@@ -118,6 +121,33 @@ func (s *SpotifyService) formRuContent(ctx context.Context, tracks []models.Trac
 	return &ruContent, nil
 }
 
+func (s *SpotifyService) GetTrackRuContent(ctx context.Context, trackId string) (*models.RuContent, error) {
+	start := time.Now()
+
+	track, err := s.playlistRepo.GetTrack(ctx, trackId)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get track with artists")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, err
+	}
+
+	ruContent, err := s.formRuContent(ctx, []models.Track{*track})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to form RU content")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, err
+	}
+
+	elapsed := time.Since(start).Seconds()
+	metrics.ScansTotal.Inc()
+	metrics.ScanDuration.Observe(elapsed)
+	if role, _ := ctx.Value(models.UserRoleKey).(models.Role); role == models.RoleAnon {
+		metrics.AnonScansTotal.Inc()
+		metrics.AnonScanDuration.Observe(elapsed)
+	}
+	return ruContent, nil
+}
+
 func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId string) (*models.RuContent, error) {
 	start := time.Now()
 
@@ -143,4 +173,64 @@ func (s *SpotifyService) GetPlaylistRuContent(ctx context.Context, playlistId st
 		metrics.AnonScanDuration.Observe(elapsed)
 	}
 	return ruContent, nil
+}
+
+func (s *SpotifyService) GetAlbumRuContent(ctx context.Context, albumId string) (*models.RuContent, error) {
+	album, err := s.playlistRepo.GetAlbum(ctx, albumId)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get album with tracks")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, err
+	}
+
+	ruContent, err := s.formRuContent(ctx, album.Tracks)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to form RU content")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, err
+	}
+
+	return ruContent, nil
+}
+
+func (s *SpotifyService) GetArtistRuContent(ctx context.Context, artistId string) (*models.RuContent, error) {
+	artist, err := s.playlistRepo.GetArtist(ctx, artistId)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get artist")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, err
+	}
+
+	// TODO: maybe add singular artist check method
+	artistInfo, err := s.artistRepo.GetArtistsInfo(ctx, []string{strings.ToLower(artist.Name)})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get Russian artist info")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, appErrors.ErrDatabaseFailure
+	}
+
+	if len(artistInfo) == 0 {
+		return &models.RuContent{}, nil
+	}
+
+	return &models.RuContent{
+		Artists: []models.Artist{artistInfo[0]},
+	}, nil
+}
+
+func (s *SpotifyService) GetArtistRuContentByName(ctx context.Context, artistName string) (*models.RuContent, error) {
+	artistInfo, err := s.artistRepo.GetArtistsInfo(ctx, []string{strings.ToLower(artistName)})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get Russian artist info by name")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, appErrors.ErrDatabaseFailure
+	}
+
+	if len(artistInfo) == 0 {
+		return &models.RuContent{}, nil
+	}
+
+	return &models.RuContent{
+		Artists: []models.Artist{artistInfo[0]},
+	}, nil
 }

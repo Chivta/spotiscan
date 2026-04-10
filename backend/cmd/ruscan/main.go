@@ -70,7 +70,13 @@ func runApp() int {
 		api.GET("/me", c.authHandler.Me)
 		api.POST("/auth/signup", c.authHandler.Signup)
 		api.POST("/auth/login", c.authHandler.Login)
-		api.GET("/playlist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/playlist", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
+
+		spotifyEndpoints := api.Group("/spotify")
+		spotifyEndpoints.GET("/playlist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
+		spotifyEndpoints.GET("/track/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetTrackRuContent)
+		spotifyEndpoints.GET("/album/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetAlbumRuContent)
+		spotifyEndpoints.GET("/artist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContent)
+		spotifyEndpoints.GET("/artist/name/:name/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContentByName)
 
 		userEndpoints := api.Group("")
 		userEndpoints.Use(c.jwtMiddleware.RequireUserRole())

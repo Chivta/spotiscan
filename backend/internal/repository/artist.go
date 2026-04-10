@@ -90,7 +90,7 @@ func (r *ArtistRepo) FilterRussian(ctx context.Context, names []string) ([]strin
 		}
 	}
 	// fallback to db
-	ruNames, err := r.filterRussianWithDB(ctx, names)
+	ruNames, err := r.FilterRussianArtistsWithDB(ctx, names)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
 		return nil, appErrors.ErrDatabaseFailure
@@ -153,16 +153,7 @@ func (r *ArtistRepo) FilterRussianArtistNames(ctx context.Context, names []strin
 	return ruNames, nil
 }
 
-func (r *ArtistRepo) filterRussianWithDB(ctx context.Context, names []string) ([]string, error) {
-	ruNames, err := r.GetRussianArtistNames(ctx, names)
-	if err != nil {
-		log.Error().Msgf("db error: %T: %v", err, err)
-		return nil, appErrors.ErrDatabaseFailure
-	}
-	return ruNames, nil
-}
-
-func (r *ArtistRepo) GetRussianArtistNames(ctx context.Context, names []string) ([]string, error) {
+func (r *ArtistRepo) FilterRussianArtistsWithDB(ctx context.Context, names []string) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx, `
         SELECT name FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))

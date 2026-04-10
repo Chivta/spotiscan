@@ -29,3 +29,33 @@ func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId str
 
 	return playlist, nil
 }
+
+func (r *PlaylistRepo) GetTrack(ctx context.Context, trackId string) (*models.Track, error) {
+	track, err := r.spotifyClient.GetSpotifyTrack(ctx, trackId)
+	if err != nil {
+		log.Error().Err(err).Str("trackId", trackId).Msg("error fetching track")
+		return nil, translateSpotifyError(err)
+	}
+
+	return track, nil
+}
+
+func (r *PlaylistRepo) GetAlbum(ctx context.Context, albumId string) (*models.Album, error) {
+	album, err := r.spotifyClient.GetSpotifyAlbum(ctx, albumId)
+	if err != nil {
+		log.Error().Err(err).Str("albumId", albumId).Msg("error fetching album")
+		return nil, translateSpotifyError(err)
+	}
+
+	return album, nil
+}
+
+func (r *PlaylistRepo) GetArtist(ctx context.Context, artistId string) (*models.Artist, error) {
+	artist, err := r.spotifyClient.GetSpotifyArtist(ctx, artistId)
+	if err != nil {
+		log.Error().Err(err).Str("artistId", artistId).Msg("error fetching artist")
+		return nil, translateSpotifyError(err)
+	}
+
+	return artist, nil
+}
