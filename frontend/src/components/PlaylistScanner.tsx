@@ -307,6 +307,7 @@ export default function PlaylistScanner() {
           placeholder={tx.placeholder}
           value={inputValue}
           onChange={e => setInputValue((e.target as HTMLInputElement).value)}
+          onPaste={e => { e.preventDefault(); setInputValue(e.clipboardData.getData("text")); }}
           style={{
             ...inputStyle,
             width: "100%",
