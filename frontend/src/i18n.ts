@@ -102,7 +102,7 @@ export const translations = {
     placeholder: "Посилання Spotify, ID плейлисту або ім'я артиста...",
     scanning: "Сканування...",
     invalidInput: "Введіть посилання Spotify, URI, ID плейлисту або ім'я артиста.",
-    artistNotInBase: "Цього артиста немає в нашій базі даних.",
+    artistNotInBase: "Цього артиста немає в нашій базі.",
     anonQuotaExceeded: "Ви використали пробні сканування. Увійдіть, щоб продовжити — це безкоштовно!",
     notFound: "Не знайдено. Перевірте посилання або ID та спробуйте ще раз.",
     notFoundHints: [

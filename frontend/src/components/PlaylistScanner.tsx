@@ -447,7 +447,7 @@ export default function PlaylistScanner() {
 
           {!loading && isContentEmpty && (
             <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0", fontSize: 16 }}>
-              {tx.contentClear}
+              {lastScanType === "artist" ? tx.artistNotInBase : tx.contentClear}
             </div>
           )}
 
