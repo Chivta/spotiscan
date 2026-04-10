@@ -35,6 +35,7 @@ const en = {
   artistsTab: (n: number) => `Artists (${n})`,
   searchTracks: "Search tracks...",
   tracksWithRussianArtists: (n: number) => `Tracks with Russian Artists (${n})`,
+  russianArtistsFound: (n: number) => `Russian Artists found in playlist (${n})`,
   noRussianTracks: "No Russian tracks found. This playlist is clean!",
   noTracksMatch: "No tracks match your search",
   searchArtists: "Search artists...",
@@ -43,6 +44,7 @@ const en = {
   source: "Source:",
   confirmed: "confirmed",
   trackCount: (n: number) => `${n} track${n !== 1 ? "s" : ""}`,
+  dataProvidedBySpotify: "Data provided by Spotify",
   noScanResults: "No scan results yet",
   noScanResultsHint: "Enter a playlist ID or URL to get started",
 
@@ -94,6 +96,7 @@ export const translations = {
     artistsTab: (n: number) => `Артисти (${n})`,
     searchTracks: "Пошук треків...",
     tracksWithRussianArtists: (n: number) => `Треки з російськими артистами (${n})`,
+    russianArtistsFound: (n: number) => `Російські артисти у плейлисті (${n})`,
     noRussianTracks: "Російських треків не знайдено. Плейлист чистий!",
     noTracksMatch: "Треків за вашим запитом не знайдено",
     searchArtists: "Пошук артистів...",
@@ -102,6 +105,7 @@ export const translations = {
     source: "Джерело:",
     confirmed: "підтверджено",
     trackCount: trackCountUK,
+    dataProvidedBySpotify: "Дані надано Spotify",
     noScanResults: "Результатів сканування ще немає",
     noScanResultsHint: "Введіть ID або посилання на плейлист, щоб розпочати",
 

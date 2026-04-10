@@ -263,13 +263,12 @@ func (c *SpotifyClient) translateItemsToTracks(items []SpotifyItem, targetTracks
 			continue // Skip duplicate tracks
 		}
 		var track models.Track
-		track.ID = item.Track.ID
+		track.SpotifyID = item.Track.ID
 		track.Name = item.Track.Name
 		for _, artist := range item.Track.Artists {
-			track.Artists = append(track.Artists, models.Artist{
-				ID:         artist.ID,
+			track.Artists = append(track.Artists, models.SpotifyArtist{
+				SpotifyID:  artist.ID,
 				Name:       artist.Name,
-				SpotifyURL: "https://open.spotify.com/artist/" + artist.ID,
 			})
 		}
 		if len(item.Track.Album.Images) > 0 {

@@ -189,7 +189,7 @@ func (r *ArtistRepo) GetRussianArtistNames(ctx context.Context, names []string) 
 
 func (r *ArtistRepo) GetArtistsInfo(ctx context.Context, names []string) ([]models.Artist, error) {
 	rows, err := r.db.QueryContext(ctx, `
-        SELECT name,description_ua,description_en,source,source_url,country,confirmed FROM ru_artists WHERE name = ANY($1)
+        SELECT id,name,description_ua,description_en,source,source_url,country,confirmed FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func (r *ArtistRepo) GetArtistsInfo(ctx context.Context, names []string) ([]mode
 	for rows.Next() {
 		var artist models.Artist
 		var descUA, descEN, source, sourceURL, country sql.NullString
-		if err := rows.Scan(&artist.Name, &descUA, &descEN, &source, &sourceURL, &country, &artist.Confirmed); err != nil {
+		if err := rows.Scan(&artist.ID, &artist.Name, &descUA, &descEN, &source, &sourceURL, &country, &artist.Confirmed); err != nil {
 			return nil, err
 		}
 		artist.DescriptionUA = descUA.String
