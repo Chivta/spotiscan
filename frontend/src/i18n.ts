@@ -18,8 +18,8 @@ const en = {
   logOut: "Log out",
 
   // Scanner
-  scan: "Scan",
-  placeholder: "Paste Spotify URL or ID...",
+  scan: "Scanner",
+  placeholder: "Paste Spotify URL or artist name...",
   scanning: "Scanning...",
   invalidInput: "Invalid URL or ID. Please check and try again.",
   anonQuotaExceeded: "You've used your trial scans. Sign in to keep scanning, it's free!",
@@ -52,6 +52,7 @@ const en = {
   confirmed: "confirmed",
   trackCount: (n: number) => `${n} track${n !== 1 ? "s" : ""}`,
   dataProvidedBySpotify: "Data provided by Spotify",
+  scanResult: "Scan result",
   contentClear: "No russian content found 👏👏👏",
   noScanResults: "No scan results yet",
   noScanResultsHint: "Enter a Spotify URL or ID to get started",
@@ -93,8 +94,8 @@ export const translations = {
     logOut: "Вийти",
 
     // Scanner
-    scan: "Сканувати",
-    placeholder: "Вставте посилання Spotify або ID...",
+    scan: "Сканер",
+    placeholder: "Вставте посилання Spotify ім'я артисту...",
     scanning: "Сканування...",
     invalidInput: "Неправильне посилання або ID. Перевірте та спробуйте ще раз.",
     anonQuotaExceeded: "Ви використали пробні сканування. Увійдіть, щоб продовжити — це безкоштовно!",
@@ -127,6 +128,7 @@ export const translations = {
     confirmed: "підтверджено",
     trackCount: trackCountUK,
     dataProvidedBySpotify: "Дані надано Spotify",
+    scanResult: "Результат сканування",
     contentClear: "Російського контенту не знайдено 👏👏👏",
     noScanResults: "Результатів сканування ще немає",
     noScanResultsHint: "Введіть посилання Spotify або ID, щоб розпочати",

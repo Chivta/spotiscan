@@ -217,3 +217,20 @@ func (s *SpotifyService) GetArtistRuContent(ctx context.Context, artistId string
 		Artists: []models.Artist{artistInfo[0]},
 	}, nil
 }
+
+func (s *SpotifyService) GetArtistRuContentByName(ctx context.Context, artistName string) (*models.RuContent, error) {
+	artistInfo, err := s.artistRepo.GetArtistsInfo(ctx, []string{strings.ToLower(artistName)})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get Russian artist info by name")
+		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		return nil, appErrors.ErrDatabaseFailure
+	}
+
+	if len(artistInfo) == 0 {
+		return &models.RuContent{}, nil
+	}
+
+	return &models.RuContent{
+		Artists: []models.Artist{artistInfo[0]},
+	}, nil
+}

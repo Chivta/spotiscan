@@ -76,11 +76,27 @@ export default function PlaylistScanner() {
   const [artistsSearch, setArtistsSearch] = useState("");
   const [scanCache, setScanCache] = useState<Record<string, RuContent>>({});
   const [fromCache, setFromCache] = useState(false);
+  const [lastScanType, setLastScanType] = useState<ResourceType | null>(null);
 
   const detected = detectResource(inputValue);
+  const isArtistNameInput = !detected && inputValue.trim().length > 0;
+  const canScan = !!detected || isArtistNameInput;
 
   const fetchRuContent = async (type: ResourceType, id: string): Promise<RuContent> => {
-    const response = await fetch(`/api/${type}/${encodeURIComponent(id)}/rucontent`);
+    const response = await fetch(`/api/spotify/${type}/${encodeURIComponent(id)}/rucontent`);
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      const err = new Error(body?.error || "Something went wrong") as Error & { code?: string };
+      err.code = body?.code;
+      throw err;
+    }
+    return response.json().catch(() => {
+      throw new Error("Invalid response from server");
+    });
+  };
+
+  const fetchRuContentByName = async (name: string): Promise<RuContent> => {
+    const response = await fetch(`/api/spotify/artist/name/${encodeURIComponent(name)}/rucontent`);
     if (!response.ok) {
       const body = await response.json().catch(() => null);
       const err = new Error(body?.error || "Something went wrong") as Error & { code?: string };
@@ -95,17 +111,21 @@ export default function PlaylistScanner() {
   const handleScan = async (targetInput?: string, forceRefresh = false) => {
     const raw = targetInput ?? inputValue;
     const resource = detectResource(raw);
-    if (!resource) {
+    const artistName = !resource && raw.trim() ? raw.trim() : null;
+
+    if (!resource && !artistName) {
       setError({ key: "invalidInput", type: "warning" });
       return;
     }
-    const { type, id } = resource;
-    const cacheKey = `${type}:${id}`;
+
+    const type: ResourceType = resource ? resource.type : "artist";
+    const cacheKey = resource ? `${resource.type}:${resource.id}` : `artist-name:${artistName!.toLowerCase()}`;
     setError(null);
 
     if (!forceRefresh && scanCache[cacheKey]) {
       setRuContent(scanCache[cacheKey]);
       setLastInput(raw);
+      setLastScanType(type);
       setFromCache(true);
       setResultTab("tracks");
       setTracksSearch("");
@@ -117,9 +137,12 @@ export default function PlaylistScanner() {
     setFromCache(false);
     setLoading(true);
     try {
-      const data = await fetchRuContent(type, id);
+      const data = resource
+        ? await fetchRuContent(resource.type, resource.id)
+        : await fetchRuContentByName(artistName!);
       setRuContent(data);
       setLastInput(raw);
+      setLastScanType(type);
       setScanCache(prev => ({ ...prev, [cacheKey]: data }));
       setResultTab("tracks");
       setTracksSearch("");
@@ -286,7 +309,7 @@ export default function PlaylistScanner() {
       {/* Scan Controls */}
       <div style={cardStyle}>
         <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>{tx.scan}</h3>
-        {detected && (
+        {canScan && (
           <div style={{
             display: "inline-flex",
             alignItems: "center",
@@ -299,7 +322,7 @@ export default function PlaylistScanner() {
             color: "rgba(255, 255, 255, 0.6)",
             animation: "fadeIn 0.2s ease",
           }}>
-            {tx.resourceType[detected.type]}
+            {detected ? tx.resourceType[detected.type] : tx.resourceType["artist"]}
           </div>
         )}
         <input
@@ -307,25 +330,25 @@ export default function PlaylistScanner() {
           placeholder={tx.placeholder}
           value={inputValue}
           onChange={e => setInputValue((e.target as HTMLInputElement).value)}
-          onPaste={e => { e.preventDefault(); setInputValue(e.clipboardData.getData("text")); }}
+          onPaste={e => { e.preventDefault(); const input = e.currentTarget; input.setSelectionRange(0, input.value.length); document.execCommand("insertText", false, e.clipboardData.getData("text")); }}
           style={{
             ...inputStyle,
             width: "100%",
             marginBottom: 12,
-            marginTop: detected ? 8 : 0,
-            borderColor: detected ? "#1DB954" : "rgba(255, 255, 255, 0.2)",
+            marginTop: canScan ? 8 : 0,
+            borderColor: canScan ? "#1DB954" : "rgba(255, 255, 255, 0.2)",
             transition: "border-color 0.2s ease",
           }}
           disabled={loading}
         />
         <button
           onClick={() => handleScan()}
-          disabled={loading || !detected}
+          disabled={loading || !canScan}
           style={{
             ...buttonStyle,
             width: "100%",
-            opacity: loading || !detected ? 0.5 : 1,
-            cursor: loading || !detected ? "not-allowed" : "pointer",
+            opacity: loading || !canScan ? 0.5 : 1,
+            cursor: loading || !canScan ? "not-allowed" : "pointer",
           }}
         >
           {loading ? tx.scanning : tx.scan}
@@ -406,6 +429,9 @@ export default function PlaylistScanner() {
       {/* Results */}
       {ruContent && (
         <div style={cardStyle}>
+          {/* Header */}
+          <h2 style={{ color: "#fff", fontSize: "1.2rem", fontWeight: 600, margin: "0 0 20px 0" }}>{tx.scanResult}</h2>
+
           {/* Loading spinner (rescan) */}
           {loading && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 20 }}>
@@ -579,9 +605,11 @@ export default function PlaylistScanner() {
                       style={{ ...inputStyle, width: "100%", marginBottom: 12 }}
                     />
                   )}
-                  <h3 style={{ color: "#fff", margin: "0 0 16px 0", fontSize: "1.1rem" }}>
-                    {tx.russianArtistsFound(filteredArtists.length)}
-                  </h3>
+                  {lastScanType !== "artist" && (
+                    <h3 style={{ color: "#fff", margin: "0 0 16px 0", fontSize: "1.1rem" }}>
+                      {tx.russianArtistsFound(filteredArtists.length)}
+                    </h3>
+                  )}
                   <AnimatedList
                     items={filteredArtistsSorted.map(({ artist }) => artist.SpotifyID)}
                     showGradients={false}

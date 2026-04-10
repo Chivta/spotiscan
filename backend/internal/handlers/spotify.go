@@ -87,3 +87,20 @@ func (h *SpotifyHandler) GetArtistRuContent(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, ruContent)
 }
+
+func (h *SpotifyHandler) GetArtistRuContentByName(c *gin.Context) {
+	userRole, _ := c.Get(models.UserRoleKey)
+	ctx := context.WithValue(c.Request.Context(), models.UserRoleKey, userRole)
+
+	artistName := c.Params.ByName("name")
+	if artistName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "empty name"})
+		return
+	}
+	ruContent, err := h.svc.GetArtistRuContentByName(ctx, artistName)
+	if err != nil {
+		RespondWithError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, ruContent)
+}
