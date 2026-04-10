@@ -213,6 +213,10 @@ export default function PlaylistScanner() {
     [filteredArtistsSorted],
   );
 
+  const hasTracks = (ruContent?.Tracks ?? []).length > 0;
+  const artistCount = ruContent?.Artists?.length ?? 0;
+  const isContentEmpty = ruContent !== null && !hasTracks && artistCount === 0;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Artist hover tooltip */}
@@ -409,10 +413,16 @@ export default function PlaylistScanner() {
             </div>
           )}
 
-          {!loading && (
+          {!loading && isContentEmpty && (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0", fontSize: 16 }}>
+              {tx.contentClear}
+            </div>
+          )}
+
+          {!loading && !isContentEmpty && (
             <>
-              {/* Tab Navigation */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              {/* Tab Navigation - only when tracks exist */}
+              {hasTracks && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
                 <div style={{ display: "flex", gap: 12 }}>
                 <button
                   onClick={() => setResultTab("tracks")}
@@ -451,10 +461,10 @@ export default function PlaylistScanner() {
                   <img src="/spotify.svg" alt="Spotify" style={{ width: 16, height: 16 }} />
                   <span style={{ fontSize: 11, color: "#fff", whiteSpace: "nowrap" }}>{tx.dataProvidedBySpotify}</span>
                 </div>
-              </div>
+              </div>}
 
               {/* Tracks Tab */}
-              {resultTab === "tracks" && (
+              {hasTracks && resultTab === "tracks" && (
                 <div>
                   {(ruContent?.Tracks ?? []).length > 0 && (
                     <input
@@ -557,9 +567,9 @@ export default function PlaylistScanner() {
               )}
 
               {/* Artists Tab */}
-              {resultTab === "artists" && (
+              {(!hasTracks || resultTab === "artists") && (
                 <div>
-                  {(ruContent?.Artists ?? []).length > 0 && (
+                  {artistCount > 1 && (
                     <input
                       type="text"
                       placeholder={tx.searchArtists}
@@ -620,26 +630,28 @@ export default function PlaylistScanner() {
                                 </span>
                               )}
                             </div>
-                            <button
-                              onClick={() => { setResultTab("tracks"); setTracksSearch(artist.Name); }}
-                              style={{
-                                padding: "6px 12px",
-                                background: "rgba(29, 185, 84, 0.2)",
-                                border: "1px solid rgba(29, 185, 84, 0.4)",
-                                borderRadius: 6,
-                                color: "#1DB954",
-                                cursor: "pointer",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                whiteSpace: "nowrap",
-                                transition: "all 0.2s ease",
-                                flexShrink: 0,
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)"; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)"; }}
-                            >
-                              {tx.trackCount(trackCount)}
-                            </button>
+                            {hasTracks && (
+                              <button
+                                onClick={() => { setResultTab("tracks"); setTracksSearch(artist.Name); }}
+                                style={{
+                                  padding: "6px 12px",
+                                  background: "rgba(29, 185, 84, 0.2)",
+                                  border: "1px solid rgba(29, 185, 84, 0.4)",
+                                  borderRadius: 6,
+                                  color: "#1DB954",
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  whiteSpace: "nowrap",
+                                  transition: "all 0.2s ease",
+                                  flexShrink: 0,
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)"; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)"; }}
+                              >
+                                {tx.trackCount(trackCount)}
+                              </button>
+                            )}
                           </div>
 
                           {/* Description */}

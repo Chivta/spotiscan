@@ -52,6 +52,7 @@ const en = {
   confirmed: "confirmed",
   trackCount: (n: number) => `${n} track${n !== 1 ? "s" : ""}`,
   dataProvidedBySpotify: "Data provided by Spotify",
+  contentClear: "No russian content found 👏👏👏",
   noScanResults: "No scan results yet",
   noScanResultsHint: "Enter a Spotify URL or ID to get started",
   resourceType: {
@@ -126,6 +127,7 @@ export const translations = {
     confirmed: "підтверджено",
     trackCount: trackCountUK,
     dataProvidedBySpotify: "Дані надано Spotify",
+    contentClear: "Російського контенту не знайдено 👏👏👏",
     noScanResults: "Результатів сканування ще немає",
     noScanResultsHint: "Введіть посилання Spotify або ID, щоб розпочати",
     resourceType: {
