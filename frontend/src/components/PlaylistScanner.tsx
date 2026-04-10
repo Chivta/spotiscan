@@ -19,6 +19,8 @@ function detectResource(input: string): { type: ResourceType; id: string } | nul
   if (urlMatch) return { type: urlMatch[1] as ResourceType, id: urlMatch[2] };
   const uriMatch = /spotify:(playlist|track|album|artist):([A-Za-z0-9]{22})/.exec(input);
   if (uriMatch) return { type: uriMatch[1] as ResourceType, id: uriMatch[2] };
+  // Bare 22-char Base62 IDs are intentionally treated as playlist IDs only.
+  // Track/album/artist IDs share the same format and are ambiguous without a URL/URI.
   if (BASE62_ID_REGEX.test(input.trim())) return { type: "playlist", id: input.trim() };
   return null;
 }
@@ -54,7 +56,7 @@ const buttonStyle: React.CSSProperties = {
   transition: "all 0.2s ease",
 };
 
-type ErrorKey = "invalidInput" | "anonQuotaExceeded" | "notFound" | "spotifyNotFound" | "badRequest" | "databaseError" | "spotifyApiError" | "internalError" | "tooManyRequests" | "unauthorized" | "forbidden" | "somethingWentWrong";
+type ErrorKey = "invalidInput" | "anonQuotaExceeded" | "notFound" | "spotifyNotFound" | "artistNotInBase" | "badRequest" | "databaseError" | "spotifyApiError" | "internalError" | "tooManyRequests" | "unauthorized" | "forbidden" | "somethingWentWrong";
 type ErrorState = { key: ErrorKey; type: "warning" | "error" | "auth" };
 
 function artistDesc(artist: Artist, lang: "uk" | "en"): string {
@@ -157,6 +159,7 @@ export default function PlaylistScanner() {
         PLAYLIST_NOT_FOUND: "notFound",
         NOT_FOUND: "notFound",
         SPOTIFY_NOT_FOUND: "spotifyNotFound",
+        ARTIST_NOT_FOUND: "artistNotInBase",
         BAD_REQUEST: "badRequest",
         DATABASE_ERROR: "databaseError",
         SPOTIFY_API_ERROR: "spotifyApiError",
@@ -165,7 +168,7 @@ export default function PlaylistScanner() {
         UNAUTHORIZED: "unauthorized",
         FORBIDDEN: "forbidden",
       };
-      const warningCodes = new Set(["PLAYLIST_NOT_FOUND", "NOT_FOUND", "SPOTIFY_NOT_FOUND", "BAD_REQUEST", "TOO_MANY_REQUESTS", "FORBIDDEN"]);
+      const warningCodes = new Set(["PLAYLIST_NOT_FOUND", "NOT_FOUND", "SPOTIFY_NOT_FOUND", "ARTIST_NOT_FOUND", "BAD_REQUEST", "TOO_MANY_REQUESTS", "FORBIDDEN"]);
       setError({
         key: (code && codeToKey[code]) ? codeToKey[code] : "somethingWentWrong",
         type: (code && warningCodes.has(code)) ? "warning" : "error",

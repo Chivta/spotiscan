@@ -19,15 +19,17 @@ const en = {
 
   // Scanner
   scan: "Scanner",
-  placeholder: "Paste Spotify URL or artist name...",
+  placeholder: "Spotify URL, playlist ID, or artist name...",
   scanning: "Scanning...",
-  invalidInput: "Invalid URL or ID. Please check and try again.",
+  invalidInput: "Enter a Spotify URL, URI, playlist ID, or artist name.",
+  artistNotInBase: "This artist is not in our database.",
   anonQuotaExceeded: "You've used your trial scans. Sign in to keep scanning, it's free!",
   notFound: "Not found. Check the URL or ID and try again.",
   notFoundHints: [
     "Make sure the playlist is not set to private.",
     "Spotify restricts API access to algorithm-generated playlists — this includes Discover Weekly, Release Radar, and genre playlists owned by Spotify. You can copy the playlist contents into your own playlist and scan that instead.",
     "Liked Songs cannot be scanned directly either — copy them into a regular playlist first.",
+    "For tracks, albums, and artists, use a full Spotify URL or URI — bare 22-character IDs are treated as playlist IDs.",
   ] as string[],
   badRequest: "Invalid request. Please check your input.",
   databaseError: "A server error occurred. Please try again later.",
@@ -97,15 +99,17 @@ export const translations = {
 
     // Scanner
     scan: "Сканер",
-    placeholder: "Вставте посилання Spotify або ім'я артисту...",
+    placeholder: "Посилання Spotify, ID плейлисту або ім'я артиста...",
     scanning: "Сканування...",
-    invalidInput: "Неправильне посилання або ID. Перевірте та спробуйте ще раз.",
+    invalidInput: "Введіть посилання Spotify, URI, ID плейлисту або ім'я артиста.",
+    artistNotInBase: "Цього артиста немає в нашій базі даних.",
     anonQuotaExceeded: "Ви використали пробні сканування. Увійдіть, щоб продовжити — це безкоштовно!",
     notFound: "Не знайдено. Перевірте посилання або ID та спробуйте ще раз.",
     notFoundHints: [
       "Переконайтеся, що плейлист не приватний.",
       "Spotify обмежує доступ через API до плейлистів, згенерованих їхніми алгоритмами — зокрема Discover Weekly, Release Radar та жанрових плейлистів, власником яких є Spotify. Ви можете скопіювати вміст такого плейлиста у свій власний і сканувати його.",
       "Збережені треки (Liked Songs) також не можна сканувати напряму — спочатку скопіюйте їх у звичайний плейлист.",
+      "Для треків, альбомів та артистів використовуйте повне посилання Spotify або URI — голі 22-символьні ID вважаються ID плейлиста.",
     ] as string[],
     badRequest: "Некоректний запит. Будь ласка, перевірте введені дані.",
     databaseError: "Помилка сервера. Будь ласка, спробуйте пізніше.",
