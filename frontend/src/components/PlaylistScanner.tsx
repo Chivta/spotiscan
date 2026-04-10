@@ -193,6 +193,19 @@ export default function PlaylistScanner() {
     return artist.Name.toLowerCase().includes(artistsSearch.toLowerCase());
   });
 
+  const filteredArtistsSorted = useMemo(
+    () =>
+      [...filteredArtists]
+        .map((artist: Artist) => ({ artist, trackCount: artistTrackCount.get(artist.ID) ?? 0, desc: artistDesc(artist, lang) }))
+        .sort((a, b) => b.trackCount - a.trackCount),
+    [filteredArtists, artistTrackCount, lang],
+  );
+
+  const filteredArtistsSortedMap = useMemo(
+    () => new Map(filteredArtistsSorted.map(entry => [entry.artist.ID, entry])),
+    [filteredArtistsSorted],
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Artist hover tooltip */}
@@ -373,7 +386,8 @@ export default function PlaylistScanner() {
           {!loading && (
             <>
               {/* Tab Navigation */}
-              <div style={{ display: "flex", gap: 12, marginBottom: 20, borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <div style={{ display: "flex", gap: 12 }}>
                 <button
                   onClick={() => setResultTab("tracks")}
                   style={{
@@ -406,6 +420,11 @@ export default function PlaylistScanner() {
                 >
                   {tx.artistsTab(ruContent?.Artists?.length ?? 0)}
                 </button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, paddingBottom: 8, opacity: 0.45 }}>
+                  <img src="/spotify.svg" alt="Spotify" style={{ width: 16, height: 16 }} />
+                  <span style={{ fontSize: 11, color: "#fff", whiteSpace: "nowrap" }}>Data provided by Spotify</span>
+                </div>
               </div>
 
               {/* Tracks Tab */}
@@ -462,7 +481,7 @@ export default function PlaylistScanner() {
                                       style={{ color: "#e74c3c", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer", transition: "color 0.2s ease" }}
                                       onMouseEnter={e => { e.currentTarget.style.color = "#ff6b5a"; const full = ruArtistMap.get(artist.ID); if (full) showTooltip(full, e); }}
                                       onMouseLeave={e => { e.currentTarget.style.color = "#e74c3c"; hideTooltip(); }}
-                                      onClick={() => { setResultTab("artists"); setArtistsSearch(artist.Name); }}
+                                      onClick={() => { setResultTab("artists"); setArtistsSearch(artist.Name); setTooltip(null); }}
                                     >
                                       {artist.Name}
                                     </a>
@@ -514,33 +533,28 @@ export default function PlaylistScanner() {
                       style={{ ...inputStyle, width: "100%", marginBottom: 12 }}
                     />
                   )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length === 0 && (
-                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>{tx.noArtistsFound}</div>
-                    )}
-                    {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length > 0 && (
-                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>{tx.noArtistsMatch}</div>
-                    )}
-                    {filteredArtists
-                      .map((artist: Artist) => ({
-                        artist,
-                        trackCount: artistTrackCount.get(artist.ID) ?? 0,
-                        desc: artistDesc(artist, lang),
-                      }))
-                      .sort((a, b) => b.trackCount - a.trackCount)
-                      .map(({ artist, trackCount, desc }) => (
-                        <div
-                          key={artist.ID}
-                          style={{
-                            padding: 16,
-                            background: "rgba(255, 255, 255, 0.03)",
-                            border: "1px solid rgba(255, 255, 255, 0.05)",
-                            borderRadius: 10,
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 10,
-                          }}
-                        >
+                  <h3 style={{ color: "#fff", margin: "0 0 16px 0", fontSize: "1.1rem" }}>
+                    {tx.russianArtistsFound(filteredArtists.length)}
+                  </h3>
+                  <AnimatedList
+                    items={filteredArtistsSorted.map(({ artist }) => artist.ID)}
+                    showGradients={false}
+                    displayScrollbar={true}
+                    enableArrowNavigation={true}
+                    children={(artistId: string) => {
+                      const entry = filteredArtistsSortedMap.get(artistId);
+                      if (!entry) return null;
+                      const { artist, trackCount, desc } = entry;
+                      return (
+                        <div style={{
+                          padding: 16,
+                          background: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid rgba(255, 255, 255, 0.05)",
+                          borderRadius: 10,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 10,
+                        }}>
                           {/* Header row: name + track count */}
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
@@ -619,8 +633,15 @@ export default function PlaylistScanner() {
                             </div>
                           )}
                         </div>
-                      ))}
-                  </div>
+                      );
+                    }}
+                  />
+                  {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length === 0 && (
+                    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>{tx.noArtistsFound}</div>
+                  )}
+                  {filteredArtists.length === 0 && (ruContent?.Artists ?? []).length > 0 && (
+                    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>{tx.noArtistsMatch}</div>
+                  )}
                 </div>
               )}
             </>
