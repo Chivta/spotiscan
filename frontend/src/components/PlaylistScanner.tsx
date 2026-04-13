@@ -313,7 +313,7 @@ export default function PlaylistScanner() {
 
       {/* Scan Controls */}
       <div style={cardStyle}>
-        <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>{tx.scan}</h3>
+        <h3 style={{ color: "#fff", marginBottom: 16, fontSize: "1.1rem" }}>{tx.scanner}</h3>
         {canScan && (
           <div style={{
             display: "inline-flex",
@@ -378,9 +378,9 @@ export default function PlaylistScanner() {
           textAlign: "center",
         }}>
           <p style={{ margin: 0 }}>{tx[error.key]}</p>
-          {error.key === "notFound" && (
+          {(error.key === "spotifyNotFound") && (
             <ul style={{ margin: "12px 0 0", paddingLeft: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 6 }}>
-              {tx.notFoundHints.map((hint, i) => (
+              {tx.spotifyNotFoundHints.map((hint, i) => (
                 <li key={i} style={{ lineHeight: 1.5 }}>{hint}</li>
               ))}
             </ul>

@@ -7,6 +7,7 @@ import (
 
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/appErrors"
 	"github.com/chivta/ruscan/internal/spotify"
@@ -56,6 +57,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 	return goose.UpContext(ctx, db, ".")
 }
 
+// logs unexpected Spotify API and network errors before translating them to application errors.
 func translateSpotifyError(err error) error {
 	if spotifyErr, ok := err.(*spotify.Error); ok {
 		switch spotifyErr.Status {
@@ -66,12 +68,15 @@ func translateSpotifyError(err error) error {
 		case 429:
 			return appErrors.ErrTooManyRequests
 		default:
+			log.Error().Err(spotifyErr).Int("status", spotifyErr.Status).Msg("spotify API error")
 			return appErrors.ErrSpotifyAPIError
 		}
 	}
 	if _, ok := err.(*url.Error); ok {
+		log.Error().Err(err).Msg("network error when calling spotify API")
 		return appErrors.ErrSpotifyAPIError
 	}
+	log.Error().Err(err).Msg("unexpected error when calling spotify API")
 	return appErrors.ErrSpotifyAPIError
 }
 
