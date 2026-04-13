@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/chivta/ruscan/internal/models"
 	"github.com/chivta/ruscan/internal/spotify"
 )
@@ -23,7 +21,6 @@ type PlaylistRepo struct {
 func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Playlist, error) {
 	playlist, err := r.spotifyClient.GetSpotifyPlaylist(ctx, playlistId)
 	if err != nil {
-		log.Error().Err(err).Str("playlistId", playlistId).Msg("error fetching playlist")
 		return nil, translateSpotifyError(err)
 	}
 
@@ -33,7 +30,6 @@ func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId str
 func (r *PlaylistRepo) GetTrack(ctx context.Context, trackId string) (*models.Track, error) {
 	track, err := r.spotifyClient.GetSpotifyTrack(ctx, trackId)
 	if err != nil {
-		log.Error().Err(err).Str("trackId", trackId).Msg("error fetching track")
 		return nil, translateSpotifyError(err)
 	}
 
@@ -43,7 +39,6 @@ func (r *PlaylistRepo) GetTrack(ctx context.Context, trackId string) (*models.Tr
 func (r *PlaylistRepo) GetAlbum(ctx context.Context, albumId string) (*models.Album, error) {
 	album, err := r.spotifyClient.GetSpotifyAlbum(ctx, albumId)
 	if err != nil {
-		log.Error().Err(err).Str("albumId", albumId).Msg("error fetching album")
 		return nil, translateSpotifyError(err)
 	}
 
@@ -53,7 +48,6 @@ func (r *PlaylistRepo) GetAlbum(ctx context.Context, albumId string) (*models.Al
 func (r *PlaylistRepo) GetArtist(ctx context.Context, artistId string) (*models.Artist, error) {
 	artist, err := r.spotifyClient.GetSpotifyArtist(ctx, artistId)
 	if err != nil {
-		log.Error().Err(err).Str("artistId", artistId).Msg("error fetching artist")
 		return nil, translateSpotifyError(err)
 	}
 
