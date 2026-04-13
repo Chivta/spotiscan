@@ -378,7 +378,7 @@ export default function PlaylistScanner() {
           textAlign: "center",
         }}>
           <p style={{ margin: 0 }}>{tx[error.key]}</p>
-          {(error.key === "notFound" || error.key === "spotifyNotFound") && (
+          {(error.key === "spotifyNotFound") && (
             <ul style={{ margin: "12px 0 0", paddingLeft: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 6 }}>
               {tx.spotifyNotFoundHints.map((hint, i) => (
                 <li key={i} style={{ lineHeight: 1.5 }}>{hint}</li>
