@@ -53,9 +53,7 @@ func runApp() int {
 
 	r := gin.New()
 	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
-	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/", "/health", "/api/me"},
-	}))
+	r.Use(middlewares.Logger("/", "/health", "/api/me", "/metrics"))
 	r.Use(gin.Recovery())
 	r.Use(metrics.Middleware("/metrics", "/health", "/", "/api/me"))
 	r.GET("/metrics", gin.WrapH(metrics.Handler()))
