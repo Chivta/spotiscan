@@ -57,7 +57,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 	return goose.UpContext(ctx, db, ".")
 }
 
-// this also logs unexpected errors, since we don't know if errror should be logged before translating it
+// logs unexpected Spotify API and network errors before translating them to application errors.
 func translateSpotifyError(err error) error {
 	if spotifyErr, ok := err.(*spotify.Error); ok {
 		switch spotifyErr.Status {
