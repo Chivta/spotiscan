@@ -89,3 +89,13 @@ type User struct {
 	Role         Role   `json:"Role"`
 	PasswordHash string `json:"-"`
 }
+
+type ArtistInsertSuggestion struct {
+	ID          int    `json:"ID"`
+	CreatorID   int    `json:"CreatorID"`
+	ArtistName  string `json:"ArtistName"`
+	Description string `json:"Description"`
+	Approved    bool   `json:"Approved"`
+	CreatedAt   string `json:"CreatedAt"`
+	UpdatedAt   string `json:"UpdatedAt"`
+}

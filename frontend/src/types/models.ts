@@ -41,3 +41,13 @@ export interface RuContent {
   Tracks: Track[];
   Artists: Artist[];
 }
+
+export interface ArtistInsertSuggestion {
+  ID: number;
+  CreatorID: number;
+  ArtistName: string;
+  Description: string;
+  Approved: boolean;
+  CreatedAt: string;
+  UpdatedAt: string;
+}

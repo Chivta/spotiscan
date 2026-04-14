@@ -62,7 +62,7 @@ func runApp() int {
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
 
 	api := r.Group("/api")
-	api.Use(c.jwtMiddleware.ParseAuth())
+	api.Use(c.authMiddleware.ParseAuth())
 	api.Use(c.rateLimitMiddleware.LimitRequests(models.RateLimitRequestLimit, models.RateLimitWindowSeconds))
 	{
 		api.GET("/me", c.authHandler.Me)
@@ -70,16 +70,20 @@ func runApp() int {
 		api.POST("/auth/login", c.authHandler.Login)
 
 		spotifyEndpoints := api.Group("/spotify")
-		spotifyEndpoints.GET("/playlist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
-		spotifyEndpoints.GET("/track/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetTrackRuContent)
-		spotifyEndpoints.GET("/album/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetAlbumRuContent)
-		spotifyEndpoints.GET("/artist/:id/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContent)
-		spotifyEndpoints.GET("/artist/name/:name/rucontent", c.jwtMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContentByName)
+		spotifyEndpoints.GET("/playlist/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
+		spotifyEndpoints.GET("/track/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetTrackRuContent)
+		spotifyEndpoints.GET("/album/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetAlbumRuContent)
+		spotifyEndpoints.GET("/artist/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContent)
+		spotifyEndpoints.GET("/artist/name/:name/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContentByName)
 
 		userEndpoints := api.Group("")
-		userEndpoints.Use(c.jwtMiddleware.RequireUserRole())
+		userEndpoints.Use(c.authMiddleware.RequireUserRole())
 		{
 			userEndpoints.POST("/auth/logout", c.authHandler.Logout)
+			userEndpoints.GET("/suggestions/artist-insert", c.suggestionHandler.GetArtistInsertSuggestions)
+			userEndpoints.POST("/suggestions/artist-insert", c.suggestionHandler.CreateArtistInsertSuggestion)
+			userEndpoints.DELETE("/suggestions/artist-insert/:id", c.suggestionHandler.DeleteArtistInsertSuggestion)
+			userEndpoints.PUT("/suggestions/artist-insert/:id", c.suggestionHandler.UpdateArtistInsertSuggestion)
 		}
 	}
 
@@ -98,10 +102,13 @@ type appContainer struct {
 	userRepo            *repository.UserRepo
 	playlistRepo        *repository.PlaylistRepo
 	authHandler         *handlers.AuthHandler
-	spotifyHandler      *handlers.SpotifyHandler
 	authService         *services.AuthService
+	authMiddleware      *middlewares.AuthMiddleware
+	spotifyHandler      *handlers.SpotifyHandler
 	spotifyService      *services.SpotifyService
-	jwtMiddleware       *middlewares.JWTMiddleware
+	suggestionHandler   *handlers.SuggestionHandler
+	suggestionService   *services.SuggestionService
+	suggestionRepo      *repository.SuggestionRepo
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
 	db                  *sql.DB
 	redis               *redis.Client
@@ -128,12 +135,12 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
 	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
-	ratelimitRepo := repository.NewRatelimitRepo(redis)
 	artistRepo := repository.NewArtistRepo(db, redis)
 	tokenRepo := repository.NewTokenRepo(db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	userRepo := repository.NewUserRepo(db, redis)
 	playlistRepo := repository.NewPlaylistRepo(db, spotifyClient)
 
+	ratelimitRepo := repository.NewRatelimitRepo(redis)
 	err = ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
 	if err != nil {
 		redis.Close()
@@ -156,6 +163,10 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
 	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
 
+	suggestionRepo := repository.NewSuggestionRepo(db)
+	suggestionService := services.NewSuggestionService(suggestionRepo, artistRepo)
+	suggestionHandler := handlers.NewSuggestionHandler(suggestionService, validate)
+
 	rateLimitMiddleware := middlewares.NewRateLimitMiddleware(ratelimitRepo)
 
 	return &appContainer{
@@ -168,8 +179,11 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		spotifyHandler:      spotifyHandler,
 		authService:         authService,
 		spotifyService:      spotifyService,
-		jwtMiddleware:       jwtMiddleware,
+		authMiddleware:      jwtMiddleware,
 		rateLimitMiddleware: rateLimitMiddleware,
+		suggestionHandler:   suggestionHandler,
+		suggestionService:   suggestionService,
+		suggestionRepo:      suggestionRepo,
 		db:                  db,
 		redis:               redis,
 	}, nil
