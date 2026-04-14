@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/chivta/ruscan/internal/appErrors"
 	"github.com/chivta/ruscan/internal/models"
 	"github.com/chivta/ruscan/internal/services"
 )
@@ -33,7 +34,7 @@ func (h *SuggestionHandler) CreateArtistInsertSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondWithError(c,appErrors.ErrBadRequest)
 		return
 	}
 
@@ -110,7 +111,7 @@ func (h *SuggestionHandler) UpdateArtistInsertSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondWithError(c,appErrors.ErrBadRequest)
 		return
 	}
 
@@ -130,7 +131,7 @@ func (h *SuggestionHandler) UpdateArtistInsertSuggestion(c *gin.Context) {
 }
 
 type createArtistDeleteSuggestionRequest struct {
-	ArtistName  string `json:"ArtistName" validate:"required"`
+	ArtistName  string `json:"ArtistName" validate:"required,max=255"`
 	Description string `json:"Description" validate:"required,max=1000"`
 }
 
@@ -142,7 +143,7 @@ func (h *SuggestionHandler) CreateArtistDeleteSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondWithError(c,appErrors.ErrBadRequest)
 		return
 	}
 
@@ -200,7 +201,7 @@ func (h *SuggestionHandler) DeleteArtistDeleteSuggestion(c *gin.Context) {
 }
 
 type updateArtistDeleteSuggestionRequest struct {
-	ArtistName  string `json:"ArtistName" validate:"required"`
+	ArtistName  string `json:"ArtistName" validate:"required,max=255"`
 	Description string `json:"Description" validate:"required,max=1000"`
 }
 
@@ -219,7 +220,7 @@ func (h *SuggestionHandler) UpdateArtistDeleteSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondWithError(c,appErrors.ErrBadRequest)
 		return
 	}
 

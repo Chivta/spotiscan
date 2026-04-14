@@ -51,17 +51,32 @@ const dangerButtonStyle: React.CSSProperties = {
   color: "rgba(255, 120, 120, 0.9)",
 };
 
-function StatusBadge({ approved, tx }: { approved: boolean; tx: { approved: string; pending: string } }) {
+type SuggestionState = "pending" | "approved" | "declined";
+
+const VALID_STATES = new Set<SuggestionState>(["pending", "approved", "declined"]);
+
+function toState(raw: string): SuggestionState {
+  return VALID_STATES.has(raw as SuggestionState) ? (raw as SuggestionState) : "pending";
+}
+
+const stateStyles: Record<SuggestionState, { bg: string; color: string; border: string }> = {
+  pending:  { bg: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)", border: "rgba(255,255,255,0.1)" },
+  approved: { bg: "rgba(29,185,84,0.15)",   color: "#1DB954",               border: "rgba(29,185,84,0.3)"   },
+  declined: { bg: "rgba(231,76,60,0.12)",   color: "#e74c3c",               border: "rgba(231,76,60,0.3)"   },
+};
+
+function StatusBadge({ state, tx }: { state: SuggestionState; tx: { approved: string; pending: string; declined: string } }) {
+  const style = stateStyles[state];
   return (
     <span style={{
       fontSize: 11,
       padding: "2px 8px",
       borderRadius: 50,
-      background: approved ? "rgba(29,185,84,0.15)" : "rgba(255,255,255,0.08)",
-      color: approved ? "#1DB954" : "rgba(255,255,255,0.4)",
-      border: `1px solid ${approved ? "rgba(29,185,84,0.3)" : "rgba(255,255,255,0.1)"}`,
+      background: style.bg,
+      color: style.color,
+      border: `1px solid ${style.border}`,
     }}>
-      {approved ? tx.approved : tx.pending}
+      {tx[state]}
     </span>
   );
 }
@@ -260,12 +275,12 @@ function InsertSuggestions() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                         <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>{s.ArtistName}</span>
-                        <StatusBadge approved={s.Approved} tx={tx} />
+                        <StatusBadge state={toState(s.Approved)} tx={tx} />
                       </div>
                       <p style={{ margin: "0 0 8px", color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 1.5 }}>{s.Description}</p>
                       <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }}>{formatDate(s.CreatedAt)}</div>
                     </div>
-                    {!s.Approved && (
+                    {toState(s.Approved) === "pending" && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button style={ghostButtonStyle} onClick={() => startEdit(s)}>{tx.editSuggestion}</button>
@@ -482,12 +497,12 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                         <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>{s.ArtistName}</span>
-                        <StatusBadge approved={s.Approved} tx={tx} />
+                        <StatusBadge state={toState(s.Approved)} tx={tx} />
                       </div>
                       <p style={{ margin: "0 0 8px", color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 1.5 }}>{s.Description}</p>
                       <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }}>{formatDate(s.CreatedAt)}</div>
                     </div>
-                    {!s.Approved && (
+                    {toState(s.Approved) === "pending" && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button style={ghostButtonStyle} onClick={() => startEdit(s)}>{tx.editSuggestion}</button>

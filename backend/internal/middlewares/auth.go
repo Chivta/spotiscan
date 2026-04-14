@@ -19,7 +19,7 @@ type AuthMiddleware struct {
 	secureCookies bool
 }
 
-func NewJWTMiddleware(authService *services.AuthService, secureCookies bool) *AuthMiddleware {
+func NewAuthMiddleware(authService *services.AuthService, secureCookies bool) *AuthMiddleware {
 	return &AuthMiddleware{
 		authService:   authService,
 		secureCookies: secureCookies,

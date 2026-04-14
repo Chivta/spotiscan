@@ -12,12 +12,12 @@ import (
 
 func NewSuggestionRepo(db *sql.DB) *SuggestionRepo {
 	return &SuggestionRepo{
-		db:            db,
+		db: db,
 	}
 }
 
 type SuggestionRepo struct {
-	db    *sql.DB
+	db *sql.DB
 }
 
 func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name, description string, creatorID int) (models.ArtistInsertSuggestion, error) {
@@ -44,7 +44,7 @@ func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name,
 }
 
 func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]models.ArtistInsertSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, approved, creator_id, created_at FROM artist_insert_suggestions WHERE creator_id = $1`, creatorID)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, approved, creator_id, created_at FROM artist_insert_suggestions WHERE creator_id = $1 ORDER BY created_at DESC`, creatorID)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query artist suggestions from database")
 		return nil, appErrors.ErrDatabaseFailure
@@ -54,7 +54,7 @@ func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creator
 	var suggestions []models.ArtistInsertSuggestion
 	for rows.Next() {
 		var suggestion models.ArtistInsertSuggestion
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.Approved, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist suggestion row")
 			return nil, appErrors.ErrDatabaseFailure
 		}
@@ -118,7 +118,6 @@ func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, c
 	return suggestion, nil
 }
 
-
 func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (models.ArtistDeleteSuggestion, error) {
 	var suggestion models.ArtistDeleteSuggestion
 
@@ -142,7 +141,7 @@ func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artis
 }
 
 func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]models.ArtistDeleteSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, approved, creator_id, created_at FROM artist_delete_suggestions WHERE creator_id = $1`, creatorID)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, approved, creator_id, created_at FROM artist_delete_suggestions WHERE creator_id = $1 ORDER BY created_at DESC`, creatorID)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query artist delete suggestions from database")
 		return nil, appErrors.ErrDatabaseFailure
@@ -152,7 +151,7 @@ func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creator
 	var suggestions []models.ArtistDeleteSuggestion
 	for rows.Next() {
 		var suggestion models.ArtistDeleteSuggestion
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.Approved, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist delete suggestion row")
 			return nil, appErrors.ErrDatabaseFailure
 		}
@@ -236,7 +235,7 @@ func (r *SuggestionRepo) IsArtistInsertSuggestionPending(ctx context.Context, id
 		if err == sql.ErrNoRows {
 			return false, appErrors.ErrNotFound
 		}
-		log.Error().Err(err).Msg("failed to check if artist delete suggestion is pending")
+		log.Error().Err(err).Msg("failed to check if artist insert suggestion is pending")
 		return false, appErrors.ErrDatabaseFailure
 	}
 	return pending, nil

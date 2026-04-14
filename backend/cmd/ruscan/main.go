@@ -165,7 +165,7 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 
 	authService := services.NewAuthService([]byte(cfg.JWTSecret), tokenRepo, userRepo)
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
-	jwtMiddleware := middlewares.NewJWTMiddleware(authService, cfg.SecureCookies)
+	jwtMiddleware := middlewares.NewAuthMiddleware(authService, cfg.SecureCookies)
 
 	suggestionRepo := repository.NewSuggestionRepo(db)
 	suggestionService := services.NewSuggestionService(suggestionRepo, artistRepo)

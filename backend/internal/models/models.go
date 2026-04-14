@@ -95,7 +95,7 @@ type ArtistInsertSuggestion struct {
 	CreatorID   int    `json:"CreatorID"`
 	ArtistName  string `json:"ArtistName"`
 	Description string `json:"Description"`
-	Approved    bool   `json:"Approved"`
+	State       string `json:"Approved"`
 	CreatedAt   string `json:"CreatedAt"`
 	UpdatedAt   string `json:"UpdatedAt"`
 }
@@ -105,7 +105,7 @@ type ArtistDeleteSuggestion struct {
 	CreatorID   int    `json:"CreatorID"`
 	ArtistName  string `json:"ArtistName"`
 	Description string `json:"Description"`
-	Approved    bool   `json:"Approved"`
+	State       string `json:"Approved"`
 	CreatedAt   string `json:"CreatedAt"`
 	UpdatedAt   string `json:"UpdatedAt"`
 }
