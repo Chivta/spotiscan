@@ -91,7 +91,7 @@ func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Ses
 func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*Session, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signupDTO.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", appErrors.ErrInternal, err)
+		return nil, err
 	}
 
 	user := models.User{
@@ -101,6 +101,7 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 	}
 	id, err := s.userRepo.CreateUser(ctx, &user)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to create user")
 		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
@@ -108,6 +109,7 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 
 	session, err := s.createSession(ctx, &user)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to create session after user creation")
 		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}

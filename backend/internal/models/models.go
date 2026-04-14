@@ -89,3 +89,23 @@ type User struct {
 	Role         Role   `json:"Role"`
 	PasswordHash string `json:"-"`
 }
+
+type ArtistInsertSuggestion struct {
+	ID          int    `json:"ID"`
+	CreatorID   int    `json:"CreatorID"`
+	ArtistName  string `json:"ArtistName"`
+	Description string `json:"Description"`
+	State       string `json:"Approved"`
+	CreatedAt   string `json:"CreatedAt"`
+	UpdatedAt   string `json:"UpdatedAt"`
+}
+
+type ArtistDeleteSuggestion struct {
+	ID          int    `json:"ID"`
+	CreatorID   int    `json:"CreatorID"`
+	ArtistName  string `json:"ArtistName"`
+	Description string `json:"Description"`
+	State       string `json:"Approved"`
+	CreatedAt   string `json:"CreatedAt"`
+	UpdatedAt   string `json:"UpdatedAt"`
+}

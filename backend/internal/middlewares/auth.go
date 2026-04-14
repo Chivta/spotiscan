@@ -14,19 +14,19 @@ import (
 	"github.com/chivta/ruscan/internal/services"
 )
 
-type JWTMiddleware struct {
+type AuthMiddleware struct {
 	authService   *services.AuthService
 	secureCookies bool
 }
 
-func NewJWTMiddleware(authService *services.AuthService, secureCookies bool) *JWTMiddleware {
-	return &JWTMiddleware{
+func NewAuthMiddleware(authService *services.AuthService, secureCookies bool) *AuthMiddleware {
+	return &AuthMiddleware{
 		authService:   authService,
 		secureCookies: secureCookies,
 	}
 }
 
-func (m *JWTMiddleware) RequireAdminRole() gin.HandlerFunc {
+func (m *AuthMiddleware) RequireAdminRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
@@ -46,7 +46,7 @@ func (m *JWTMiddleware) RequireAdminRole() gin.HandlerFunc {
 	}
 }
 
-func (m *JWTMiddleware) RequireUserRole() gin.HandlerFunc {
+func (m *AuthMiddleware) RequireUserRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		assignedRole, exists := c.Get(models.UserRoleKey)
 		if !exists {
@@ -66,7 +66,7 @@ func (m *JWTMiddleware) RequireUserRole() gin.HandlerFunc {
 	}
 }
 
-func (m *JWTMiddleware) issueAnonSession(c *gin.Context) {
+func (m *AuthMiddleware) issueAnonSession(c *gin.Context) {
 	anonSession, err := m.authService.CreateAnonymousSession(c.Request.Context())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create anonymous session")
@@ -80,7 +80,7 @@ func (m *JWTMiddleware) issueAnonSession(c *gin.Context) {
 	c.Set(models.UserRoleKey, anonSession.Role)
 }
 
-func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
+func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jwtStr, err := c.Cookie(models.CookieJWT)
 		if err != nil {
@@ -93,8 +93,11 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 		claims, err := m.authService.ParseJWT(jwtStr)
 		if err != nil {
 			if !errors.Is(err, jwt.ErrTokenExpired) {
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				return
 			}
 
@@ -108,15 +111,21 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 			// JWT expired — attempt refresh
 			refreshStr, err := c.Cookie(models.CookieRefreshToken)
 			if err != nil {
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				return
 			}
 
 			session, err := m.authService.ExchangeRefreshToken(c.Request.Context(), jwtStr, refreshStr)
 			if err != nil {
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				c.Abort()
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				return
 			}
 
@@ -136,7 +145,7 @@ func (m *JWTMiddleware) ParseAuth() gin.HandlerFunc {
 	}
 }
 
-func (m *JWTMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc {
+func (m *AuthMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		anonIDAny, exists := c.Get(models.UserIDKey)
 		if !exists {

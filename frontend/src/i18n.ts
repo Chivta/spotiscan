@@ -67,6 +67,44 @@ const en = {
     artist: "Artist",
   },
 
+  // Dashboard tabs
+  tabScanner: "Scanner",
+  tabSuggestions: "Suggest",
+
+  // Artist Suggestions
+  suggestionsTitle: "Suggest Artist",
+  suggestionsHint: "Suggest an artist to be added to our Russian artists database.",
+  suggestArtist: "Suggest an artist",
+  artistNameLabel: "Artist name",
+  artistNamePlaceholder: "Artist name on Spotify...",
+  descriptionLabel: "Why is this artist Russian?",
+  descriptionPlaceholder: "Provide evidence or reasoning (max 1000 characters)...",
+  submitSuggestion: "Submit suggestion",
+  submitting: "Submitting...",
+  noSuggestions: "You haven't submitted any suggestions yet.",
+  approved: "Approved",
+  pending: "Pending",
+  declined: "Declined",
+  editSuggestion: "Edit",
+  deleteSuggestion: "Delete",
+  saveChanges: "Save",
+  cancelEdit: "Cancel",
+  confirmDelete: "Delete this suggestion?",
+  suggestionCreated: "Suggestion submitted successfully.",
+  suggestionUpdated: "Suggestion updated.",
+  suggestionDeleted: "Suggestion deleted.",
+  yourSuggestions: "Your suggestions",
+  artistExists: "This artist is already in our database.",
+  suggestionApproved: "This suggestion has already been approved and cannot be deleted.",
+
+  // Artist Delete Suggestions
+  suggestDeleteArtist: "Suggest artist removal",
+  suggestDeleteHint: "Suggest an artist to be removed from the Russian artists database.",
+  yourDeleteSuggestions: "Your removal suggestions",
+  noDeleteSuggestions: "You haven't submitted any removal suggestions yet.",
+  notRussian: "Not Russian?",
+  artistNotInDbForDelete: "This artist was not found in our database. Only artists already listed as Russian can be suggested for removal.",
+
   // AuthPage
   logIn: "Log In",
   signUp: "Sign Up",
@@ -146,6 +184,44 @@ export const translations = {
       album: "Альбом",
       artist: "Артист",
     },
+
+    // Dashboard tabs
+    tabScanner: "Сканер",
+    tabSuggestions: "Запропонувати",
+
+    // Artist Suggestions
+    suggestionsTitle: "Запропонувати Артиста",
+    suggestionsHint: "Запропонуйте артиста для додавання до нашої бази російських артистів.",
+    suggestArtist: "Запропонувати артиста",
+    artistNameLabel: "Ім'я артиста",
+    artistNamePlaceholder: "Ім'я артиста у Spotify...",
+    descriptionLabel: "Чому цей артист російський?",
+    descriptionPlaceholder: "Надайте докази або обґрунтування (до 1000 символів)...",
+    submitSuggestion: "Надіслати пропозицію",
+    submitting: "Надсилання...",
+    noSuggestions: "Ви ще не надсилали пропозицій.",
+    approved: "Схвалено",
+    pending: "На розгляді",
+    declined: "Відхилено",
+    editSuggestion: "Редагувати",
+    deleteSuggestion: "Видалити",
+    saveChanges: "Зберегти",
+    cancelEdit: "Скасувати",
+    confirmDelete: "Видалити цю пропозицію?",
+    suggestionCreated: "Пропозицію успішно надіслано.",
+    suggestionUpdated: "Пропозицію оновлено.",
+    suggestionDeleted: "Пропозицію видалено.",
+    yourSuggestions: "Ваші пропозиції",
+    artistExists: "Цей артист вже є в нашій базі.",
+    suggestionApproved: "Цю пропозицію вже схвалено — видалити її неможливо.",
+
+    // Artist Delete Suggestions
+    suggestDeleteArtist: "Запропонувати видалення артиста",
+    suggestDeleteHint: "Запропонуйте артиста для видалення з бази російських артистів.",
+    yourDeleteSuggestions: "Ваші пропозиції щодо видалення",
+    noDeleteSuggestions: "Ви ще не надсилали пропозицій щодо видалення.",
+    notRussian: "Не російський?",
+    artistNotInDbForDelete: "Цього артиста не знайдено в нашій базі. Для видалення можна пропонувати лише артистів, які вже є в списку російських.",
 
     // AuthPage
     logIn: "Увійти",

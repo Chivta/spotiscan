@@ -41,3 +41,23 @@ export interface RuContent {
   Tracks: Track[];
   Artists: Artist[];
 }
+
+export interface ArtistDeleteSuggestion {
+  ID: number;
+  CreatorID: number;
+  ArtistName: string;
+  Description: string;
+  Approved: "pending" | "approved" | "declined";
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+export interface ArtistInsertSuggestion {
+  ID: number;
+  CreatorID: number;
+  ArtistName: string;
+  Description: string;
+  Approved: "pending" | "approved" | "declined";
+  CreatedAt: string;
+  UpdatedAt: string;
+}
