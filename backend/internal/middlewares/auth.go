@@ -93,11 +93,11 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 		claims, err := m.authService.ParseJWT(jwtStr)
 		if err != nil {
 			if !errors.Is(err, jwt.ErrTokenExpired) {
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.Abort()
 				c.SetSameSite(http.SameSiteLaxMode)
 				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
 				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
-				c.Abort()
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				return
 			}
 
@@ -111,21 +111,21 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 			// JWT expired — attempt refresh
 			refreshStr, err := c.Cookie(models.CookieRefreshToken)
 			if err != nil {
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.Abort()
 				c.SetSameSite(http.SameSiteLaxMode)
 				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
 				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
-				c.Abort()
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				return
 			}
 
 			session, err := m.authService.ExchangeRefreshToken(c.Request.Context(), jwtStr, refreshStr)
 			if err != nil {
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.Abort()
 				c.SetSameSite(http.SameSiteLaxMode)
 				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
 				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
-				c.Abort()
+				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
 				return
 			}
 
