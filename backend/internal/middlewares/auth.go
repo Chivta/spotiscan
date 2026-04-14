@@ -94,6 +94,9 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 		if err != nil {
 			if !errors.Is(err, jwt.ErrTokenExpired) {
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
 				c.Abort()
 				return
 			}
@@ -109,6 +112,9 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 			refreshStr, err := c.Cookie(models.CookieRefreshToken)
 			if err != nil {
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
 				c.Abort()
 				return
 			}
@@ -116,6 +122,9 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 			session, err := m.authService.ExchangeRefreshToken(c.Request.Context(), jwtStr, refreshStr)
 			if err != nil {
 				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
 				c.Abort()
 				return
 			}
