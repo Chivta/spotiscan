@@ -343,6 +343,7 @@ func (r *ArtistRepo) GetRuRegionIds(ctx context.Context) ([]string, error) {
 }
 
 func (r *ArtistRepo) ArtistExists(ctx context.Context, name string) (bool, error) {
+	name = strings.ToLower(name)
 	var exists bool
 	err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ru_artists WHERE name = $1)`, name).Scan(&exists)
 	if err != nil {

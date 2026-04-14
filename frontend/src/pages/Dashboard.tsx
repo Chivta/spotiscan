@@ -11,6 +11,12 @@ export default function Dashboard() {
   const { lang } = useLanguage();
   const tx = translations[lang];
   const [tab, setTab] = useState<Tab>("scanner");
+  const [deletePrefillName, setDeletePrefillName] = useState<string | undefined>(undefined);
+
+  const handleNotRussian = (artistName: string) => {
+    setDeletePrefillName(artistName);
+    setTab("suggestions");
+  };
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", width: "100%", overflow: "hidden" }}>
@@ -59,8 +65,17 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {tab === "scanner" && <PlaylistScanner />}
-          {tab === "suggestions" && <ArtistSuggestions />}
+          {/* Scanner is always mounted to preserve scan results; hidden when not active */}
+          <div style={{ display: tab === "scanner" ? "block" : "none" }}>
+            <PlaylistScanner onNotRussian={handleNotRussian} />
+          </div>
+
+          {tab === "suggestions" && (
+            <ArtistSuggestions
+              deletePrefillName={deletePrefillName}
+              initialTab={deletePrefillName !== undefined ? "delete" : "insert"}
+            />
+          )}
         </div>
       </div>
     </div>

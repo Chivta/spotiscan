@@ -84,6 +84,10 @@ func runApp() int {
 			userEndpoints.POST("/suggestions/artist-insert", c.suggestionHandler.CreateArtistInsertSuggestion)
 			userEndpoints.DELETE("/suggestions/artist-insert/:id", c.suggestionHandler.DeleteArtistInsertSuggestion)
 			userEndpoints.PUT("/suggestions/artist-insert/:id", c.suggestionHandler.UpdateArtistInsertSuggestion)
+			userEndpoints.GET("/suggestions/artist-delete", c.suggestionHandler.GetArtistDeleteSuggestions)
+			userEndpoints.POST("/suggestions/artist-delete", c.suggestionHandler.CreateArtistDeleteSuggestion)
+			userEndpoints.DELETE("/suggestions/artist-delete/:id", c.suggestionHandler.DeleteArtistDeleteSuggestion)
+			userEndpoints.PUT("/suggestions/artist-delete/:id", c.suggestionHandler.UpdateArtistDeleteSuggestion)
 		}
 	}
 

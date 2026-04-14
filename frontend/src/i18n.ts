@@ -96,6 +96,14 @@ const en = {
   artistExists: "This artist is already in our database.",
   suggestionApproved: "This suggestion has already been approved and cannot be deleted.",
 
+  // Artist Delete Suggestions
+  suggestDeleteArtist: "Suggest artist removal",
+  suggestDeleteHint: "Suggest an artist to be removed from the Russian artists database.",
+  yourDeleteSuggestions: "Your removal suggestions",
+  noDeleteSuggestions: "You haven't submitted any removal suggestions yet.",
+  notRussian: "Not Russian?",
+  artistNotInDbForDelete: "This artist was not found in our database. Only artists already listed as Russian can be suggested for removal.",
+
   // AuthPage
   logIn: "Log In",
   signUp: "Sign Up",
@@ -204,6 +212,14 @@ export const translations = {
     yourSuggestions: "Ваші пропозиції",
     artistExists: "Цей артист вже є в нашій базі.",
     suggestionApproved: "Цю пропозицію вже схвалено — видалити її неможливо.",
+
+    // Artist Delete Suggestions
+    suggestDeleteArtist: "Запропонувати видалення артиста",
+    suggestDeleteHint: "Запропонуйте артиста для видалення з бази російських артистів.",
+    yourDeleteSuggestions: "Ваші пропозиції щодо видалення",
+    noDeleteSuggestions: "Ви ще не надсилали пропозицій щодо видалення.",
+    notRussian: "Не російський?",
+    artistNotInDbForDelete: "Цього артиста не знайдено в нашій базі. Для видалення можна пропонувати лише артистів, які вже є в списку російських.",
 
     // AuthPage
     logIn: "Увійти",

@@ -64,7 +64,11 @@ function artistDesc(artist: Artist, lang: "uk" | "en"): string {
   return artist.DescriptionEN || artist.DescriptionUA;
 }
 
-export default function PlaylistScanner() {
+interface PlaylistScannerProps {
+  onNotRussian?: (artistName: string) => void;
+}
+
+export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) {
   const navigate = useNavigate();
   const { lang } = useLanguage();
   const tx = translations[lang];
@@ -664,28 +668,50 @@ export default function PlaylistScanner() {
                                 </span>
                               )}
                             </div>
-                            {hasTracks && (
-                              <button
-                                onClick={() => { setResultTab("tracks"); setTracksSearch(artist.Name); }}
-                                style={{
-                                  padding: "6px 12px",
-                                  background: "rgba(29, 185, 84, 0.2)",
-                                  border: "1px solid rgba(29, 185, 84, 0.4)",
-                                  borderRadius: 6,
-                                  color: "#1DB954",
-                                  cursor: "pointer",
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                  whiteSpace: "nowrap",
-                                  transition: "all 0.2s ease",
-                                  flexShrink: 0,
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)"; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)"; }}
-                              >
-                                {tx.trackCount(trackCount)}
-                              </button>
-                            )}
+                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                              {hasTracks && (
+                                <button
+                                  onClick={() => { setResultTab("tracks"); setTracksSearch(artist.Name); }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    background: "rgba(29, 185, 84, 0.2)",
+                                    border: "1px solid rgba(29, 185, 84, 0.4)",
+                                    borderRadius: 6,
+                                    color: "#1DB954",
+                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    whiteSpace: "nowrap",
+                                    transition: "all 0.2s ease",
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.3)"; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(29, 185, 84, 0.2)"; }}
+                                >
+                                  {tx.trackCount(trackCount)}
+                                </button>
+                              )}
+                              {onNotRussian && (
+                                <button
+                                  onClick={() => onNotRussian(artist.Name)}
+                                  style={{
+                                    padding: "6px 12px",
+                                    background: "rgba(255,255,255,0.06)",
+                                    border: "1px solid rgba(255,255,255,0.15)",
+                                    borderRadius: 6,
+                                    color: "rgba(255,255,255,0.55)",
+                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    whiteSpace: "nowrap",
+                                    transition: "all 0.2s ease",
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.85)"; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+                                >
+                                  {tx.notRussian}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {/* Description */}

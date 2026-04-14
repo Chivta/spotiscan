@@ -42,6 +42,16 @@ export interface RuContent {
   Artists: Artist[];
 }
 
+export interface ArtistDeleteSuggestion {
+  ID: number;
+  CreatorID: number;
+  ArtistName: string;
+  Description: string;
+  Approved: boolean;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
 export interface ArtistInsertSuggestion {
   ID: number;
   CreatorID: number;

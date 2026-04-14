@@ -14,7 +14,12 @@ type (
 		GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]models.ArtistInsertSuggestion, error)
 		DeleteArtistInsertSuggestion(ctx context.Context, id, creatorID int) error
 		UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, name, description string) (models.ArtistInsertSuggestion, error)
-		IsArtistInsertSuggestionApproved(ctx context.Context, id, creatorID int) (bool, error)
+		IsArtistInsertSuggestionPending(ctx context.Context, id, creatorID int) (bool, error)
+		CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (models.ArtistDeleteSuggestion, error)
+		GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]models.ArtistDeleteSuggestion, error)
+		DeleteArtistDeleteSuggestion(ctx context.Context, id, creatorID int) error
+		UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, artistName, description string) (models.ArtistDeleteSuggestion, error)
+		IsArtistDeleteSuggestionPending(ctx context.Context, id, creatorID int) (bool, error)
 	}
 	artistRepo interface {
 		ArtistExists(ctx context.Context, name string) (bool, error)
@@ -56,12 +61,12 @@ func (s *SuggestionService) GetArtistInsertSuggestions(ctx context.Context, crea
 }
 
 func (s *SuggestionService) DeleteArtistInsertSuggestion(ctx context.Context, id, creatorID int) error {
-	approved, err := s.suggestionRepo.IsArtistInsertSuggestionApproved(ctx, id, creatorID)
+	pending, err := s.suggestionRepo.IsArtistInsertSuggestionPending(ctx, id, creatorID)
 	if err != nil {
 		return err
 	}
-	if approved {
-		return appErrors.ErrSuggestionApproved
+	if !pending {
+		return appErrors.ErrSuggestionNotPending
 	}
 	return s.suggestionRepo.DeleteArtistInsertSuggestion(ctx, id, creatorID)
 }
@@ -77,4 +82,45 @@ func (s *SuggestionService) UpdateArtistInsertSuggestion(ctx context.Context, id
 	}
 
 	return s.suggestionRepo.UpdateArtistInsertSuggestion(ctx, id, creatorID, name, description)
+}
+
+func (s *SuggestionService) CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (models.ArtistDeleteSuggestion, error) {
+	exists, err := s.artistRepo.ArtistExists(ctx, artistName)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to check if artist exists")
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
+	}
+	if !exists {
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+	}
+
+	return s.suggestionRepo.CreateArtistDeleteSuggestion(ctx, artistName, description, creatorID)
+}
+
+func (s *SuggestionService) GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]models.ArtistDeleteSuggestion, error) {
+	return s.suggestionRepo.GetArtistDeleteSuggestions(ctx, creatorID)
+}
+
+func (s *SuggestionService) DeleteArtistDeleteSuggestion(ctx context.Context, id, creatorID int) error {
+	pending, err := s.suggestionRepo.IsArtistDeleteSuggestionPending(ctx, id, creatorID)
+	if err != nil {
+		return err
+	}
+	if !pending {
+		return appErrors.ErrSuggestionNotPending
+	}
+	return s.suggestionRepo.DeleteArtistDeleteSuggestion(ctx, id, creatorID)
+}
+
+func (s *SuggestionService) UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, artistName, description string) (models.ArtistDeleteSuggestion, error) {
+	exists, err := s.artistRepo.ArtistExists(ctx, artistName)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to check if artist exists")
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
+	}
+	if !exists {
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+	}
+
+	return s.suggestionRepo.UpdateArtistDeleteSuggestion(ctx, id, creatorID, artistName, description)
 }
