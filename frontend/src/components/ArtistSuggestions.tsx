@@ -81,6 +81,15 @@ function StatusBadge({ state, tx }: { state: SuggestionState; tx: { approved: st
   );
 }
 
+function DeclineReasonBlock({ reason, label }: { reason: string; label: string }) {
+  return (
+    <div style={{ marginBottom: 8, padding: "6px 10px", background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.2)", borderRadius: 6 }}>
+      <span style={{ fontSize: 11, color: "rgba(231,76,60,0.7)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}: </span>
+      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{reason}</span>
+    </div>
+  );
+}
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
@@ -90,11 +99,11 @@ function formatDate(iso: string): string {
 function resolveErrorMessage(
   code: string | undefined,
   fallback: string,
-  tx: { artistExists: string; suggestionApproved: string; artistNotInDbForDelete: string },
+  tx: { artistExists: string; suggestionNotPending: string; artistNotInDbForDelete: string },
   context?: "delete",
 ): string {
   if (code === "ARTIST_EXISTS") return tx.artistExists;
-  if (code === "SUGGESTION_APPROVED") return tx.suggestionApproved;
+  if (code === "SUGGESTION_NOT_PENDING") return tx.suggestionNotPending;
   if (code === "NOT_FOUND" && context === "delete") return tx.artistNotInDbForDelete;
   return fallback;
 }
@@ -275,12 +284,15 @@ function InsertSuggestions() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                         <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>{s.ArtistName}</span>
-                        <StatusBadge state={toState(s.Approved)} tx={tx} />
+                        <StatusBadge state={toState(s.State)} tx={tx} />
                       </div>
                       <p style={{ margin: "0 0 8px", color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 1.5 }}>{s.Description}</p>
+                      {toState(s.State) === "declined" && s.DeclineReason && (
+                        <DeclineReasonBlock reason={s.DeclineReason} label={tx.adminDeclineReason} />
+                      )}
                       <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }}>{formatDate(s.CreatedAt)}</div>
                     </div>
-                    {toState(s.Approved) === "pending" && (
+                    {toState(s.State) === "pending" && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button style={ghostButtonStyle} onClick={() => startEdit(s)}>{tx.editSuggestion}</button>
@@ -497,12 +509,15 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                         <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>{s.ArtistName}</span>
-                        <StatusBadge state={toState(s.Approved)} tx={tx} />
+                        <StatusBadge state={toState(s.State)} tx={tx} />
                       </div>
                       <p style={{ margin: "0 0 8px", color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 1.5 }}>{s.Description}</p>
+                      {toState(s.State) === "declined" && s.DeclineReason && (
+                        <DeclineReasonBlock reason={s.DeclineReason} label={tx.adminDeclineReason} />
+                      )}
                       <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }}>{formatDate(s.CreatedAt)}</div>
                     </div>
-                    {toState(s.Approved) === "pending" && (
+                    {toState(s.State) === "pending" && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button style={ghostButtonStyle} onClick={() => startEdit(s)}>{tx.editSuggestion}</button>

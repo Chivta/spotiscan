@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Landing from "./pages/Landing.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
+import AdminPage from "./pages/AdminPage.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import Header from "./components/Header.tsx";
 import type { User } from "./types/models.ts";
@@ -57,6 +58,19 @@ function AppRoutes() {
             <>
               <Header user={user} onLogout={handleLogout} />
               <Dashboard />
+            </>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          user && user.userRole === "admin" ? (
+            <>
+              <Header user={user} onLogout={handleLogout} />
+              <AdminPage />
             </>
           ) : (
             <Navigate to="/" replace />

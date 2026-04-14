@@ -20,6 +20,12 @@ type (
 		DeleteArtistDeleteSuggestion(ctx context.Context, id, creatorID int) error
 		UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, artistName, description string) (models.ArtistDeleteSuggestion, error)
 		IsArtistDeleteSuggestionPending(ctx context.Context, id, creatorID int) (bool, error)
+		GetAllArtistInsertSuggestions(ctx context.Context) ([]models.ArtistInsertSuggestion, error)
+		ApproveArtistInsertSuggestion(ctx context.Context, id int) (models.ArtistInsertSuggestion, error)
+		DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (models.ArtistInsertSuggestion, error)
+		GetAllArtistDeleteSuggestions(ctx context.Context) ([]models.ArtistDeleteSuggestion, error)
+		ApproveArtistDeleteSuggestion(ctx context.Context, id int) (models.ArtistDeleteSuggestion, error)
+		DeclineArtistDeleteSuggestion(ctx context.Context, id int, reason string) (models.ArtistDeleteSuggestion, error)
 	}
 	artistRepo interface {
 		ArtistExists(ctx context.Context, name string) (bool, error)
@@ -140,4 +146,28 @@ func (s *SuggestionService) UpdateArtistDeleteSuggestion(ctx context.Context, id
 	}
 
 	return s.suggestionRepo.UpdateArtistDeleteSuggestion(ctx, id, creatorID, artistName, description)
+}
+
+func (s *SuggestionService) GetAllArtistInsertSuggestions(ctx context.Context) ([]models.ArtistInsertSuggestion, error) {
+	return s.suggestionRepo.GetAllArtistInsertSuggestions(ctx)
+}
+
+func (s *SuggestionService) ApproveArtistInsertSuggestion(ctx context.Context, id int) (models.ArtistInsertSuggestion, error) {
+	return s.suggestionRepo.ApproveArtistInsertSuggestion(ctx, id)
+}
+
+func (s *SuggestionService) GetAllArtistDeleteSuggestions(ctx context.Context) ([]models.ArtistDeleteSuggestion, error) {
+	return s.suggestionRepo.GetAllArtistDeleteSuggestions(ctx)
+}
+
+func (s *SuggestionService) ApproveArtistDeleteSuggestion(ctx context.Context, id int) (models.ArtistDeleteSuggestion, error) {
+	return s.suggestionRepo.ApproveArtistDeleteSuggestion(ctx, id)
+}
+
+func (s *SuggestionService) DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (models.ArtistInsertSuggestion, error) {
+	return s.suggestionRepo.DeclineArtistInsertSuggestion(ctx, id, reason)
+}
+
+func (s *SuggestionService) DeclineArtistDeleteSuggestion(ctx context.Context, id int, reason string) (models.ArtistDeleteSuggestion, error) {
+	return s.suggestionRepo.DeclineArtistDeleteSuggestion(ctx, id, reason)
 }

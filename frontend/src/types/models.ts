@@ -47,7 +47,8 @@ export interface ArtistDeleteSuggestion {
   CreatorID: number;
   ArtistName: string;
   Description: string;
-  Approved: "pending" | "approved" | "declined";
+  State: "pending" | "approved" | "declined";
+  DeclineReason?: string;
   CreatedAt: string;
   UpdatedAt: string;
 }
@@ -57,7 +58,8 @@ export interface ArtistInsertSuggestion {
   CreatorID: number;
   ArtistName: string;
   Description: string;
-  Approved: "pending" | "approved" | "declined";
+  State: "pending" | "approved" | "declined";
+  DeclineReason?: string;
   CreatedAt: string;
   UpdatedAt: string;
 }

@@ -46,11 +46,12 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *models.User) (int, erro
 
 func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*models.User, error) {
 	var user models.User
+	var isAdmin bool
 	err := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, email, password_hash FROM users WHERE id = $1`,
+		`SELECT u.id, u.email, u.password_hash, EXISTS(SELECT 1 FROM admins WHERE user_id = u.id) AS is_admin FROM users u WHERE id = $1`,
 		id,
-	).Scan(&user.ID, &user.Email, &user.PasswordHash)
+	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
@@ -58,17 +59,22 @@ func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*models.User, error
 		}
 		return nil, appErrors.ErrDatabaseFailure
 	}
-	user.Role = models.RoleUser
+	if isAdmin {
+		user.Role = models.RoleAdmin
+	} else {
+		user.Role = models.RoleUser
+	}
 	return &user, nil
 }
 
 func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
+	var isAdmin bool
 	err := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, email, password_hash FROM users WHERE email = $1`,
+		`SELECT u.id, u.email, u.password_hash, EXISTS(SELECT 1 FROM admins WHERE user_id = u.id) AS is_admin FROM users u WHERE email = $1`,
 		email,
-	).Scan(&user.ID, &user.Email, &user.PasswordHash)
+	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
@@ -76,6 +82,10 @@ func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*models.Us
 		}
 		return nil, appErrors.ErrDatabaseFailure
 	}
-	user.Role = models.RoleUser
+	if isAdmin {
+		user.Role = models.RoleAdmin
+	} else {
+		user.Role = models.RoleUser
+	}
 	return &user, nil
 }
