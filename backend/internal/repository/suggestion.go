@@ -25,11 +25,11 @@ func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name,
 
 	err := r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO artist_insert_suggestions (artist_name, description, creator_id) VALUES ($1, $2, $3) RETURNING id, created_at`,
+		`INSERT INTO artist_insert_suggestions (artist_name, description, creator_id) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`,
 		name,
 		description,
 		creatorID,
-	).Scan(&suggestion.ID, &suggestion.CreatedAt)
+	).Scan(&suggestion.ID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
 
 	if err != nil {
 		log.Error().Err(err).Msg("failed to insert artist suggestion into database")
@@ -101,12 +101,12 @@ func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, c
 		`UPDATE artist_insert_suggestions
 		 SET artist_name = $1, description = $2, updated_at = NOW()
 		 WHERE id = $3 AND creator_id = $4
-		 RETURNING id, artist_name, description, creator_id, created_at, updated_at`,
+		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
 		name,
 		description,
 		id,
 		creatorID,
-	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
+	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
 	}
@@ -123,11 +123,11 @@ func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artis
 
 	err := r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO artist_delete_suggestions (artist_name, description, creator_id) VALUES ($1, $2, $3) RETURNING id, created_at`,
+		`INSERT INTO artist_delete_suggestions (artist_name, description, creator_id) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`,
 		artistName,
 		description,
 		creatorID,
-	).Scan(&suggestion.ID, &suggestion.CreatedAt)
+	).Scan(&suggestion.ID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to insert artist delete suggestion into database")
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
@@ -198,12 +198,12 @@ func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, c
 		`UPDATE artist_delete_suggestions
 		 SET artist_name = $1, description = $2, updated_at = NOW()
 		 WHERE id = $3 AND creator_id = $4
-		 RETURNING id, artist_name, description, creator_id, created_at, updated_at`,
+		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
 		artistName,
 		description,
 		id,
 		creatorID,
-	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
+	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
 	}

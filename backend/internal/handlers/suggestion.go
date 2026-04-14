@@ -22,7 +22,7 @@ type SuggestionHandler struct {
 }
 
 type createArtistInsertSuggestionRequest struct {
-	ArtistName  string `json:"ArtistName" validate:"required"`
+	ArtistName  string `json:"ArtistName" validate:"required,max=255"`
 	Description string `json:"Description" validate:"required,max=1000"`
 }
 
@@ -92,7 +92,7 @@ func (h *SuggestionHandler) DeleteArtistInsertSuggestion(c *gin.Context) {
 }
 
 type updateArtistInsertSuggestionRequest struct {
-	ArtistName  string `json:"ArtistName" validate:"required"`
+	ArtistName  string `json:"ArtistName" validate:"required,max=255"`
 	Description string `json:"Description" validate:"required,max=1000"`
 }
 

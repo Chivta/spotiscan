@@ -81,6 +81,14 @@ func (s *SuggestionService) UpdateArtistInsertSuggestion(ctx context.Context, id
 		return models.ArtistInsertSuggestion{}, appErrors.ErrArtistExists
 	}
 
+	pending, err := s.suggestionRepo.IsArtistInsertSuggestionPending(ctx, id, creatorID)
+	if err != nil {
+		return models.ArtistInsertSuggestion{}, err
+	}
+	if !pending {
+		return models.ArtistInsertSuggestion{}, appErrors.ErrSuggestionNotPending
+	}
+
 	return s.suggestionRepo.UpdateArtistInsertSuggestion(ctx, id, creatorID, name, description)
 }
 
@@ -120,6 +128,15 @@ func (s *SuggestionService) UpdateArtistDeleteSuggestion(ctx context.Context, id
 	}
 	if !exists {
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+	}
+
+
+	pending, err := s.suggestionRepo.IsArtistDeleteSuggestionPending(ctx, id, creatorID)
+	if err != nil {
+		return models.ArtistDeleteSuggestion{}, err
+	}
+	if !pending {
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrSuggestionNotPending
 	}
 
 	return s.suggestionRepo.UpdateArtistDeleteSuggestion(ctx, id, creatorID, artistName, description)

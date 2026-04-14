@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS artist_delete_suggestions (
 );
 
 CREATE UNIQUE INDEX idx_artist_insert_suggestions_creator_id_created_at ON artist_insert_suggestions (creator_id, created_at DESC);
-CREATE UNIQUE INDEX idx_artist_delete_suggestions_creator_id_created_at ON artist_insert_suggestions (creator_id, created_at DESC);
+CREATE UNIQUE INDEX idx_artist_delete_suggestions_creator_id_created_at ON artist_delete_suggestions (creator_id, created_at DESC);
 
 CREATE TRIGGER artist_insert_suggestions_updated_at
     BEFORE UPDATE ON artist_insert_suggestions
