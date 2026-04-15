@@ -251,13 +251,15 @@ function InsertSuggestions() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error || tx.somethingWentWrong);
+        throw Object.assign(new Error(body?.error || tx.somethingWentWrong), { code: body?.code });
       }
       const updated: ArtistInsertSuggestion = await res.json();
       setSuggestions(prev => prev.map(s => s.ID === id ? updated : s));
       setEditingId(null);
     } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : tx.somethingWentWrong);
+      const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
+      setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
     }
@@ -278,6 +280,7 @@ function InsertSuggestions() {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
@@ -484,13 +487,15 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error || tx.somethingWentWrong);
+        throw Object.assign(new Error(body?.error || tx.somethingWentWrong), { code: body?.code });
       }
       const updated: ArtistDeleteSuggestion = await res.json();
       setSuggestions(prev => prev.map(s => s.ID === id ? updated : s));
       setEditingId(null);
     } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : tx.somethingWentWrong);
+      const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
+      setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
     }
@@ -511,6 +516,7 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
