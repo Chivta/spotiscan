@@ -23,5 +23,5 @@ var (
 	ErrEmailExists          = &AppError{409, "EMAIL_EXISTS", "email already exists"}
 	ErrInvalidCredentials   = &AppError{401, "INVALID_CREDENTIALS", "invalid credentials"}
 	ErrArtistExists         = &AppError{409, "ARTIST_EXISTS", "artist already exists"}
-	ErrSuggestionNotPending = &AppError{400, "SUGGESTION_NOT_PENDING", "suggestion in not in pending state"}
+	ErrSuggestionNotPending = &AppError{400, "SUGGESTION_NOT_PENDING", "suggestion is not in pending state"}
 )
