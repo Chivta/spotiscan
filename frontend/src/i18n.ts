@@ -95,7 +95,7 @@ const en = {
   suggestionDeleted: "Suggestion deleted.",
   yourSuggestions: "Your suggestions",
   artistExists: "This artist is already in our database.",
-  suggestionApproved: "This suggestion has already been approved and cannot be deleted.",
+  suggestionNotPending: "This suggestion is not pending and cannot be deleted.",
 
   // Artist Delete Suggestions
   suggestDeleteArtist: "Suggest artist removal",
@@ -104,6 +104,24 @@ const en = {
   noDeleteSuggestions: "You haven't submitted any removal suggestions yet.",
   notRussian: "Not Russian?",
   artistNotInDbForDelete: "This artist was not found in our database. Only artists already listed as Russian can be suggested for removal.",
+
+  // Admin
+  adminTitle: "Admin",
+  adminInsertSuggestions: "Add suggestions",
+  adminDeleteSuggestions: "Remove suggestions",
+  adminFilterAll: "All",
+  adminFilterPending: "Pending",
+  adminFilterApproved: "Approved",
+  adminFilterDeclined: "Declined",
+  adminApprove: "Approve",
+  adminDecline: "Decline",
+  adminDeclineReason: "Decline reason",
+  adminDeclineReasonPlaceholder: "Explain why this suggestion is declined...",
+  adminSubmitDecline: "Submit",
+  adminApproving: "Approving...",
+  adminDeclining: "Declining...",
+  adminCreatorId: "User",
+  adminNoSuggestions: "No suggestions.",
 
   // AuthPage
   logIn: "Log In",
@@ -213,7 +231,7 @@ export const translations = {
     suggestionDeleted: "Пропозицію видалено.",
     yourSuggestions: "Ваші пропозиції",
     artistExists: "Цей артист вже є в нашій базі.",
-    suggestionApproved: "Цю пропозицію вже схвалено — видалити її неможливо.",
+    suggestionNotPending: "Ця пропозиція не на розгляді — видалити її неможливо.",
 
     // Artist Delete Suggestions
     suggestDeleteArtist: "Запропонувати видалення артиста",
@@ -222,6 +240,24 @@ export const translations = {
     noDeleteSuggestions: "Ви ще не надсилали пропозицій щодо видалення.",
     notRussian: "Не російський?",
     artistNotInDbForDelete: "Цього артиста не знайдено в нашій базі. Для видалення можна пропонувати лише артистів, які вже є в списку російських.",
+
+    // Admin
+    adminTitle: "Адмін",
+    adminInsertSuggestions: "Пропозиції додавання",
+    adminDeleteSuggestions: "Пропозиції видалення",
+    adminFilterAll: "Всі",
+    adminFilterPending: "Очікують",
+    adminFilterApproved: "Схвалені",
+    adminFilterDeclined: "Відхилені",
+    adminApprove: "Схвалити",
+    adminDecline: "Відхилити",
+    adminDeclineReason: "Причина відхилення",
+    adminDeclineReasonPlaceholder: "Поясніть, чому пропозиція відхиляється...",
+    adminSubmitDecline: "Надіслати",
+    adminApproving: "Схвалення...",
+    adminDeclining: "Відхилення...",
+    adminCreatorId: "Користувач",
+    adminNoSuggestions: "Пропозицій немає.",
 
     // AuthPage
     logIn: "Увійти",

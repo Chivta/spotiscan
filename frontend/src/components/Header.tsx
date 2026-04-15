@@ -1,3 +1,4 @@
+import { useNavigate, useLocation } from "react-router-dom";
 import type { User } from "../types/models";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
@@ -11,6 +12,9 @@ interface HeaderProps {
 export default function Header({ user, onLogout }: HeaderProps) {
   const { lang } = useLanguage();
   const tx = translations[lang];
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAdmin = user.userRole === "admin";
   return (
     <header style={{
       position: "fixed",
@@ -43,6 +47,24 @@ export default function Header({ user, onLogout }: HeaderProps) {
           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: 13 }}>
             {user.Email}
           </span>
+        )}
+        {isAdmin && (
+          <button
+            onClick={() => navigate(location.pathname === "/admin" ? "/dashboard" : "/admin")}
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: 50,
+              color: "rgba(255, 255, 255, 0.7)",
+              padding: "6px 16px",
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)"; e.currentTarget.style.color = "#fff"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}
+          >
+            {location.pathname === "/admin" ? tx.tabScanner : tx.adminTitle}
+          </button>
         )}
         <LanguageSwitcher />
         <button

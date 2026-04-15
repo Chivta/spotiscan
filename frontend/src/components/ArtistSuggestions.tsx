@@ -81,6 +81,15 @@ function StatusBadge({ state, tx }: { state: SuggestionState; tx: { approved: st
   );
 }
 
+function DeclineReasonBlock({ reason, label }: { reason: string; label: string }) {
+  return (
+    <div style={{ marginBottom: 8, padding: "6px 10px", background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.2)", borderRadius: 6 }}>
+      <span style={{ fontSize: 11, color: "rgba(231,76,60,0.7)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}: </span>
+      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{reason}</span>
+    </div>
+  );
+}
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
@@ -90,13 +99,83 @@ function formatDate(iso: string): string {
 function resolveErrorMessage(
   code: string | undefined,
   fallback: string,
-  tx: { artistExists: string; suggestionApproved: string; artistNotInDbForDelete: string },
+  tx: { artistExists: string; suggestionNotPending: string; artistNotInDbForDelete: string },
   context?: "delete",
 ): string {
   if (code === "ARTIST_EXISTS") return tx.artistExists;
-  if (code === "SUGGESTION_APPROVED") return tx.suggestionApproved;
+  if (code === "SUGGESTION_NOT_PENDING") return tx.suggestionNotPending;
   if (code === "NOT_FOUND" && context === "delete") return tx.artistNotInDbForDelete;
   return fallback;
+}
+
+function ConfirmDialog({
+  message,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus();
+    return () => { prev?.focus(); };
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancel]);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,0.55)",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onCancel}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        style={{
+          background: "rgba(255,255,255,0.08)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: 16,
+          padding: "28px 32px",
+          maxWidth: 360,
+          width: "90%",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <p id="confirm-dialog-title" style={{ margin: 0, color: "#fff", fontSize: 15, fontWeight: 500, textAlign: "center" }}>{message}</p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <button ref={cancelRef} style={ghostButtonStyle} onClick={onCancel}>{cancelLabel}</button>
+          <button style={{ ...dangerButtonStyle, padding: "8px 20px" }} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Insert suggestions ───────────────────────────────────────────────────────
@@ -116,13 +195,22 @@ function InsertSuggestions() {
   const [submitting, setSubmitting] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: number; msg: string } | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+
+  const refreshList = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/suggestions/artist-insert", { credentials: "include" });
+      if (!res.ok) return;
+      const data: ArtistInsertSuggestion[] = await res.json();
+      setSuggestions(data ?? []);
+    } catch { /* best-effort */ }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -172,31 +260,36 @@ function InsertSuggestions() {
 
   const startEdit = (s: ArtistInsertSuggestion) => {
     setEditingId(s.ID);
-    setEditName(s.ArtistName);
     setEditDesc(s.Description);
     setEditError(null);
   };
 
   const handleUpdate = async (id: number) => {
     setEditError(null);
-    if (!editName.trim() || !editDesc.trim()) return;
+    if (!editDesc.trim()) return;
     setEditSaving(true);
     try {
       const res = await fetch(`/api/suggestions/artist-insert/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ArtistName: editName.trim(), Description: editDesc.trim() }),
+        body: JSON.stringify({ Description: editDesc.trim() }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error || tx.somethingWentWrong);
+        throw Object.assign(new Error(body?.error || tx.somethingWentWrong), { code: body?.code });
       }
       const updated: ArtistInsertSuggestion = await res.json();
       setSuggestions(prev => prev.map(s => s.ID === id ? updated : s));
       setEditingId(null);
     } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : tx.somethingWentWrong);
+      const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
+      setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
     }
@@ -217,6 +310,11 @@ function InsertSuggestions() {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
@@ -261,7 +359,7 @@ function InsertSuggestions() {
               <div key={s.ID} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 20px" }}>
                 {editingId === s.ID ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <input style={inputStyle} value={editName} onChange={e => setEditName(e.target.value)} maxLength={200} />
+                    <div style={{ color: "#fff", fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{s.ArtistName}</div>
                     <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={editDesc} onChange={e => setEditDesc(e.target.value)} maxLength={1000} />
                     <div style={{ textAlign: "right", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{editDesc.length}/1000</div>
                     {editError && <div style={{ color: "#ff7070", fontSize: 13 }}>{editError}</div>}
@@ -275,19 +373,22 @@ function InsertSuggestions() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                         <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>{s.ArtistName}</span>
-                        <StatusBadge state={toState(s.Approved)} tx={tx} />
+                        <StatusBadge state={toState(s.State)} tx={tx} />
                       </div>
                       <p style={{ margin: "0 0 8px", color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 1.5 }}>{s.Description}</p>
+                      {toState(s.State) === "declined" && s.DeclineReason && (
+                        <DeclineReasonBlock reason={s.DeclineReason} label={tx.adminDeclineReason} />
+                      )}
                       <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }}>{formatDate(s.CreatedAt)}</div>
                     </div>
-                    {toState(s.Approved) === "pending" && (
+                    {toState(s.State) === "pending" && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button style={ghostButtonStyle} onClick={() => startEdit(s)}>{tx.editSuggestion}</button>
                           <button
                             style={{ ...dangerButtonStyle, opacity: deletingId === s.ID ? 0.5 : 1 }}
                             disabled={deletingId === s.ID}
-                            onClick={() => { setDeleteError(null); if (window.confirm(tx.confirmDelete)) handleDelete(s.ID); }}
+                            onClick={() => { setDeleteError(null); setConfirmId(s.ID); }}
                           >
                             {tx.deleteSuggestion}
                           </button>
@@ -304,6 +405,15 @@ function InsertSuggestions() {
           </div>
         )}
       </div>
+      {confirmId !== null && (
+        <ConfirmDialog
+          message={tx.confirmDelete}
+          confirmLabel={tx.deleteSuggestion}
+          cancelLabel={tx.cancelEdit}
+          onConfirm={() => { handleDelete(confirmId); setConfirmId(null); }}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -329,13 +439,22 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: number; msg: string } | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+
+  const refreshList = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/suggestions/artist-delete", { credentials: "include" });
+      if (!res.ok) return;
+      const data: ArtistDeleteSuggestion[] = await res.json();
+      setSuggestions(data ?? []);
+    } catch { /* best-effort */ }
+  }, []);
 
   // Update create form when prefill changes (e.g. user clicks another artist)
   useEffect(() => {
@@ -394,31 +513,36 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
 
   const startEdit = (s: ArtistDeleteSuggestion) => {
     setEditingId(s.ID);
-    setEditName(s.ArtistName);
     setEditDesc(s.Description);
     setEditError(null);
   };
 
   const handleUpdate = async (id: number) => {
     setEditError(null);
-    if (!editName.trim() || !editDesc.trim()) return;
+    if (!editDesc.trim()) return;
     setEditSaving(true);
     try {
       const res = await fetch(`/api/suggestions/artist-delete/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ArtistName: editName.trim(), Description: editDesc.trim() }),
+        body: JSON.stringify({ Description: editDesc.trim() }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error || tx.somethingWentWrong);
+        throw Object.assign(new Error(body?.error || tx.somethingWentWrong), { code: body?.code });
       }
       const updated: ArtistDeleteSuggestion = await res.json();
       setSuggestions(prev => prev.map(s => s.ID === id ? updated : s));
       setEditingId(null);
     } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : tx.somethingWentWrong);
+      const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
+      setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
     }
@@ -439,6 +563,11 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
@@ -483,7 +612,7 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
               <div key={s.ID} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 20px" }}>
                 {editingId === s.ID ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <input style={inputStyle} value={editName} onChange={e => setEditName(e.target.value)} maxLength={200} placeholder={tx.artistNamePlaceholder} />
+                    <div style={{ color: "#fff", fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{s.ArtistName}</div>
                     <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={editDesc} onChange={e => setEditDesc(e.target.value)} maxLength={1000} />
                     <div style={{ textAlign: "right", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{editDesc.length}/1000</div>
                     {editError && <div style={{ color: "#ff7070", fontSize: 13 }}>{editError}</div>}
@@ -497,19 +626,22 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                         <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>{s.ArtistName}</span>
-                        <StatusBadge state={toState(s.Approved)} tx={tx} />
+                        <StatusBadge state={toState(s.State)} tx={tx} />
                       </div>
                       <p style={{ margin: "0 0 8px", color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 1.5 }}>{s.Description}</p>
+                      {toState(s.State) === "declined" && s.DeclineReason && (
+                        <DeclineReasonBlock reason={s.DeclineReason} label={tx.adminDeclineReason} />
+                      )}
                       <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }}>{formatDate(s.CreatedAt)}</div>
                     </div>
-                    {toState(s.Approved) === "pending" && (
+                    {toState(s.State) === "pending" && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button style={ghostButtonStyle} onClick={() => startEdit(s)}>{tx.editSuggestion}</button>
                           <button
                             style={{ ...dangerButtonStyle, opacity: deletingId === s.ID ? 0.5 : 1 }}
                             disabled={deletingId === s.ID}
-                            onClick={() => { setDeleteError(null); if (window.confirm(tx.confirmDelete)) handleDelete(s.ID); }}
+                            onClick={() => { setDeleteError(null); setConfirmId(s.ID); }}
                           >
                             {tx.deleteSuggestion}
                           </button>
@@ -526,6 +658,15 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
           </div>
         )}
       </div>
+      {confirmId !== null && (
+        <ConfirmDialog
+          message={tx.confirmDelete}
+          confirmLabel={tx.deleteSuggestion}
+          cancelLabel={tx.cancelEdit}
+          onConfirm={() => { handleDelete(confirmId); setConfirmId(null); }}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -542,11 +683,20 @@ interface ArtistSuggestionsProps {
 export default function ArtistSuggestions({ initialTab = "insert", deletePrefillName }: ArtistSuggestionsProps) {
   const { lang } = useLanguage();
   const tx = translations[lang];
-  const [tab, setTab] = useState<SuggestionTab>(initialTab);
+  const [tab, setTab] = useState<SuggestionTab>(() => {
+    const saved = sessionStorage.getItem("suggTab");
+    if (saved === "insert" || saved === "delete") return saved;
+    return initialTab;
+  });
+
+  const changeTab = (t: SuggestionTab) => {
+    sessionStorage.setItem("suggTab", t);
+    setTab(t);
+  };
 
   // When a new prefill arrives (from scanner), always switch to delete tab
   useEffect(() => {
-    if (deletePrefillName !== undefined) setTab("delete");
+    if (deletePrefillName !== undefined) changeTab("delete");
   }, [deletePrefillName]);
 
   return (
@@ -563,7 +713,7 @@ export default function ArtistSuggestions({ initialTab = "insert", deletePrefill
         {(["insert", "delete"] as SuggestionTab[]).map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => changeTab(t)}
             style={{
               padding: "7px 18px",
               borderRadius: 50,

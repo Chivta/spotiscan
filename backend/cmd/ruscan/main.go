@@ -89,6 +89,17 @@ func runApp() int {
 			userEndpoints.DELETE("/suggestions/artist-delete/:id", c.suggestionHandler.DeleteArtistDeleteSuggestion)
 			userEndpoints.PUT("/suggestions/artist-delete/:id", c.suggestionHandler.UpdateArtistDeleteSuggestion)
 		}
+
+		adminEndpoints := api.Group("/admin")
+		adminEndpoints.Use(c.authMiddleware.RequireAdminRole())
+		{
+			adminEndpoints.GET("/suggestions/artist-insert", c.suggestionHandler.GetAllArtistInsertSuggestions)
+			adminEndpoints.POST("/suggestions/artist-insert/:id/approve", c.suggestionHandler.ApproveArtistInsertSuggestion)
+			adminEndpoints.POST("/suggestions/artist-insert/:id/decline", c.suggestionHandler.DeclineArtistInsertSuggestion)
+			adminEndpoints.GET("/suggestions/artist-delete", c.suggestionHandler.GetAllArtistDeleteSuggestions)
+			adminEndpoints.POST("/suggestions/artist-delete/:id/approve", c.suggestionHandler.ApproveArtistDeleteSuggestion)
+			adminEndpoints.POST("/suggestions/artist-delete/:id/decline", c.suggestionHandler.DeclineArtistDeleteSuggestion)
+		}
 	}
 
 	if err = r.Run(); err != nil {
@@ -167,7 +178,7 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
 	jwtMiddleware := middlewares.NewAuthMiddleware(authService, cfg.SecureCookies)
 
-	suggestionRepo := repository.NewSuggestionRepo(db)
+	suggestionRepo := repository.NewSuggestionRepo(db, redis)
 	suggestionService := services.NewSuggestionService(suggestionRepo, artistRepo)
 	suggestionHandler := handlers.NewSuggestionHandler(suggestionService, validate)
 
