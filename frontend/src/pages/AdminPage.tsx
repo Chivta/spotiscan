@@ -260,6 +260,11 @@ function SuggestionPanel({ type }: SuggestionPanelProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterState>("pending");
 
+  // Keep error message ref fresh so the catch block always reads the current
+  // translation without re-running the fetch effect on every language change.
+  const errorMsgRef = React.useRef(tx.somethingWentWrong);
+  errorMsgRef.current = tx.somethingWentWrong;
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -270,12 +275,12 @@ function SuggestionPanel({ type }: SuggestionPanelProps) {
         const data: S[] = await res.json();
         setItems(data ?? []);
       } catch {
-        setLoadError(tx.somethingWentWrong);
+        setLoadError(errorMsgRef.current);
       } finally {
         setLoading(false);
       }
     })();
-  }, [type]);
+  }, [endpoint]);
 
   const counts: Record<FilterState, number> = {
     all: items.length,

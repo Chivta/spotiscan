@@ -178,12 +178,6 @@ function ConfirmDialog({
   );
 }
 
-function reloadToSuggestions(sub: "insert" | "delete") {
-  sessionStorage.setItem("dashTab", "suggestions");
-  sessionStorage.setItem("suggTab", sub);
-  window.location.reload();
-}
-
 // ─── Insert suggestions ───────────────────────────────────────────────────────
 
 function InsertSuggestions() {
@@ -208,6 +202,15 @@ function InsertSuggestions() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: number; msg: string } | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
+
+  const refreshList = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/suggestions/artist-insert", { credentials: "include" });
+      if (!res.ok) return;
+      const data: ArtistInsertSuggestion[] = await res.json();
+      setSuggestions(data ?? []);
+    } catch { /* best-effort */ }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -281,7 +284,11 @@ function InsertSuggestions() {
       setEditingId(null);
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("insert"); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
       setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
@@ -303,7 +310,11 @@ function InsertSuggestions() {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("insert"); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
@@ -436,6 +447,15 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
   const [deleteError, setDeleteError] = useState<{ id: number; msg: string } | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
 
+  const refreshList = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/suggestions/artist-delete", { credentials: "include" });
+      if (!res.ok) return;
+      const data: ArtistDeleteSuggestion[] = await res.json();
+      setSuggestions(data ?? []);
+    } catch { /* best-effort */ }
+  }, []);
+
   // Update create form when prefill changes (e.g. user clicks another artist)
   useEffect(() => {
     if (prefillName !== undefined) {
@@ -517,7 +537,11 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
       setEditingId(null);
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("delete"); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
       setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
@@ -539,7 +563,11 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("delete"); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") {
+        setEditingId(null); setEditError(null); setConfirmId(null); setDeleteError(null);
+        void refreshList();
+        return;
+      }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
