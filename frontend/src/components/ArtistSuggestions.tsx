@@ -125,7 +125,6 @@ function InsertSuggestions() {
   const [submitting, setSubmitting] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -181,21 +180,20 @@ function InsertSuggestions() {
 
   const startEdit = (s: ArtistInsertSuggestion) => {
     setEditingId(s.ID);
-    setEditName(s.ArtistName);
     setEditDesc(s.Description);
     setEditError(null);
   };
 
   const handleUpdate = async (id: number) => {
     setEditError(null);
-    if (!editName.trim() || !editDesc.trim()) return;
+    if (!editDesc.trim()) return;
     setEditSaving(true);
     try {
       const res = await fetch(`/api/suggestions/artist-insert/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ArtistName: editName.trim(), Description: editDesc.trim() }),
+        body: JSON.stringify({ Description: editDesc.trim() }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -270,7 +268,7 @@ function InsertSuggestions() {
               <div key={s.ID} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 20px" }}>
                 {editingId === s.ID ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <input style={inputStyle} value={editName} onChange={e => setEditName(e.target.value)} maxLength={200} />
+                    <div style={{ color: "#fff", fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{s.ArtistName}</div>
                     <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={editDesc} onChange={e => setEditDesc(e.target.value)} maxLength={1000} />
                     <div style={{ textAlign: "right", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{editDesc.length}/1000</div>
                     {editError && <div style={{ color: "#ff7070", fontSize: 13 }}>{editError}</div>}
@@ -341,7 +339,6 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -406,21 +403,20 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
 
   const startEdit = (s: ArtistDeleteSuggestion) => {
     setEditingId(s.ID);
-    setEditName(s.ArtistName);
     setEditDesc(s.Description);
     setEditError(null);
   };
 
   const handleUpdate = async (id: number) => {
     setEditError(null);
-    if (!editName.trim() || !editDesc.trim()) return;
+    if (!editDesc.trim()) return;
     setEditSaving(true);
     try {
       const res = await fetch(`/api/suggestions/artist-delete/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ArtistName: editName.trim(), Description: editDesc.trim() }),
+        body: JSON.stringify({ Description: editDesc.trim() }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -495,7 +491,7 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
               <div key={s.ID} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 20px" }}>
                 {editingId === s.ID ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <input style={inputStyle} value={editName} onChange={e => setEditName(e.target.value)} maxLength={200} placeholder={tx.artistNamePlaceholder} />
+                    <div style={{ color: "#fff", fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{s.ArtistName}</div>
                     <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={editDesc} onChange={e => setEditDesc(e.target.value)} maxLength={1000} />
                     <div style={{ textAlign: "right", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{editDesc.length}/1000</div>
                     {editError && <div style={{ color: "#ff7070", fontSize: 13 }}>{editError}</div>}

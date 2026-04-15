@@ -92,7 +92,6 @@ func (h *SuggestionHandler) DeleteArtistInsertSuggestion(c *gin.Context) {
 }
 
 type updateArtistInsertSuggestionRequest struct {
-	ArtistName  string `json:"ArtistName" validate:"required,max=255"`
 	Description string `json:"Description" validate:"required,max=1000"`
 }
 
@@ -121,7 +120,7 @@ func (h *SuggestionHandler) UpdateArtistInsertSuggestion(c *gin.Context) {
 		RespondWithError(c, err)
 		return
 	}
-	suggestion, err := h.svc.UpdateArtistInsertSuggestion(c.Request.Context(), id, userIdInt, req.ArtistName, req.Description)
+	suggestion, err := h.svc.UpdateArtistInsertSuggestion(c.Request.Context(), id, userIdInt, req.Description)
 	if err != nil {
 		RespondWithError(c, err)
 		return
@@ -201,7 +200,6 @@ func (h *SuggestionHandler) DeleteArtistDeleteSuggestion(c *gin.Context) {
 }
 
 type updateArtistDeleteSuggestionRequest struct {
-	ArtistName  string `json:"ArtistName" validate:"required,max=255"`
 	Description string `json:"Description" validate:"required,max=1000"`
 }
 
@@ -230,7 +228,7 @@ func (h *SuggestionHandler) UpdateArtistDeleteSuggestion(c *gin.Context) {
 		RespondWithError(c, err)
 		return
 	}
-	suggestion, err := h.svc.UpdateArtistDeleteSuggestion(c.Request.Context(), id, userIdInt, req.ArtistName, req.Description)
+	suggestion, err := h.svc.UpdateArtistDeleteSuggestion(c.Request.Context(), id, userIdInt, req.Description)
 	if err != nil {
 		RespondWithError(c, err)
 		return

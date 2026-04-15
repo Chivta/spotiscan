@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"strings"
 	"database/sql"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
@@ -97,25 +97,48 @@ func (r *SuggestionRepo) DeleteArtistInsertSuggestion(ctx context.Context, id, c
 	return nil
 }
 
-func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, name, description string) (models.ArtistInsertSuggestion, error) {
+func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistInsertSuggestion, error) {
 	var suggestion models.ArtistInsertSuggestion
 
-	err := r.db.QueryRowContext(
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to begin transaction for updating artist delete suggestion")
+		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
+	}
+	defer tx.Rollback()
+
+	err = tx.QueryRowContext(
 		ctx,
 		`UPDATE artist_insert_suggestions
-		 SET artist_name = $1, description = $2, updated_at = NOW()
-		 WHERE id = $3 AND creator_id = $4
+		 SET description = $1, updated_at = NOW()
+		 WHERE id = $2 AND creator_id = $3
 		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
-		name,
 		description,
 		id,
 		creatorID,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
-	if err == sql.ErrNoRows {
-		return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
-	}
+
+	var existingID int
 	if err != nil {
-		log.Error().Err(err).Msg("failed to update artist suggestion in database")
+		// check if suggestion exists at all or was it just already approved/declined to return appropriate error
+		checkErr := tx.QueryRowContext(
+			ctx,
+			`SELECT id FROM artist_delete_suggestions WHERE id = $1`,
+			id,
+		).Scan(&existingID)
+		if checkErr == sql.ErrNoRows {
+			return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
+		}
+		if checkErr != nil {
+			log.Error().Err(checkErr).Msg("failed to verify artist delete suggestion existence after approval attempt")
+			return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
+		}
+		return models.ArtistInsertSuggestion{}, appErrors.ErrSuggestionNotPending
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to commit transaction for updating artist delete suggestion")
 		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 	}
 
@@ -194,25 +217,47 @@ func (r *SuggestionRepo) DeleteArtistDeleteSuggestion(ctx context.Context, id, c
 	return nil
 }
 
-func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, artistName, description string) (models.ArtistDeleteSuggestion, error) {
+func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistDeleteSuggestion, error) {
 	var suggestion models.ArtistDeleteSuggestion
 
-	err := r.db.QueryRowContext(
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to begin transaction for updating artist delete suggestion")
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
+	}
+	defer tx.Rollback()
+
+	err = tx.QueryRowContext(
 		ctx,
 		`UPDATE artist_delete_suggestions
-		 SET artist_name = $1, description = $2, updated_at = NOW()
-		 WHERE id = $3 AND creator_id = $4
+		 SET description = $1, updated_at = NOW()
+		 WHERE id = $2 AND creator_id = $3
 		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
-		artistName,
 		description,
 		id,
 		creatorID,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
-	if err == sql.ErrNoRows {
-		return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
-	}
+	var existingID int
 	if err != nil {
-		log.Error().Err(err).Msg("failed to update artist delete suggestion in database")
+		// check if suggestion exists at all or was it just already approved/declined to return appropriate error
+		checkErr := tx.QueryRowContext(
+			ctx,
+			`SELECT id FROM artist_delete_suggestions WHERE id = $1`,
+			id,
+		).Scan(&existingID)
+		if checkErr == sql.ErrNoRows {
+			return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+		}
+		if checkErr != nil {
+			log.Error().Err(checkErr).Msg("failed to verify artist delete suggestion existence after approval attempt")
+			return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
+		}
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrSuggestionNotPending
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to commit transaction for updating artist delete suggestion")
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
 	}
 
@@ -316,12 +361,11 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 	}
 
-	
 	if err := tx.Commit(); err != nil {
 		log.Error().Err(err).Msg("failed to commit artist insert suggestion approval")
 		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 	}
-	
+
 	err = r.redis.SAdd(ctx, ruArtistsRedisKey, nameLower).Err()
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to add artist to redis set after approving suggestion")
