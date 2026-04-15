@@ -121,6 +121,14 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus();
+    return () => { prev?.focus(); };
+  }, []);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
     window.addEventListener("keydown", handler);
@@ -128,32 +136,41 @@ function ConfirmDialog({
   }, [onCancel]);
 
   return (
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 1000,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "rgba(0,0,0,0.55)",
-      backdropFilter: "blur(4px)",
-    }}>
-      <div style={{
-        background: "rgba(255,255,255,0.08)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.15)",
-        borderRadius: 16,
-        padding: "28px 32px",
-        maxWidth: 360,
-        width: "90%",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
         display: "flex",
-        flexDirection: "column",
-        gap: 20,
-      }}>
-        <p style={{ margin: 0, color: "#fff", fontSize: 15, fontWeight: 500, textAlign: "center" }}>{message}</p>
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,0.55)",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onCancel}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        style={{
+          background: "rgba(255,255,255,0.08)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: 16,
+          padding: "28px 32px",
+          maxWidth: 360,
+          width: "90%",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <p id="confirm-dialog-title" style={{ margin: 0, color: "#fff", fontSize: 15, fontWeight: 500, textAlign: "center" }}>{message}</p>
         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <button style={ghostButtonStyle} onClick={onCancel}>{cancelLabel}</button>
+          <button ref={cancelRef} style={ghostButtonStyle} onClick={onCancel}>{cancelLabel}</button>
           <button style={{ ...dangerButtonStyle, padding: "8px 20px" }} onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
