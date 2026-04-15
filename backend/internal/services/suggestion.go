@@ -14,12 +14,10 @@ type (
 		GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]models.ArtistInsertSuggestion, error)
 		DeleteArtistInsertSuggestion(ctx context.Context, id, creatorID int) error
 		UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistInsertSuggestion, error)
-		IsArtistInsertSuggestionPending(ctx context.Context, id, creatorID int) (bool, error)
 		CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (models.ArtistDeleteSuggestion, error)
 		GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]models.ArtistDeleteSuggestion, error)
 		DeleteArtistDeleteSuggestion(ctx context.Context, id, creatorID int) error
 		UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistDeleteSuggestion, error)
-		IsArtistDeleteSuggestionPending(ctx context.Context, id, creatorID int) (bool, error)
 		GetAllArtistInsertSuggestions(ctx context.Context) ([]models.ArtistInsertSuggestion, error)
 		ApproveArtistInsertSuggestion(ctx context.Context, id int) (models.ArtistInsertSuggestion, error)
 		DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (models.ArtistInsertSuggestion, error)
@@ -67,25 +65,10 @@ func (s *SuggestionService) GetArtistInsertSuggestions(ctx context.Context, crea
 }
 
 func (s *SuggestionService) DeleteArtistInsertSuggestion(ctx context.Context, id, creatorID int) error {
-	pending, err := s.suggestionRepo.IsArtistInsertSuggestionPending(ctx, id, creatorID)
-	if err != nil {
-		return err
-	}
-	if !pending {
-		return appErrors.ErrSuggestionNotPending
-	}
 	return s.suggestionRepo.DeleteArtistInsertSuggestion(ctx, id, creatorID)
 }
 
 func (s *SuggestionService) UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistInsertSuggestion, error) {
-	pending, err := s.suggestionRepo.IsArtistInsertSuggestionPending(ctx, id, creatorID)
-	if err != nil {
-		return models.ArtistInsertSuggestion{}, err
-	}
-	if !pending {
-		return models.ArtistInsertSuggestion{}, appErrors.ErrSuggestionNotPending
-	}
-
 	return s.suggestionRepo.UpdateArtistInsertSuggestion(ctx, id, creatorID, description)
 }
 
@@ -107,25 +90,10 @@ func (s *SuggestionService) GetArtistDeleteSuggestions(ctx context.Context, crea
 }
 
 func (s *SuggestionService) DeleteArtistDeleteSuggestion(ctx context.Context, id, creatorID int) error {
-	pending, err := s.suggestionRepo.IsArtistDeleteSuggestionPending(ctx, id, creatorID)
-	if err != nil {
-		return err
-	}
-	if !pending {
-		return appErrors.ErrSuggestionNotPending
-	}
 	return s.suggestionRepo.DeleteArtistDeleteSuggestion(ctx, id, creatorID)
 }
 
 func (s *SuggestionService) UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistDeleteSuggestion, error) {
-	pending, err := s.suggestionRepo.IsArtistDeleteSuggestionPending(ctx, id, creatorID)
-	if err != nil {
-		return models.ArtistDeleteSuggestion{}, err
-	}
-	if !pending {
-		return models.ArtistDeleteSuggestion{}, appErrors.ErrSuggestionNotPending
-	}
-
 	return s.suggestionRepo.UpdateArtistDeleteSuggestion(ctx, id, creatorID, description)
 }
 
