@@ -117,20 +117,19 @@ func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, c
 		id,
 		creatorID,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
-
-	var existingID int
 	if err != nil {
+		var existingID int
 		// check if suggestion exists at all or was it just already approved/declined to return appropriate error
 		checkErr := tx.QueryRowContext(
 			ctx,
-			`SELECT id FROM artist_delete_suggestions WHERE id = $1`,
+			`SELECT id FROM artist_insert_suggestions WHERE id = $1`,
 			id,
 		).Scan(&existingID)
-		if checkErr == sql.ErrNoRows {
-			return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
-		}
 		if checkErr != nil {
-			log.Error().Err(checkErr).Msg("failed to verify artist delete suggestion existence after approval attempt")
+			if checkErr == sql.ErrNoRows {
+				return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
+			}
+			log.Error().Err(checkErr).Msg("failed to verify artist insert suggestion existence after approval attempt")
 			return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 		}
 		return models.ArtistInsertSuggestion{}, appErrors.ErrSuggestionNotPending
@@ -237,18 +236,18 @@ func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, c
 		id,
 		creatorID,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
-	var existingID int
 	if err != nil {
+		var existingID int
 		// check if suggestion exists at all or was it just already approved/declined to return appropriate error
 		checkErr := tx.QueryRowContext(
 			ctx,
 			`SELECT id FROM artist_delete_suggestions WHERE id = $1`,
 			id,
 		).Scan(&existingID)
-		if checkErr == sql.ErrNoRows {
-			return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
-		}
 		if checkErr != nil {
+			if checkErr == sql.ErrNoRows {
+				return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+			}
 			log.Error().Err(checkErr).Msg("failed to verify artist delete suggestion existence after approval attempt")
 			return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
 		}
@@ -332,11 +331,21 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 		id,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
+		var existingID int
+		// check if suggestion exists at all or was it just already approved/declined to return appropriate error
+		checkErr := tx.QueryRowContext(
+			ctx,
+			`SELECT id FROM artist_insert_suggestions WHERE id = $1`,
+			id,
+		).Scan(&existingID)
+		if checkErr != nil {
+			if checkErr == sql.ErrNoRows {
+				return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
+			}
+			log.Error().Err(checkErr).Msg("failed to verify artist insert suggestion existence after approval attempt")
+			return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 		}
-		log.Error().Err(err).Msg("failed to approve artist insert suggestion")
-		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
+		return models.ArtistInsertSuggestion{}, appErrors.ErrSuggestionNotPending
 	}
 	nameLower := strings.ToLower(suggestion.ArtistName)
 
@@ -416,11 +425,21 @@ func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id i
 		id,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+		var existingID int
+		// check if suggestion exists at all or was it just already approved/declined to return appropriate error
+		checkErr := tx.QueryRowContext(
+			ctx,
+			`SELECT id FROM artist_delete_suggestions WHERE id = $1`,
+			id,
+		).Scan(&existingID)
+		if checkErr != nil {
+			if checkErr == sql.ErrNoRows {
+				return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+			}
+			log.Error().Err(checkErr).Msg("failed to verify artist delete suggestion existence after approval attempt")
+			return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
 		}
-		log.Error().Err(err).Msg("failed to approve artist delete suggestion")
-		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
+		return models.ArtistDeleteSuggestion{}, appErrors.ErrSuggestionNotPending
 	}
 	nameLower := strings.ToLower(suggestion.ArtistName)
 
