@@ -121,6 +121,12 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancel]);
+
   return (
     <div style={{
       position: "fixed",
@@ -133,8 +139,9 @@ function ConfirmDialog({
       backdropFilter: "blur(4px)",
     }}>
       <div style={{
-        background: "rgba(30,30,40,0.95)",
-        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.08)",
+        backdropFilter: "blur(20px)",
+        border: "1px solid rgba(255,255,255,0.15)",
         borderRadius: 16,
         padding: "28px 32px",
         maxWidth: 360,
