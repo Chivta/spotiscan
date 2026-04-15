@@ -161,6 +161,12 @@ function ConfirmDialog({
   );
 }
 
+function reloadToSuggestions(sub: "insert" | "delete") {
+  sessionStorage.setItem("dashTab", "suggestions");
+  sessionStorage.setItem("suggTab", sub);
+  window.location.reload();
+}
+
 // ─── Insert suggestions ───────────────────────────────────────────────────────
 
 function InsertSuggestions() {
@@ -258,7 +264,7 @@ function InsertSuggestions() {
       setEditingId(null);
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("insert"); return; }
       setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
@@ -280,7 +286,7 @@ function InsertSuggestions() {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("insert"); return; }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
@@ -494,7 +500,7 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
       setEditingId(null);
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("delete"); return; }
       setEditError(e.message || tx.somethingWentWrong);
     } finally {
       setEditSaving(false);
@@ -516,7 +522,7 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
       setSuggestions(prev => prev.filter(s => s.ID !== id));
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e.code === "SUGGESTION_NOT_PENDING") { window.location.reload(); return; }
+      if (e.code === "SUGGESTION_NOT_PENDING") { reloadToSuggestions("delete"); return; }
       setDeleteError({ id, msg: resolveErrorMessage(e.code, e.message || tx.somethingWentWrong, tx) });
     } finally {
       setDeletingId(null);
@@ -632,11 +638,20 @@ interface ArtistSuggestionsProps {
 export default function ArtistSuggestions({ initialTab = "insert", deletePrefillName }: ArtistSuggestionsProps) {
   const { lang } = useLanguage();
   const tx = translations[lang];
-  const [tab, setTab] = useState<SuggestionTab>(initialTab);
+  const [tab, setTab] = useState<SuggestionTab>(() => {
+    const saved = sessionStorage.getItem("suggTab");
+    if (saved === "insert" || saved === "delete") return saved;
+    return initialTab;
+  });
+
+  const changeTab = (t: SuggestionTab) => {
+    sessionStorage.setItem("suggTab", t);
+    setTab(t);
+  };
 
   // When a new prefill arrives (from scanner), always switch to delete tab
   useEffect(() => {
-    if (deletePrefillName !== undefined) setTab("delete");
+    if (deletePrefillName !== undefined) changeTab("delete");
   }, [deletePrefillName]);
 
   return (
@@ -653,7 +668,7 @@ export default function ArtistSuggestions({ initialTab = "insert", deletePrefill
         {(["insert", "delete"] as SuggestionTab[]).map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => changeTab(t)}
             style={{
               padding: "7px 18px",
               borderRadius: 50,

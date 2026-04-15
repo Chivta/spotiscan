@@ -10,12 +10,19 @@ type Tab = "scanner" | "suggestions";
 export default function Dashboard() {
   const { lang } = useLanguage();
   const tx = translations[lang];
-  const [tab, setTab] = useState<Tab>("scanner");
+  const [tab, setTab] = useState<Tab>(() =>
+    sessionStorage.getItem("dashTab") === "suggestions" ? "suggestions" : "scanner"
+  );
   const [deletePrefillName, setDeletePrefillName] = useState<string | undefined>(undefined);
+
+  const changeTab = (t: Tab) => {
+    sessionStorage.setItem("dashTab", t);
+    setTab(t);
+  };
 
   const handleNotRussian = (artistName: string) => {
     setDeletePrefillName(artistName);
-    setTab("suggestions");
+    changeTab("suggestions");
   };
 
   return (
@@ -47,7 +54,7 @@ export default function Dashboard() {
             {(["scanner", "suggestions"] as Tab[]).map(t => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => changeTab(t)}
                 style={{
                   padding: "8px 20px",
                   borderRadius: 50,
@@ -73,7 +80,6 @@ export default function Dashboard() {
           {tab === "suggestions" && (
             <ArtistSuggestions
               deletePrefillName={deletePrefillName}
-              initialTab={deletePrefillName !== undefined ? "delete" : "insert"}
             />
           )}
         </div>
