@@ -232,7 +232,7 @@ func (s *SpotifyService) GetArtistRuContent(ctx context.Context, artistId string
 		return &models.RuContent{}, nil
 	}
 
-	artistInfo[0].SpotifyID = artist.SpotifyID 
+	artistInfo[0].SpotifyID = artist.SpotifyID
 
 	return &models.RuContent{
 		Artists: []models.Artist{artistInfo[0]},
