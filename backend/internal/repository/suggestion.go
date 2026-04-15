@@ -286,20 +286,20 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
 		id,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
-
-	if err == sql.ErrNoRows {
-		return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
-	}
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return models.ArtistInsertSuggestion{}, appErrors.ErrNotFound
+		}
 		log.Error().Err(err).Msg("failed to approve artist insert suggestion")
 		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 	}
+	nameLower := strings.ToLower(suggestion.ArtistName)
 
 	// if the artist is on the blocklist, remove them from it when approving the insert suggestion
 	_, err = tx.ExecContext(
 		ctx,
 		`DELETE FROM artist_blocklist WHERE name = $1`,
-		strings.ToLower(suggestion.ArtistName),
+		nameLower,
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to remove artist from blocklist when approving insert suggestion")
@@ -309,22 +309,24 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 	_, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO ru_artists (name, description_ua, description_en, source) VALUES ($1, $2, $2, 'crowdsourced') ON CONFLICT (name) DO NOTHING`,
-		strings.ToLower(suggestion.ArtistName), suggestion.Description,
+		nameLower, suggestion.Description,
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to insert artist from approved suggestion")
 		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 	}
 
-	err = r.redis.SAdd(ctx, ruArtistsRedisKey, suggestion.ArtistName).Err()
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to add artist to redis set after approving suggestion")
-	}
-
+	
 	if err := tx.Commit(); err != nil {
 		log.Error().Err(err).Msg("failed to commit artist insert suggestion approval")
 		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 	}
+	
+	err = r.redis.SAdd(ctx, ruArtistsRedisKey, nameLower).Err()
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to add artist to redis set after approving suggestion")
+	}
+
 	return suggestion, nil
 }
 
@@ -369,15 +371,16 @@ func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id i
 		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
 		id,
 	).Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
-	if err == sql.ErrNoRows {
-		return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
-	}
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+		}
 		log.Error().Err(err).Msg("failed to approve artist delete suggestion")
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
 	}
+	nameLower := strings.ToLower(suggestion.ArtistName)
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM ru_artists WHERE name = $1`, strings.ToLower(suggestion.ArtistName))
+	_, err = tx.ExecContext(ctx, `DELETE FROM ru_artists WHERE name = $1`, nameLower)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to delete artist from approved suggestion")
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
@@ -389,15 +392,16 @@ func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id i
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
 	}
 
-	err = r.redis.SRem(ctx, ruArtistsRedisKey, strings.ToLower(suggestion.ArtistName)).Err()
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to remove artist from redis set after approving delete suggestion")
-	}
-
 	if err := tx.Commit(); err != nil {
 		log.Error().Err(err).Msg("failed to commit artist delete suggestion approval")
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
 	}
+
+	err = r.redis.SRem(ctx, ruArtistsRedisKey, nameLower).Err()
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to remove artist from redis set after approving delete suggestion")
+	}
+
 	return suggestion, nil
 }
 
