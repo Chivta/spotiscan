@@ -108,6 +108,52 @@ function resolveErrorMessage(
   return fallback;
 }
 
+function ConfirmDialog({
+  message,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 1000,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,0,0,0.55)",
+      backdropFilter: "blur(4px)",
+    }}>
+      <div style={{
+        background: "rgba(30,30,40,0.95)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 16,
+        padding: "28px 32px",
+        maxWidth: 360,
+        width: "90%",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+      }}>
+        <p style={{ margin: 0, color: "#fff", fontSize: 15, fontWeight: 500, textAlign: "center" }}>{message}</p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <button style={ghostButtonStyle} onClick={onCancel}>{cancelLabel}</button>
+          <button style={{ ...dangerButtonStyle, padding: "8px 20px" }} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Insert suggestions ───────────────────────────────────────────────────────
 
 function InsertSuggestions() {
@@ -131,6 +177,7 @@ function InsertSuggestions() {
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: number; msg: string } | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -297,7 +344,7 @@ function InsertSuggestions() {
                           <button
                             style={{ ...dangerButtonStyle, opacity: deletingId === s.ID ? 0.5 : 1 }}
                             disabled={deletingId === s.ID}
-                            onClick={() => { setDeleteError(null); if (window.confirm(tx.confirmDelete)) handleDelete(s.ID); }}
+                            onClick={() => { setDeleteError(null); setConfirmId(s.ID); }}
                           >
                             {tx.deleteSuggestion}
                           </button>
@@ -314,6 +361,15 @@ function InsertSuggestions() {
           </div>
         )}
       </div>
+      {confirmId !== null && (
+        <ConfirmDialog
+          message={tx.confirmDelete}
+          confirmLabel={tx.deleteSuggestion}
+          cancelLabel={tx.cancelEdit}
+          onConfirm={() => { handleDelete(confirmId); setConfirmId(null); }}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -345,6 +401,7 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: number; msg: string } | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
 
   // Update create form when prefill changes (e.g. user clicks another artist)
   useEffect(() => {
@@ -520,7 +577,7 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
                           <button
                             style={{ ...dangerButtonStyle, opacity: deletingId === s.ID ? 0.5 : 1 }}
                             disabled={deletingId === s.ID}
-                            onClick={() => { setDeleteError(null); if (window.confirm(tx.confirmDelete)) handleDelete(s.ID); }}
+                            onClick={() => { setDeleteError(null); setConfirmId(s.ID); }}
                           >
                             {tx.deleteSuggestion}
                           </button>
@@ -537,6 +594,15 @@ function DeleteSuggestions({ prefillName }: DeleteSuggestionsProps) {
           </div>
         )}
       </div>
+      {confirmId !== null && (
+        <ConfirmDialog
+          message={tx.confirmDelete}
+          confirmLabel={tx.deleteSuggestion}
+          cancelLabel={tx.cancelEdit}
+          onConfirm={() => { handleDelete(confirmId); setConfirmId(null); }}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
