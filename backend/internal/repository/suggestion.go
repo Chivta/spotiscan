@@ -78,11 +78,11 @@ func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name,
 		ctx,
 		`INSERT INTO artist_insert_suggestions (artist_name, description, creator_id) 
 		 VALUES ($1, $2, $3) 
-		 RETURNING id, created_at, updated_at`,
+		 RETURNING id, created_at, updated_at, state`,
 		name,
 		description,
 		creatorID,
-	).Scan(&suggestion.ID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
+	).Scan(&suggestion.ID, &suggestion.CreatedAt, &suggestion.UpdatedAt, &suggestion.State)
 
 	if err != nil {
 		log.Error().Err(err).Msg("failed to insert artist suggestion into database")
@@ -98,7 +98,7 @@ func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name,
 
 func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]models.ArtistInsertSuggestion, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, artist_name, description, state, creator_id, created_at 
+		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at 
 		 FROM artist_insert_suggestions 
 		 WHERE creator_id = $1 
 		 ORDER BY created_at DESC`,
@@ -112,10 +112,12 @@ func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creator
 	var suggestions []models.ArtistInsertSuggestion
 	for rows.Next() {
 		var suggestion models.ArtistInsertSuggestion
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		var declineReason sql.NullString
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist suggestion row")
 			return nil, appErrors.ErrDatabaseFailure
 		}
+		suggestion.DeclineReason = declineReason.String
 		suggestions = append(suggestions, suggestion)
 	}
 
@@ -212,11 +214,11 @@ func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artis
 		ctx,
 		`INSERT INTO artist_delete_suggestions (artist_name, description, creator_id) 
 		 VALUES ($1, $2, $3) 
-		 RETURNING id, created_at, updated_at`,
+		 RETURNING id, created_at, updated_at, state`,
 		artistName,
 		description,
 		creatorID,
-	).Scan(&suggestion.ID, &suggestion.CreatedAt, &suggestion.UpdatedAt)
+	).Scan(&suggestion.ID, &suggestion.CreatedAt, &suggestion.UpdatedAt, &suggestion.State)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to insert artist delete suggestion into database")
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
@@ -231,7 +233,7 @@ func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artis
 
 func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]models.ArtistDeleteSuggestion, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, artist_name, description, state, creator_id, created_at 
+		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at 
 		 FROM artist_delete_suggestions 
 		 WHERE creator_id = $1 
 		 ORDER BY created_at DESC`, 
@@ -245,10 +247,12 @@ func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creator
 	var suggestions []models.ArtistDeleteSuggestion
 	for rows.Next() {
 		var suggestion models.ArtistDeleteSuggestion
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		var declineReason sql.NullString
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist delete suggestion row")
 			return nil, appErrors.ErrDatabaseFailure
 		}
+		suggestion.DeclineReason = declineReason.String
 		suggestions = append(suggestions, suggestion)
 	}
 
