@@ -238,7 +238,7 @@ func (r *SuggestionRepo) DeleteArtistDeleteSuggestion(ctx context.Context, id, c
 		return err
 	}
 
-	_, err = r.db.ExecContext(
+	_, err = tx.ExecContext(
 		ctx,
 		`DELETE FROM artist_delete_suggestions WHERE id = $1 AND creator_id = $2`,
 		id,
