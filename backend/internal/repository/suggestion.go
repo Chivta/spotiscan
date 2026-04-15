@@ -24,7 +24,7 @@ type SuggestionRepo struct {
 	redis *redis.Client
 }
 
-// checks if suggestion exists and pending and lock it
+// checks if suggestion exists and pending and lock it. Without checking creator_id, used for admin actions
 // returns ErrNotFound, ErrSuggestionNotPending where appropriate or ErrDatabaseFailure with logging
 func lockPendingSuggestion(ctx context.Context, tx *sql.Tx, table string, id int) error {
 	var state string
@@ -32,6 +32,30 @@ func lockPendingSuggestion(ctx context.Context, tx *sql.Tx, table string, id int
 		ctx,
 		`SELECT state FROM `+table+` WHERE id = $1 FOR UPDATE`,
 		id,
+	).Scan(&state)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return appErrors.ErrNotFound
+		}
+		log.Error().Err(err).Msg("failed to query suggestion for locking")
+		return appErrors.ErrDatabaseFailure
+	}
+	if state != "pending" {
+		return appErrors.ErrSuggestionNotPending
+	}
+	return nil
+}
+
+
+// checks if suggestion exists and pending and lock it with creator ID check to prevent leaking suggestion state to unauthorized users
+// returns ErrNotFound, ErrSuggestionNotPending where appropriate or ErrDatabaseFailure with logging
+func lockPendingSuggestionWithCreatorID(ctx context.Context, tx *sql.Tx, table string, id, creatorID int) error {
+	var state string
+	err := tx.QueryRowContext(
+		ctx,
+		`SELECT state FROM `+table+` WHERE id = $1 AND creator_id = $2 FOR UPDATE`,
+		id,
+		creatorID,
 	).Scan(&state)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -110,11 +134,11 @@ func (r *SuggestionRepo) DeleteArtistInsertSuggestion(ctx context.Context, id, c
 		return appErrors.ErrDatabaseFailure
 	}
 	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_insert_suggestions", id)
+	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_insert_suggestions", id, creatorID)
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(
+	res, err := tx.ExecContext(
 		ctx,
 		`DELETE FROM artist_insert_suggestions
 		 WHERE id = $1 AND creator_id = $2`,
@@ -125,6 +149,16 @@ func (r *SuggestionRepo) DeleteArtistInsertSuggestion(ctx context.Context, id, c
 		log.Error().Err(err).Msg("failed to delete artist suggestion from database")
 		return appErrors.ErrDatabaseFailure
 	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get rows affected for deleting artist suggestion")
+		return appErrors.ErrDatabaseFailure
+	}
+	if rowsAffected == 0 {
+		return appErrors.ErrNotFound
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction for deleting artist suggestion")
@@ -142,7 +176,7 @@ func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, c
 		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
 	}
 	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_insert_suggestions", id)
+	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_insert_suggestions", id, creatorID)
 	if err != nil {
 		return models.ArtistInsertSuggestion{}, err
 	}
@@ -233,12 +267,12 @@ func (r *SuggestionRepo) DeleteArtistDeleteSuggestion(ctx context.Context, id, c
 		return appErrors.ErrDatabaseFailure
 	}
 	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_delete_suggestions", id)
+	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_delete_suggestions", id, creatorID)
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.ExecContext(
+	res, err := tx.ExecContext(
 		ctx,
 		`DELETE FROM artist_delete_suggestions WHERE id = $1 AND creator_id = $2`,
 		id,
@@ -247,6 +281,14 @@ func (r *SuggestionRepo) DeleteArtistDeleteSuggestion(ctx context.Context, id, c
 	if err != nil {
 		log.Error().Err(err).Msg("failed to delete artist delete suggestion from database")
 		return appErrors.ErrDatabaseFailure
+	}	
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get rows affected for deleting artist suggestion")
+		return appErrors.ErrDatabaseFailure
+	}
+	if rowsAffected == 0 {
+		return appErrors.ErrNotFound
 	}
 
 	err = tx.Commit()
@@ -267,7 +309,7 @@ func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, c
 		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
 	}
 	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_delete_suggestions", id)
+	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_delete_suggestions", id, creatorID)
 	if err != nil {
 		return models.ArtistDeleteSuggestion{}, err
 	}
@@ -337,7 +379,8 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 	var suggestion models.ArtistInsertSuggestion
 	err = tx.QueryRowContext(
 		ctx,
-		`UPDATE artist_insert_suggestions SET state = 'approved'
+		`UPDATE artist_insert_suggestions 
+		 SET state = 'approved', updated_at = NOW()
 		 WHERE id = $1
 		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
 		id,
@@ -424,7 +467,7 @@ func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id i
 	err = tx.QueryRowContext(
 		ctx,
 		`UPDATE artist_delete_suggestions 
-		 SET state = 'approved'
+		 SET state = 'approved', updated_at = NOW()
 		 WHERE id = $1
 		 RETURNING id, artist_name, description, state, creator_id, created_at, updated_at`,
 		id,
@@ -475,7 +518,7 @@ func (r *SuggestionRepo) DeclineArtistInsertSuggestion(ctx context.Context, id i
 	err = tx.QueryRowContext(
 		ctx,
 		`UPDATE artist_insert_suggestions 
-		 SET state = 'declined', decline_reason = $2
+		 SET state = 'declined', decline_reason = $2, updated_at = NOW()
 		 WHERE id = $1
 		 RETURNING id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at`,
 		id,
@@ -510,7 +553,7 @@ func (r *SuggestionRepo) DeclineArtistDeleteSuggestion(ctx context.Context, id i
 	err = tx.QueryRowContext(
 		ctx,
 		`UPDATE artist_delete_suggestions
-		 SET state = 'declined', decline_reason = $2
+		 SET state = 'declined', decline_reason = $2, updated_at = NOW()
 		 WHERE id = $1
 		 RETURNING id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at`,
 		id,
