@@ -4,6 +4,7 @@ import PlaylistScanner from "../components/PlaylistScanner";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import Footer from "../components/Footer";
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function Landing() {
             RuScan
           </span>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <LanguageSwitcher />
           <button
             onClick={() => navigate("/login")}
@@ -116,6 +117,7 @@ export default function Landing() {
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
           <PlaylistScanner />
         </div>
+        <Footer />
       </div>
     </div>
   );

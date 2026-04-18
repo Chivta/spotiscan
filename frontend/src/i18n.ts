@@ -123,6 +123,9 @@ const en = {
   adminCreatorId: "User",
   adminNoSuggestions: "No suggestions.",
 
+  // Feedback
+  feedback: "Feedback",
+
   // AuthPage
   logIn: "Log In",
   signUp: "Sign Up",
@@ -258,6 +261,9 @@ export const translations = {
     adminDeclining: "Відхилення...",
     adminCreatorId: "Користувач",
     adminNoSuggestions: "Пропозицій немає.",
+
+    // Feedback
+    feedback: "Зворотній зв'язок",
 
     // AuthPage
     logIn: "Увійти",

@@ -2,6 +2,7 @@ import { useState } from "react";
 import Aurora from "../components/react-bits/Aurora";
 import PlaylistScanner from "../components/PlaylistScanner";
 import ArtistSuggestions from "../components/ArtistSuggestions";
+import Footer from "../components/Footer";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
 
@@ -82,6 +83,7 @@ export default function Dashboard() {
               deletePrefillName={deletePrefillName}
             />
           )}
+          <Footer />
         </div>
       </div>
     </div>
