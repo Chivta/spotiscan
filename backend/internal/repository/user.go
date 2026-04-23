@@ -35,10 +35,10 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *models.User) (int, erro
 	).Scan(&userID)
 
 	if err != nil {
-		log.Error().Msgf("db error: %T: %v", err, err)
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			return 0, appErrors.ErrEmailExists
 		}
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return 0, appErrors.ErrDatabaseFailure
 	}
 	return userID, nil
@@ -53,10 +53,10 @@ func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*models.User, error
 		id,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
-		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
 			return nil, appErrors.ErrNotFound
 		}
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return nil, appErrors.ErrDatabaseFailure
 	}
 	if isAdmin {
@@ -76,10 +76,10 @@ func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*models.Us
 		email,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
-		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
 			return nil, appErrors.ErrUnauthorized
 		}
+		log.Error().Msgf("db error: %T: %v", err, err)
 		return nil, appErrors.ErrDatabaseFailure
 	}
 	if isAdmin {

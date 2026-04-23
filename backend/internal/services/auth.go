@@ -70,7 +70,9 @@ type AnonymousSession struct {
 func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Session, error) {
 	user, err := s.userRepo.GetUserByEmail(ctx, loginDTO.Email)
 	if err != nil {
-		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		if err != appErrors.ErrNotFound {
+			metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		}
 		return nil, err
 	}
 
@@ -101,8 +103,10 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 	}
 	id, err := s.userRepo.CreateUser(ctx, &user)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to create user")
-		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		if err != appErrors.ErrEmailExists {
+			log.Error().Err(err).Msg("failed to create user")
+			metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
+		}
 		return nil, err
 	}
 	user.ID = id
