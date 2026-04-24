@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package ruscan;
+option go_package = "github.com/youruser/ruscan/internal/queue";
+
+enum ResourceType {
+    INVALID = 0;
+    PLAYLIST_ID = 1;
+    TRACK_ID = 2;
+    ALBUM_ID = 3;
+    ARTIST_ID = 4;
+    ARTIST_NAME = 5;
+}
+
+enum Provider {
+  PROVIDER_UNSPECIFIED = 0;
+  SPOTIFY = 1;
+  YOUTUBE = 2;
+}
+
+message ScanJob {
+  int32 user_id       = 1;
+  ResourceType resource_type = 2;
+  string resource_identifier = 3;
+  Provider provider   = 4;
+}
