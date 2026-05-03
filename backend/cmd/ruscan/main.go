@@ -14,14 +14,14 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/config"
-	"github.com/chivta/ruscan/internal/handlers"
-	"github.com/chivta/ruscan/internal/metrics"
-	"github.com/chivta/ruscan/internal/middlewares"
-	"github.com/chivta/ruscan/internal/models"
-	"github.com/chivta/ruscan/internal/repository"
-	"github.com/chivta/ruscan/internal/services"
-	"github.com/chivta/ruscan/internal/spotify"
+	"github.com/chivta/ruscan/internal/shared/config"
+	"github.com/chivta/ruscan/internal/api/handlers"
+	"github.com/chivta/ruscan/internal/api/metrics"
+	"github.com/chivta/ruscan/internal/api/middlewares"
+	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/queue"
+	"github.com/chivta/ruscan/internal/shared/repository"
+	services "github.com/chivta/ruscan/internal/api/services"
 	"github.com/chivta/ruscan/scripts"
 )
 
@@ -50,6 +50,7 @@ func runApp() int {
 	}
 	defer c.db.Close()
 	defer c.redis.Close()
+	defer c.queue.Close()
 
 	r := gin.New()
 	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
@@ -69,12 +70,15 @@ func runApp() int {
 		api.POST("/auth/signup", c.authHandler.Signup)
 		api.POST("/auth/login", c.authHandler.Login)
 
-		spotifyEndpoints := api.Group("/spotify")
-		spotifyEndpoints.GET("/playlist/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetPlaylistRuContent)
-		spotifyEndpoints.GET("/track/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetTrackRuContent)
-		spotifyEndpoints.GET("/album/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetAlbumRuContent)
-		spotifyEndpoints.GET("/artist/:id/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContent)
-		spotifyEndpoints.GET("/artist/name/:name/rucontent", c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit), c.spotifyHandler.GetArtistRuContentByName)
+		anonQuota := c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit)
+		scanEndpoints := api.Group("/scan/:provider")
+		scanEndpoints.GET("/playlist/:id", anonQuota, c.scanHandler.ScanPlaylist)
+		scanEndpoints.GET("/track/:id", anonQuota, c.scanHandler.ScanTrack)
+		scanEndpoints.GET("/album/:id", anonQuota, c.scanHandler.ScanAlbum)
+		scanEndpoints.GET("/artist/:id", anonQuota, c.scanHandler.ScanArtist)
+		scanEndpoints.GET("/artist/name/:name", anonQuota, c.scanHandler.ScanArtistByName)
+
+		api.GET("/jobs/:jobId", c.scanHandler.GetJobStatus)
 
 		userEndpoints := api.Group("")
 		userEndpoints.Use(c.authMiddleware.RequireUserRole())
@@ -115,18 +119,18 @@ type appContainer struct {
 	artistRepo          *repository.ArtistRepo
 	tokenRepo           *repository.TokenRepo
 	userRepo            *repository.UserRepo
-	playlistRepo        *repository.PlaylistRepo
 	authHandler         *handlers.AuthHandler
 	authService         *services.AuthService
 	authMiddleware      *middlewares.AuthMiddleware
-	spotifyHandler      *handlers.SpotifyHandler
-	spotifyService      *services.SpotifyService
+	scanHandler         *handlers.ScanHandler
 	suggestionHandler   *handlers.SuggestionHandler
 	suggestionService   *services.SuggestionService
 	suggestionRepo      *repository.SuggestionRepo
+	jobRepo             *repository.JobRepo
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
 	db                  *sql.DB
 	redis               *redis.Client
+	queue               *queue.Client
 }
 
 func initApp(cfg *config.Config) (*appContainer, error) {
@@ -149,11 +153,9 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
-	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	artistRepo := repository.NewArtistRepo(db, redis)
 	tokenRepo := repository.NewTokenRepo(db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	userRepo := repository.NewUserRepo(db, redis)
-	playlistRepo := repository.NewPlaylistRepo(db, spotifyClient)
 
 	ratelimitRepo := repository.NewRatelimitRepo(redis)
 	err = ratelimitRepo.LoadRateLimitScript(initCtx, scripts.RateLimitScript)
@@ -169,10 +171,31 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		db.Close()
 		return nil, fmt.Errorf("Failed to load Russian artists to redis: %v", err)
 	}
+
+	queueClient, err := queue.NewClient(initCtx, cfg.RabbitMQURL)
+	if err != nil {
+		redis.Close()
+		db.Close()
+		return nil, fmt.Errorf("failed to initialize rabbitmq: %w", err)
+	}
+	// available providers (also queue names): spotify, youtube...
+	providers := map[string]struct{}{
+		models.SpotifyQueueName: {},
+	}
+	for provider := range providers {
+		err := queueClient.DeclareQueue(provider)
+		if err != nil {
+			queueClient.Close()
+			redis.Close()
+			db.Close()
+			return nil, fmt.Errorf("failed to declare %s queue: %w", provider, err)
+		}
+	}
+
 	validate := validator.New()
 
-	spotifyService := services.NewSpotifyService(artistRepo, playlistRepo)
-	spotifyHandler := handlers.NewSpotifyHandler(spotifyService, validate)
+	jobRepo := repository.NewJobRepo(redis)
+	scanHandler := handlers.NewScanHandler(jobRepo, queueClient, providers, validate)
 
 	authService := services.NewAuthService([]byte(cfg.JWTSecret), tokenRepo, userRepo)
 	authHandler := handlers.NewAuthHandler(authService, validate, cfg.SecureCookies)
@@ -189,17 +212,17 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		artistRepo:          artistRepo,
 		tokenRepo:           tokenRepo,
 		userRepo:            userRepo,
-		playlistRepo:        playlistRepo,
 		authHandler:         authHandler,
-		spotifyHandler:      spotifyHandler,
+		scanHandler:         scanHandler,
 		authService:         authService,
-		spotifyService:      spotifyService,
 		authMiddleware:      jwtMiddleware,
 		rateLimitMiddleware: rateLimitMiddleware,
 		suggestionHandler:   suggestionHandler,
 		suggestionService:   suggestionService,
 		suggestionRepo:      suggestionRepo,
+		jobRepo:             jobRepo,
 		db:                  db,
 		redis:               redis,
+		queue:               queueClient,
 	}, nil
 }

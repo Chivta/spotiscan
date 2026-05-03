@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package ruscan;
-option go_package = "github.com/youruser/ruscan/internal/queue";
+option go_package = "internal/shared/queue";
 
 enum ResourceType {
     INVALID = 0;
@@ -12,15 +12,28 @@ enum ResourceType {
     ARTIST_NAME = 5;
 }
 
-enum Provider {
-  PROVIDER_UNSPECIFIED = 0;
-  SPOTIFY = 1;
-  YOUTUBE = 2;
+// TODO: maybe rename this thing
+message ScanJob {
+  string id = 1;
+  string user_id = 2;
+  ResourceType resource_type = 3;
+  string resource_id = 4;
 }
 
-message ScanJob {
-  int32 user_id       = 1;
-  ResourceType resource_type = 2;
-  string resource_identifier = 3;
-  Provider provider   = 4;
+message ArtistRef {
+  string external_id = 1;
+  string name = 2;
+}
+
+message Track {
+  string external_id = 1;
+  string name = 2;
+  string image_url = 3;
+  repeated ArtistRef artists = 4;
+}
+
+message Content {
+  string scan_job_id = 1;
+  repeated Track   tracks  = 2;
+  repeated ArtistRef  artists = 3;
 }

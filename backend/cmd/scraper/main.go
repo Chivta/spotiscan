@@ -10,9 +10,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/config"
-	"github.com/chivta/ruscan/internal/models"
-	"github.com/chivta/ruscan/internal/repository"
+	"github.com/chivta/ruscan/internal/shared/config"
+	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/repository"
 )
 
 func main() {

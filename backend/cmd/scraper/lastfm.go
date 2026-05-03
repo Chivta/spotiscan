@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/models"
+	"github.com/chivta/ruscan/internal/shared/models"
 )
 
 // LastFMTopArtistsResponse matches the payload from tag.getTopArtists.

@@ -12,7 +12,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/models"
+	"github.com/chivta/ruscan/internal/shared/models"
 )
 
 const (
@@ -120,7 +120,7 @@ func (c *SpotifyClient) isSpotifyBlocked() bool {
 	return c.spotifyBlockedUntil.After(time.Now())
 }
 
-func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Playlist, error) {
+func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
 		return nil, &Error{Status: http.StatusTooManyRequests}
 	}
@@ -162,12 +162,13 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 		return nil, err
 	}
 
-	var result models.Playlist
-	result.SpotifyID = playlist.ID
-
+	result := &models.Content{}
 	addedTracks := make(map[string]struct{}, len(playlist.Tracks.Items))
 	result.Tracks = make([]models.Track, 0, len(playlist.Tracks.Items))
-	c.translateItemsToTracks(playlist.Tracks.Items, &result.Tracks, addedTracks)
+	addedArtists := make(map[string]struct{}, len(playlist.Tracks.Items)) // on average 1 track per artist
+	result.Artists = make([]models.ArtistRef, 0, len(playlist.Tracks.Items))
+
+	c.translateItemsToContent(playlist.Tracks.Items, result, addedTracks, addedArtists)
 
 	var (
 		total       = playlist.Tracks.Total
@@ -235,7 +236,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 				return
 			}
 			mu.Lock()
-			c.translateItemsToTracks(page.Items, &result.Tracks, addedTracks)
+			c.translateItemsToContent(page.Items, result, addedTracks, addedArtists)
 			mu.Unlock()
 		}(offset, c.sem)
 		offset += spotifyLimit
@@ -245,10 +246,10 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 		return nil, fetchErrors[0] // return the first error encountered
 	}
 
-	return &result, nil
+	return result, nil
 }
 
-func (c *SpotifyClient) translateItemsToTracks(items []SpotifyItem, targetTracks *[]models.Track, addedTracks map[string]struct{}) {
+func (c *SpotifyClient) translateItemsToContent(items []SpotifyItem, targetContent *models.Content, addedTracks map[string]struct{}, addedArtists map[string]struct{}) {
 	for _, item := range items {
 		if item.Track == nil || item.Track.ID == "" || item.IsLocal {
 			continue // Skip local tracks, invalid data
@@ -258,23 +259,30 @@ func (c *SpotifyClient) translateItemsToTracks(items []SpotifyItem, targetTracks
 			continue // Skip duplicate tracks
 		}
 		var track models.Track
-		track.SpotifyID = item.Track.ID
+		track.ExternalID = item.Track.ID
 		track.Name = item.Track.Name
 		for _, artist := range item.Track.Artists {
-			track.Artists = append(track.Artists, models.SpotifyArtist{
-				SpotifyID: artist.ID,
-				Name:      artist.Name,
+			track.ArtistRefs = append(track.ArtistRefs, models.ArtistRef{
+				ExternalID: artist.ID,
+				Name:       artist.Name,
 			})
+			if _, exists := addedArtists[artist.ID]; !exists {
+				addedArtists[artist.ID] = struct{}{}
+				targetContent.Artists = append(targetContent.Artists, models.ArtistRef{
+					ExternalID: artist.ID,
+					Name:       artist.Name,
+				})
+			}
 		}
 		if len(item.Track.Album.Images) > 0 {
 			track.ImageURL = item.Track.Album.Images[0].URL
 		}
 		addedTracks[item.Track.ID] = struct{}{}
-		*targetTracks = append(*targetTracks, track)
+		targetContent.Tracks = append(targetContent.Tracks, track)
 	}
 }
 
-func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*models.Track, error) {
+func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
 		return nil, &Error{Status: http.StatusTooManyRequests}
 	}
@@ -315,23 +323,31 @@ func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*m
 		return nil, err
 	}
 
-	track := &models.Track{
-		SpotifyID: trackResp.ID,
-		Name:      trackResp.Name,
+	track := models.Track{
+		ExternalID: trackResp.ID,
+		Name:       trackResp.Name,
 	}
+	artists := make([]models.ArtistRef, len(trackResp.Artists))
 	if len(trackResp.Album.Images) > 0 {
 		track.ImageURL = trackResp.Album.Images[0].URL
 	}
 	for _, artist := range trackResp.Artists {
-		track.Artists = append(track.Artists, models.SpotifyArtist{
-			SpotifyID: artist.ID,
-			Name:      artist.Name,
+		track.ArtistRefs = append(track.ArtistRefs, models.ArtistRef{
+			ExternalID: artist.ID,
+			Name:       artist.Name,
+		})
+		artists = append(artists, models.ArtistRef{
+			ExternalID: artist.ID,
+			Name:       artist.Name,
 		})
 	}
-	return track, nil
+	return &models.Content{
+		Tracks:  []models.Track{track},
+		Artists: artists,
+	}, nil
 }
 
-func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*models.Album, error) {
+func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
 		return nil, &Error{Status: http.StatusTooManyRequests}
 	}
@@ -376,9 +392,12 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 		imageURL = albumResp.Images[0].URL
 	}
 
-	album := models.Album{SpotifyID: albumResp.ID}
-	album.Tracks = make([]models.Track, 0, albumResp.Tracks.Total)
-	c.translateAlbumTracksToTracks(albumResp.Tracks.Items, &album.Tracks, imageURL)
+	result := &models.Content{
+		Tracks:  make([]models.Track, 0, albumResp.Tracks.Total),
+		Artists: make([]models.ArtistRef, 0),
+	}
+	seenArtists := make(map[string]struct{})
+	c.translateAlbumTracksToContent(albumResp.Tracks.Items, result, seenArtists, imageURL)
 
 	var (
 		total       = albumResp.Tracks.Total
@@ -446,7 +465,7 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 				return
 			}
 			mu.Lock()
-			c.translateAlbumTracksToTracks(page.Items, &album.Tracks, imageURL)
+			c.translateAlbumTracksToContent(page.Items, result, seenArtists, imageURL)
 			mu.Unlock()
 		}(offset, c.sem)
 		offset += spotifyLimit
@@ -456,30 +475,37 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 		return nil, fetchErrors[0]
 	}
 
-	return &album, nil
+	return result, nil
 }
 
-func (c *SpotifyClient) translateAlbumTracksToTracks(items []SpotifyAlbumTrack, targetTracks *[]models.Track, imageURL string) {
+func (c *SpotifyClient) translateAlbumTracksToContent(items []SpotifyAlbumTrack, targetContent *models.Content, seenArtists map[string]struct{}, imageURL string) {
 	for _, item := range items {
 		if item.ID == "" {
 			continue
 		}
 		track := models.Track{
-			SpotifyID: item.ID,
-			Name:      item.Name,
-			ImageURL:  imageURL,
+			ExternalID: item.ID,
+			Name:       item.Name,
+			ImageURL:   imageURL,
 		}
 		for _, artist := range item.Artists {
-			track.Artists = append(track.Artists, models.SpotifyArtist{
-				SpotifyID: artist.ID,
-				Name:      artist.Name,
+			track.ArtistRefs = append(track.ArtistRefs, models.ArtistRef{
+				ExternalID: artist.ID,
+				Name:       artist.Name,
 			})
+			if _, seen := seenArtists[artist.ID]; !seen {
+				seenArtists[artist.ID] = struct{}{}
+				targetContent.Artists = append(targetContent.Artists, models.ArtistRef{
+					ExternalID: artist.ID,
+					Name:       artist.Name,
+				})
+			}
 		}
-		*targetTracks = append(*targetTracks, track)
+		targetContent.Tracks = append(targetContent.Tracks, track)
 	}
 }
 
-func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (*models.Artist, error) {
+func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
 		return nil, &Error{Status: http.StatusTooManyRequests}
 	}
@@ -519,9 +545,10 @@ func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (
 		return nil, err
 	}
 
-	artist := &models.Artist{
-		SpotifyID: artistResp.ID,
-		Name:      artistResp.Name,
-	}
-	return artist, nil
+	return &models.Content{
+		Artists: []models.ArtistRef{{
+			ExternalID: artistResp.ID,
+			Name:       artistResp.Name,
+		}},
+	}, nil
 }

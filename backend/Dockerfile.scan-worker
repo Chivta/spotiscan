@@ -1,0 +1,28 @@
+# Base stage: shared dependency download
+FROM golang:1.26.1-alpine AS base
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Source stage: base + full source
+FROM base AS source
+COPY . .
+
+# Dev stage: air hot reload
+FROM base AS dev
+RUN go install github.com/air-verse/air@latest
+WORKDIR /app
+CMD ["air", "--build.cmd", "go build -o ./tmp/scan-worker ./cmd/scan-worker", "--build.bin", "./tmp/scan-worker"]
+
+# Build stage
+FROM source AS builder
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o scan-worker ./cmd/scan-worker
+
+# Production stage
+FROM alpine:3.19 AS prod
+RUN apk --no-cache add ca-certificates && \
+    adduser -D -s /sbin/nologin appuser
+WORKDIR /home/appuser
+COPY --from=builder --chown=appuser:appuser /build/scan-worker .
+USER appuser
+CMD ["./scan-worker"]
