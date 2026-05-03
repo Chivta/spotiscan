@@ -33,7 +33,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
   const tx = translations[lang];
   const navigate = useNavigate();
   const location = useLocation();
-  const isAdmin = user.userRole === "admin";
+  const isAdmin = user.Role === "admin";
 
   return (
     <>

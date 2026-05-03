@@ -15,7 +15,7 @@ type (
 		GetRussianWithInfo(ctx context.Context, names []string) ([]models.Artist, error)
 	}
 	jobRepo interface {
-		PostJobResult(ctx context.Context, jobId string, ruContent *models.RuContent) error
+		PostJobResult(ctx context.Context, jobId string, status models.JobStatus, result any) error
 	}
 )
 
@@ -37,7 +37,7 @@ func (s *SpotifyService) ProcessContentScanJob(ctx context.Context, content *mod
 		log.Error().Err(err).Msg("failed to filter content")
 		return false
 	}
-	err = s.jobRepo.PostJobResult(ctx, jobId, ruContent)
+	err = s.jobRepo.PostJobResult(ctx, jobId, models.JobStatusDone, ruContent)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to post job result")
 		return false

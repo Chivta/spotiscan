@@ -2,7 +2,7 @@ import * as React from "react";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AnimatedList from "./react-bits/AnimatedList";
-import type { Artist, TrackArtist, Track, RuContent } from "../types/models";
+import type { Artist, Track, RuContent } from "../types/models";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
 
@@ -88,30 +88,41 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
   const isArtistNameInput = !detected && inputValue.trim().length > 0;
   const canScan = !!detected || isArtistNameInput;
 
-  const fetchRuContent = async (type: ResourceType, id: string): Promise<RuContent> => {
-    const response = await fetch(`/api/spotify/${type}/${encodeURIComponent(id)}/rucontent`);
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      const err = new Error(body?.error || "Something went wrong") as Error & { code?: string };
-      err.code = body?.code;
-      throw err;
+  const abortRef = useRef<AbortController | null>(null);
+
+  const pollJob = async (jobId: string, signal: AbortSignal): Promise<RuContent> => {
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline) {
+      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+      const res = await fetch(`/api/jobs/${jobId}`, { signal });
+      if (res.status === 404) throw Object.assign(new Error("Job not found"), { code: "NOT_FOUND" });
+      if (!res.ok) throw Object.assign(new Error("Poll failed"), { code: "INTERNAL_ERROR" });
+      const job = await res.json();
+      if (job.status === "done") return job.result as RuContent;
+      if (job.status === "failed") throw Object.assign(new Error(job.result || "Scan failed"), { code: job.result || "INTERNAL_ERROR" });
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
     }
-    return response.json().catch(() => {
-      throw new Error("Invalid response from server");
-    });
+    throw Object.assign(new Error("Scan timed out"), { code: "INTERNAL_ERROR" });
   };
 
-  const fetchRuContentByName = async (name: string): Promise<RuContent> => {
-    const response = await fetch(`/api/spotify/artist/name/${encodeURIComponent(name)}/rucontent`);
+  const fetchRuContent = async (type: ResourceType, id: string, signal: AbortSignal): Promise<RuContent> => {
+    const response = await fetch(`/api/scan/spotify/${type}/${encodeURIComponent(id)}`, { signal });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      const err = new Error(body?.error || "Something went wrong") as Error & { code?: string };
-      err.code = body?.code;
-      throw err;
+      throw Object.assign(new Error(body?.error || "Something went wrong"), { code: body?.code });
     }
-    return response.json().catch(() => {
-      throw new Error("Invalid response from server");
-    });
+    const { jobId } = await response.json();
+    return pollJob(jobId, signal);
+  };
+
+  const fetchRuContentByName = async (name: string, signal: AbortSignal): Promise<RuContent> => {
+    const response = await fetch(`/api/scan/spotify/artist/name/${encodeURIComponent(name)}`, { signal });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw Object.assign(new Error(body?.error || "Something went wrong"), { code: body?.code });
+    }
+    const { jobId } = await response.json();
+    return pollJob(jobId, signal);
   };
 
   const handleScan = async (targetInput?: string, forceRefresh = false) => {
@@ -139,13 +150,18 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
       return;
     }
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setRuContent(null);
     setFromCache(false);
     setLoading(true);
     try {
       const data = resource
-        ? await fetchRuContent(resource.type, resource.id)
-        : await fetchRuContentByName(artistName!);
+        ? await fetchRuContent(resource.type, resource.id, controller.signal)
+        : await fetchRuContentByName(artistName!, controller.signal);
+      if (controller.signal.aborted) return;
       setRuContent(data);
       setLastInput(raw);
       setLastScanType(type);
@@ -154,6 +170,7 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
       setTracksSearch("");
       setArtistsSearch("");
     } catch (e: any) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       const code = e.code as string | undefined;
       if (code === "ANON_QUOTA_EXCEEDED") {
         setError({ key: "anonQuotaExceeded", type: "auth" });
@@ -182,9 +199,8 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
     }
   };
 
-  const ruArtistIds = new Set((ruContent?.Artists ?? []).map((a: Artist) => a.SpotifyID));
-  const ruArtistMap = useMemo(
-    () => new Map<string, Artist>((ruContent?.Artists ?? []).map((a: Artist) => [a.SpotifyID, a])),
+  const ruArtistByNameMap = useMemo(
+    () => new Map<string, Artist>((ruContent?.Artists ?? []).map((a: Artist) => [a.Name.toLowerCase(), a])),
     [ruContent?.Artists],
   );
 
@@ -208,7 +224,7 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
     const searchLower = tracksSearch.toLowerCase();
     return (
       track.Name.toLowerCase().includes(searchLower) ||
-      (track.Artists ?? []).some((a: TrackArtist) => a.Name.toLowerCase().includes(searchLower))
+      (track.ArtistRefs ?? []).some(ref => ref.Name.toLowerCase().includes(searchLower))
     );
   });
 
@@ -220,8 +236,8 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
   const artistTrackCount = useMemo(() => {
     const counts = new Map<string, number>();
     for (const track of ruContent?.Tracks ?? []) {
-      for (const artist of track.Artists ?? []) {
-        counts.set(artist.SpotifyID, (counts.get(artist.SpotifyID) ?? 0) + 1);
+      for (const ref of track.ArtistRefs ?? []) {
+        counts.set(ref.SpotifyID, (counts.get(ref.SpotifyID) ?? 0) + 1);
       }
     }
     return counts;
@@ -555,34 +571,37 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
                               </a>
                             </div>
                             <div style={{ marginTop: 4, fontSize: 13 }}>
-                              {(track.Artists ?? []).map((artist: TrackArtist, idx: number) => (
-                                <span key={artist.SpotifyID}>
-                                  {ruArtistIds.has(artist.SpotifyID) ? (
-                                    <a
-                                      style={{ color: "#e74c3c", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer", transition: "color 0.2s ease" }}
-                                      onMouseEnter={e => { e.currentTarget.style.color = "#ff6b5a"; const full = ruArtistMap.get(artist.SpotifyID); if (full) showTooltip(full, e); }}
-                                      onMouseLeave={e => { e.currentTarget.style.color = "#e74c3c"; hideTooltip(); }}
-                                      onClick={() => { setResultTab("artists"); setArtistsSearch(artist.Name); setTooltip(null); }}
-                                    >
-                                      {artist.Name}
-                                    </a>
-                                  ) : (
-                                    <a
-                                      href={`https://open.spotify.com/artist/${artist.SpotifyID}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", cursor: "pointer", transition: "color 0.2s ease" }}
-                                      onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
-                                      onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
-                                    >
-                                      {artist.Name}
-                                    </a>
-                                  )}
-                                  {idx < (track.Artists ?? []).length - 1 && (
-                                    <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>
-                                  )}
-                                </span>
-                              ))}
+                              {(track.ArtistRefs ?? []).map((ref, idx, arr) => {
+                                const ruArtist = ruArtistByNameMap.get(ref.Name.toLowerCase());
+                                return (
+                                  <span key={ref.SpotifyID}>
+                                    {ruArtist ? (
+                                      <a
+                                        style={{ color: "#e74c3c", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer", transition: "color 0.2s ease" }}
+                                        onMouseEnter={e => { e.currentTarget.style.color = "#ff6b5a"; showTooltip(ruArtist, e); }}
+                                        onMouseLeave={e => { e.currentTarget.style.color = "#e74c3c"; hideTooltip(); }}
+                                        onClick={() => { setResultTab("artists"); setArtistsSearch(ruArtist.Name); setTooltip(null); }}
+                                      >
+                                        {ref.Name}
+                                      </a>
+                                    ) : (
+                                      <a
+                                        href={`https://open.spotify.com/artist/${ref.SpotifyID}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", transition: "color 0.2s ease" }}
+                                        onMouseEnter={e => { e.currentTarget.style.color = "#fff"; }}
+                                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
+                                      >
+                                        {ref.Name}
+                                      </a>
+                                    )}
+                                    {idx < arr.length - 1 && (
+                                      <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 6px" }}>•</span>
+                                    )}
+                                  </span>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>

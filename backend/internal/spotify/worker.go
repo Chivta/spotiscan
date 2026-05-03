@@ -3,16 +3,22 @@ package spotify
 import (
 	"context"
 
+	"github.com/chivta/ruscan/internal/shared/appErrors"
 	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/rs/zerolog/log"
 )
 
-func NewSpotifyGatewayWorker(queue *queue.Client, spotifyClient *SpotifyClient) *SpotifyGatewayWorker {
-	return &SpotifyGatewayWorker{queue: queue, spotifyClient: spotifyClient}
+type JobRepo interface {
+	PostJobResult(ctx context.Context, jobID string, status models.JobStatus, result any) error
+}
+
+func NewSpotifyGatewayWorker(jobRepo JobRepo, queue *queue.Client, spotifyClient *SpotifyClient) *SpotifyGatewayWorker {
+	return &SpotifyGatewayWorker{jobRepo: jobRepo, queue: queue, spotifyClient: spotifyClient}
 }
 
 type SpotifyGatewayWorker struct {
+	jobRepo       JobRepo
 	queue         *queue.Client
 	spotifyClient *SpotifyClient
 }
@@ -23,24 +29,24 @@ func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
 		return err
 	}
 
-	deliveries, err := w.queue.ConsumeScanJobs(ctx, models.SpotifyQueueName)
+	deliveries, err := w.queue.ConsumeContentFetchJobs(ctx, models.SpotifyQueueName)
 	if err != nil {
 		return err
 	}
 
 	for delivery := range deliveries {
-		job := delivery.Job
-		err := w.processJob(ctx, job)
-		if err != nil {
-			delivery.Msg.Nack(false, true) // requeue on error
-		} else {
+		ack := w.processJob(ctx, delivery.Job)
+		if ack {
 			delivery.Msg.Ack(false)
+		} else {
+			delivery.Msg.Nack(false, true)
 		}
 	}
 	return nil
 }
 
-func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.ScanJob) error {
+func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.ContentFetchJob) bool {
+	log.Info().Str("job_id", job.Id).Str("resource_type", string(job.ResourceType)).Str("resource_id", job.ResourceId).Msg("processing spotify gateway job")
 	var fetchFunc func(context.Context, string) (*models.Content, error)
 	switch job.ResourceType {
 	case queue.ResourceType_PLAYLIST_ID:
@@ -55,27 +61,54 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.ScanJo
 		// passing through just the artist name, since it doesnt need spotify api call
 		err := w.queue.Publish(ctx, models.ScannerQueueName, DomainContent2QueueContent(&models.Content{Artists: []models.ArtistRef{{Name: job.ResourceId}}}, job.Id))
 		if err != nil {
-			return err
+			log.Error().Err(err).Msg("failed to publish content for artist name job")
+			return false
 		}
+		return true
 	default:
-		return nil
+		log.Error().Str("resource_type", string(job.ResourceType)).Msg("unknown resource type")
+		return true
 	}
-
 	content, err := fetchFunc(ctx, job.ResourceId)
 	if err != nil {
-		return err
+		log.Error().Err(err).Str("resource_id", job.ResourceId).Str("resource_type", string(job.ResourceType)).Msg("failed to fetch content from spotify")
+		spotifyErr, ok := err.(*SpotifyError)
+		if ok {
+			switch spotifyErr.Status {
+			case 404:
+				err = appErrors.ErrSpotifyNotFound
+			case 400:
+				err = appErrors.ErrBadRequest
+			case 429:
+				err = appErrors.ErrTooManyRequests
+			default:
+				log.Error().Err(spotifyErr).Int("status", spotifyErr.Status).Msg("spotify API error")
+				err = appErrors.ErrSpotifyAPIError
+			}
+			log.Error().Err(err).Str("resource_id", job.ResourceId).Str("resource_type", string(job.ResourceType)).Msg("spotify API error during fetching")
+			err = w.jobRepo.PostJobResult(ctx, job.Id, models.JobStatusFailed, err.Error())
+			if err != nil {
+				log.Error().Err(err).Msg("failed to post job result for spotify error")
+				return false
+			}
+			return true
+		} else {
+			log.Error().Err(err).Msg("uknown error during spotify fetching")
+			return false
+		}
 	}
 
 	err = w.queue.Publish(ctx, models.ScannerQueueName, DomainContent2QueueContent(content, job.Id))
 	if err != nil {
-		return err
+		log.Error().Err(err).Msg("failed to publish content for spotify job")
+		return false
 	}
-	log.Info().Str("job_id", job.Id).Msg("processed spotify job")
+	log.Info().Str("job_id", job.Id).Msg("processed spotify job") // TODO: remove ts
 
-	return nil
+	return true
 }
 
-func DomainContent2QueueContent(c *models.Content, jobId string) *queue.Content {
+func DomainContent2QueueContent(c *models.Content, jobId string) *queue.ContentScanJob {
 	var tracks []*queue.Track
 	var artists []*queue.ArtistRef
 
@@ -102,7 +135,7 @@ func DomainContent2QueueContent(c *models.Content, jobId string) *queue.Content 
 		})
 	}
 
-	return &queue.Content{
+	return &queue.ContentScanJob{
 		ScanJobId: jobId,
 		Tracks:    tracks,
 		Artists:   artists,

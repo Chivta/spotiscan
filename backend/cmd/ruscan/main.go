@@ -14,14 +14,14 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/config"
 	"github.com/chivta/ruscan/internal/api/handlers"
 	"github.com/chivta/ruscan/internal/api/metrics"
 	"github.com/chivta/ruscan/internal/api/middlewares"
+	services "github.com/chivta/ruscan/internal/api/services"
+	"github.com/chivta/ruscan/internal/shared/config"
 	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/shared/repository"
-	services "github.com/chivta/ruscan/internal/api/services"
 	"github.com/chivta/ruscan/scripts"
 )
 
@@ -59,7 +59,6 @@ func runApp() int {
 	r.Use(metrics.Middleware("/metrics", "/health", "/", "/api/me"))
 	r.GET("/metrics", gin.WrapH(metrics.Handler()))
 	r.GET("/health", func(c *gin.Context) { c.Status(204) })
-
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
 
 	api := r.Group("/api")

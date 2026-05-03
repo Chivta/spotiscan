@@ -13,7 +13,7 @@ enum ResourceType {
 }
 
 // TODO: maybe rename this thing
-message ScanJob {
+message ContentFetchJob {
   string id = 1;
   string user_id = 2;
   ResourceType resource_type = 3;
@@ -32,7 +32,7 @@ message Track {
   repeated ArtistRef artists = 4;
 }
 
-message Content {
+message ContentScanJob {
   string scan_job_id = 1;
   repeated Track   tracks  = 2;
   repeated ArtistRef  artists = 3;

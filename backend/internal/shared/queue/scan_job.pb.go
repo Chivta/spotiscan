@@ -80,7 +80,7 @@ func (ResourceType) EnumDescriptor() ([]byte, []int) {
 }
 
 // TODO: maybe rename this thing
-type ScanJob struct {
+type ContentFetchJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -90,20 +90,20 @@ type ScanJob struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ScanJob) Reset() {
-	*x = ScanJob{}
+func (x *ContentFetchJob) Reset() {
+	*x = ContentFetchJob{}
 	mi := &file_proto_scan_job_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ScanJob) String() string {
+func (x *ContentFetchJob) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ScanJob) ProtoMessage() {}
+func (*ContentFetchJob) ProtoMessage() {}
 
-func (x *ScanJob) ProtoReflect() protoreflect.Message {
+func (x *ContentFetchJob) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_scan_job_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -115,33 +115,33 @@ func (x *ScanJob) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ScanJob.ProtoReflect.Descriptor instead.
-func (*ScanJob) Descriptor() ([]byte, []int) {
+// Deprecated: Use ContentFetchJob.ProtoReflect.Descriptor instead.
+func (*ContentFetchJob) Descriptor() ([]byte, []int) {
 	return file_proto_scan_job_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ScanJob) GetId() string {
+func (x *ContentFetchJob) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *ScanJob) GetUserId() string {
+func (x *ContentFetchJob) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *ScanJob) GetResourceType() ResourceType {
+func (x *ContentFetchJob) GetResourceType() ResourceType {
 	if x != nil {
 		return x.ResourceType
 	}
 	return ResourceType_INVALID
 }
 
-func (x *ScanJob) GetResourceId() string {
+func (x *ContentFetchJob) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
@@ -268,7 +268,7 @@ func (x *Track) GetArtists() []*ArtistRef {
 	return nil
 }
 
-type Content struct {
+type ContentScanJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ScanJobId     string                 `protobuf:"bytes,1,opt,name=scan_job_id,json=scanJobId,proto3" json:"scan_job_id,omitempty"`
 	Tracks        []*Track               `protobuf:"bytes,2,rep,name=tracks,proto3" json:"tracks,omitempty"`
@@ -277,20 +277,20 @@ type Content struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Content) Reset() {
-	*x = Content{}
+func (x *ContentScanJob) Reset() {
+	*x = ContentScanJob{}
 	mi := &file_proto_scan_job_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Content) String() string {
+func (x *ContentScanJob) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Content) ProtoMessage() {}
+func (*ContentScanJob) ProtoMessage() {}
 
-func (x *Content) ProtoReflect() protoreflect.Message {
+func (x *ContentScanJob) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_scan_job_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -302,26 +302,26 @@ func (x *Content) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Content.ProtoReflect.Descriptor instead.
-func (*Content) Descriptor() ([]byte, []int) {
+// Deprecated: Use ContentScanJob.ProtoReflect.Descriptor instead.
+func (*ContentScanJob) Descriptor() ([]byte, []int) {
 	return file_proto_scan_job_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *Content) GetScanJobId() string {
+func (x *ContentScanJob) GetScanJobId() string {
 	if x != nil {
 		return x.ScanJobId
 	}
 	return ""
 }
 
-func (x *Content) GetTracks() []*Track {
+func (x *ContentScanJob) GetTracks() []*Track {
 	if x != nil {
 		return x.Tracks
 	}
 	return nil
 }
 
-func (x *Content) GetArtists() []*ArtistRef {
+func (x *ContentScanJob) GetArtists() []*ArtistRef {
 	if x != nil {
 		return x.Artists
 	}
@@ -332,8 +332,8 @@ var File_proto_scan_job_proto protoreflect.FileDescriptor
 
 const file_proto_scan_job_proto_rawDesc = "" +
 	"\n" +
-	"\x14proto/scan_job.proto\x12\x06ruscan\"\x8e\x01\n" +
-	"\aScanJob\x12\x0e\n" +
+	"\x14proto/scan_job.proto\x12\x06ruscan\"\x96\x01\n" +
+	"\x0fContentFetchJob\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x129\n" +
 	"\rresource_type\x18\x03 \x01(\x0e2\x14.ruscan.ResourceTypeR\fresourceType\x12\x1f\n" +
@@ -348,8 +348,8 @@ const file_proto_scan_job_proto_rawDesc = "" +
 	"externalId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1b\n" +
 	"\timage_url\x18\x03 \x01(\tR\bimageUrl\x12+\n" +
-	"\aartists\x18\x04 \x03(\v2\x11.ruscan.ArtistRefR\aartists\"}\n" +
-	"\aContent\x12\x1e\n" +
+	"\aartists\x18\x04 \x03(\v2\x11.ruscan.ArtistRefR\aartists\"\x84\x01\n" +
+	"\x0eContentScanJob\x12\x1e\n" +
 	"\vscan_job_id\x18\x01 \x01(\tR\tscanJobId\x12%\n" +
 	"\x06tracks\x18\x02 \x03(\v2\r.ruscan.TrackR\x06tracks\x12+\n" +
 	"\aartists\x18\x03 \x03(\v2\x11.ruscan.ArtistRefR\aartists*h\n" +
@@ -376,17 +376,17 @@ func file_proto_scan_job_proto_rawDescGZIP() []byte {
 var file_proto_scan_job_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_proto_scan_job_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_scan_job_proto_goTypes = []any{
-	(ResourceType)(0), // 0: ruscan.ResourceType
-	(*ScanJob)(nil),   // 1: ruscan.ScanJob
-	(*ArtistRef)(nil), // 2: ruscan.ArtistRef
-	(*Track)(nil),     // 3: ruscan.Track
-	(*Content)(nil),   // 4: ruscan.Content
+	(ResourceType)(0),       // 0: ruscan.ResourceType
+	(*ContentFetchJob)(nil), // 1: ruscan.ContentFetchJob
+	(*ArtistRef)(nil),       // 2: ruscan.ArtistRef
+	(*Track)(nil),           // 3: ruscan.Track
+	(*ContentScanJob)(nil),  // 4: ruscan.ContentScanJob
 }
 var file_proto_scan_job_proto_depIdxs = []int32{
-	0, // 0: ruscan.ScanJob.resource_type:type_name -> ruscan.ResourceType
+	0, // 0: ruscan.ContentFetchJob.resource_type:type_name -> ruscan.ResourceType
 	2, // 1: ruscan.Track.artists:type_name -> ruscan.ArtistRef
-	3, // 2: ruscan.Content.tracks:type_name -> ruscan.Track
-	2, // 3: ruscan.Content.artists:type_name -> ruscan.ArtistRef
+	3, // 2: ruscan.ContentScanJob.tracks:type_name -> ruscan.Track
+	2, // 3: ruscan.ContentScanJob.artists:type_name -> ruscan.ArtistRef
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name

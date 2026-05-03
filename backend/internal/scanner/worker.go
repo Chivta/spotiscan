@@ -38,7 +38,7 @@ func (w *ScannerWorker) Start(ctx context.Context) error {
 	return nil
 }
 
-func QueueContent2DomainContent(c *queue.Content) *models.Content {
+func QueueContent2DomainContent(c *queue.ContentScanJob) *models.Content {
 	tracks := make([]models.Track, len(c.Tracks))
 	for i, t := range c.Tracks {
 		var artistRefs []models.ArtistRef

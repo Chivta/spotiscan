@@ -41,7 +41,7 @@ func (h *ScanHandler) enqueue(c *gin.Context, resourceType queue.ResourceType, r
 		return
 	}
 
-	if err := h.q.Publish(c.Request.Context(), queueName, &queue.ScanJob{
+	if err := h.q.Publish(c.Request.Context(), queueName, &queue.ContentFetchJob{
 		Id:           jobID,
 		UserId:       c.GetString(models.UserIDKey),
 		ResourceType: resourceType,

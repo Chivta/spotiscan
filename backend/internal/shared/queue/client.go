@@ -56,69 +56,68 @@ func (c *Client) Publish(ctx context.Context, queueName string, job proto.Messag
 		return err
 	}
 
-	c.ch.PublishWithContext(ctx,
+	return c.ch.PublishWithContext(ctx,
 		"",        // exchange
 		queueName, // routing key
 		false,     // mandatory
 		false,     // immediate
 		amqp.Publishing{
 			ContentType: "application/protobuf",
-			Body: body,
+			Body:        body,
 		},
 	)
-	return nil
 }
 
-type ScanJobDelivery struct {
-	Job *ScanJob
+type ContentFetchDelivery struct {
+	Job *ContentFetchJob
 	Msg amqp.Delivery
 }
 
-type ContentDelivery struct {
-	Job *Content
+type ContentScanDelivery struct {
+	Job *ContentScanJob
 	Msg amqp.Delivery
 }
 
-func (c *Client) ConsumeScanJobs(ctx context.Context, queueName string) (<-chan ScanJobDelivery, error) {
+func (c *Client) ConsumeContentFetchJobs(ctx context.Context, queueName string) (<-chan ContentFetchDelivery, error) {
 	msgs, err := c.ch.Consume(queueName, "", false, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make(chan ScanJobDelivery)
+	ch := make(chan ContentFetchDelivery)
 	go func() {
 		defer close(ch)
 		for msg := range msgs {
-			var job ScanJob
+			var job ContentFetchJob
 			if err := proto.Unmarshal(msg.Body, &job); err != nil {
 				log.Error().Err(err).Msg("failed to unmarshal ScanJob")
 				msg.Nack(false, false)
 				continue
 			}
-			ch <- ScanJobDelivery{Job: &job, Msg: msg}
+			ch <- ContentFetchDelivery{Job: &job, Msg: msg}
 		}
 	}()
 
 	return ch, nil
 }
 
-func (c *Client) ConsumeContent(ctx context.Context, queueName string) (<-chan ContentDelivery, error) {
+func (c *Client) ConsumeContent(ctx context.Context, queueName string) (<-chan ContentScanDelivery, error) {
 	msgs, err := c.ch.Consume(queueName, "", false, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make(chan ContentDelivery)
+	ch := make(chan ContentScanDelivery)
 	go func() {
 		defer close(ch)
 		for msg := range msgs {
-			var job Content
+			var job ContentScanJob
 			if err := proto.Unmarshal(msg.Body, &job); err != nil {
 				log.Error().Err(err).Msg("failed to unmarshal Content")
 				msg.Nack(false, false)
 				continue
 			}
-			ch <- ContentDelivery{Job: &job, Msg: msg}
+			ch <- ContentScanDelivery{Job: &job, Msg: msg}
 		}
 	}()
 

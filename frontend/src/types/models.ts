@@ -1,7 +1,7 @@
 export interface User {
-  userID: string;
-  userRole: "user" | "admin" | "anon";
+  ID: number;
   Email?: string;
+  Role: "user" | "admin" | "anon";
 }
 
 export interface Artist {
@@ -16,7 +16,7 @@ export interface Artist {
   Confirmed: boolean;
 }
 
-export interface TrackArtist {
+export interface ArtistRef {
   SpotifyID: string;
   Name: string;
 }
@@ -25,7 +25,7 @@ export interface Track {
   SpotifyID: string;
   Name: string;
   ImageURL: string;
-  Artists: TrackArtist[];
+  ArtistRefs: ArtistRef[];
 }
 
 export interface Playlist {

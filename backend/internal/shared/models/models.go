@@ -103,6 +103,5 @@ type Job struct {
 	JobID     string          `json:"jobId"`
 	Status    JobStatus       `json:"status"`
 	Result    json.RawMessage `json:"result,omitempty"`
-	Error     string          `json:"error,omitempty"`
 	CreatedAt time.Time       `json:"createdAt"`
 }

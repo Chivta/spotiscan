@@ -59,7 +59,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 
 // logs unexpected Spotify API and network errors before translating them to application errors.
 func translateSpotifyError(err error) error {
-	if spotifyErr, ok := err.(*spotify.Error); ok {
+	if spotifyErr, ok := err.(*spotify.SpotifyError); ok {
 		switch spotifyErr.Status {
 		case 404:
 			return appErrors.ErrSpotifyNotFound

@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/chivta/ruscan/internal/shared/repository"
 	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/spotify"
@@ -29,6 +30,7 @@ func run() int {
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
 
+	redisURL := os.Getenv("REDIS_URL")
 	rabbitURL := os.Getenv("RABBITMQ_URL")
 	spotifyClientID := os.Getenv("SPOTIFY_CLIENT_ID")
 	spotifyClientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
@@ -53,8 +55,18 @@ func run() int {
 		return 1
 	}
 
+	redisClient, err := repository.InitializeRedis(ctx, redisURL)
+	if err != nil {
+		log.Err(err).Msg("failed to initialize redis")
+		return 1
+	}
+	defer redisClient.Close()
+
+
+	jobRepo := repository.NewJobRepo(redisClient)
+
 	spotifyClient := spotify.NewSpotifyClient(spotifyClientID, spotifyClientSecret)
-	worker := spotify.NewSpotifyGatewayWorker(queueClient, spotifyClient)
+	worker := spotify.NewSpotifyGatewayWorker(jobRepo, queueClient, spotifyClient)
 
 	log.Info().Msg("spotify-gateway starting")
 	if err := worker.Start(ctx); err != nil {

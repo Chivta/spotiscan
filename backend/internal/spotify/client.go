@@ -44,11 +44,11 @@ type SpotifyClient struct {
 	tokenMu     sync.RWMutex
 }
 
-type Error struct {
+type SpotifyError struct {
 	Status int
 }
 
-func (e Error) Error() string {
+func (e SpotifyError) Error() string {
 	return "spotify API error: status code " + strconv.Itoa(e.Status)
 }
 
@@ -92,7 +92,7 @@ func (c *SpotifyClient) getToken(ctx context.Context) (string, time.Time, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", time.Time{}, &Error{Status: resp.StatusCode}
+		return "", time.Time{}, &SpotifyError{Status: resp.StatusCode}
 	}
 
 	var tokenResp struct {
@@ -122,7 +122,7 @@ func (c *SpotifyClient) isSpotifyBlocked() bool {
 
 func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
-		return nil, &Error{Status: http.StatusTooManyRequests}
+		return nil, &SpotifyError{Status: http.StatusTooManyRequests}
 	}
 
 	token, err := c.getValidToken(ctx)
@@ -153,7 +153,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 				}
 			}
 		}
-		return nil, &Error{Status: resp.StatusCode}
+		return nil, &SpotifyError{Status: resp.StatusCode}
 	}
 
 	var playlist SpotifyPlaylistResponse
@@ -187,7 +187,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 			defer wg.Done()
 			if c.isSpotifyBlocked() {
 				mu.Lock()
-				fetchErrors = append(fetchErrors, &Error{Status: http.StatusTooManyRequests})
+				fetchErrors = append(fetchErrors, &SpotifyError{Status: http.StatusTooManyRequests})
 				mu.Unlock()
 				return
 			}
@@ -222,7 +222,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 					}
 				}
 				mu.Lock()
-				fetchErrors = append(fetchErrors, &Error{Status: resp.StatusCode})
+				fetchErrors = append(fetchErrors, &SpotifyError{Status: resp.StatusCode})
 				mu.Unlock()
 				return
 			}
@@ -284,7 +284,7 @@ func (c *SpotifyClient) translateItemsToContent(items []SpotifyItem, targetConte
 
 func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
-		return nil, &Error{Status: http.StatusTooManyRequests}
+		return nil, &SpotifyError{Status: http.StatusTooManyRequests}
 	}
 
 	token, err := c.getValidToken(ctx)
@@ -315,7 +315,7 @@ func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*m
 				}
 			}
 		}
-		return nil, &Error{Status: resp.StatusCode}
+		return nil, &SpotifyError{Status: resp.StatusCode}
 	}
 
 	var trackResp SpotifyTrackResponse
@@ -349,7 +349,7 @@ func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*m
 
 func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
-		return nil, &Error{Status: http.StatusTooManyRequests}
+		return nil, &SpotifyError{Status: http.StatusTooManyRequests}
 	}
 
 	token, err := c.getValidToken(ctx)
@@ -379,7 +379,7 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 				}
 			}
 		}
-		return nil, &Error{Status: resp.StatusCode}
+		return nil, &SpotifyError{Status: resp.StatusCode}
 	}
 
 	var albumResp SpotifyAlbumResponse
@@ -415,7 +415,7 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 			defer wg.Done()
 			if c.isSpotifyBlocked() {
 				mu.Lock()
-				fetchErrors = append(fetchErrors, &Error{Status: http.StatusTooManyRequests})
+				fetchErrors = append(fetchErrors, &SpotifyError{Status: http.StatusTooManyRequests})
 				mu.Unlock()
 				return
 			}
@@ -450,7 +450,7 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 					}
 				}
 				mu.Lock()
-				fetchErrors = append(fetchErrors, &Error{Status: resp.StatusCode})
+				fetchErrors = append(fetchErrors, &SpotifyError{Status: resp.StatusCode})
 				mu.Unlock()
 				return
 			}
@@ -507,7 +507,7 @@ func (c *SpotifyClient) translateAlbumTracksToContent(items []SpotifyAlbumTrack,
 
 func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (*models.Content, error) {
 	if c.isSpotifyBlocked() {
-		return nil, &Error{Status: http.StatusTooManyRequests}
+		return nil, &SpotifyError{Status: http.StatusTooManyRequests}
 	}
 
 	token, err := c.getValidToken(ctx)
@@ -537,7 +537,7 @@ func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (
 				}
 			}
 		}
-		return nil, &Error{Status: resp.StatusCode}
+		return nil, &SpotifyError{Status: resp.StatusCode}
 	}
 
 	var artistResp SpotifyArtistResponse

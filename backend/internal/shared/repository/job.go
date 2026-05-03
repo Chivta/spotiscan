@@ -44,7 +44,6 @@ func (r *JobRepo) GetJob(ctx context.Context, jobID string) (*models.Job, error)
 	job := &models.Job{
 		JobID:  jobID,
 		Status: models.JobStatus(fields["status"]),
-		Error:  fields["error"],
 	}
 
 	if t, err := time.Parse(time.RFC3339, fields["created_at"]); err == nil {
@@ -58,14 +57,14 @@ func (r *JobRepo) GetJob(ctx context.Context, jobID string) (*models.Job, error)
 	return job, nil
 }
 
-func (r *JobRepo) PostJobResult(ctx context.Context, jobID string, ruContent *models.RuContent) error {
-	data, err := json.Marshal(ruContent)
+func (r *JobRepo) PostJobResult(ctx context.Context, jobID string, status models.JobStatus, result any) error {
+	data, err := json.Marshal(result)
 	if err != nil {
 		return err
 	}
 	pipe := r.redis.Pipeline()
 	pipe.HSet(ctx, jobKey(jobID),
-		"status", string(models.JobStatusDone),
+		"status", string(status),
 		"data", string(data),
 	)
 	pipe.Expire(ctx, jobKey(jobID), models.JobTTL)
