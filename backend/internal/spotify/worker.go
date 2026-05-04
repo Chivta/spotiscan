@@ -125,6 +125,7 @@ func DomainContent2QueueContent(c *models.Content, jobId string) *queue.ContentS
 			ExternalId: track.ExternalID,
 			Name:       track.Name,
 			Artists:    artistRefs,
+			ImageUrl:   track.ImageURL,
 		})
 	}
 

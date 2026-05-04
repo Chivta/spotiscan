@@ -53,6 +53,7 @@ func QueueContent2DomainContent(c *queue.ContentScanJob) *models.Content {
 			Name:       t.Name,
 			ExternalID: t.ExternalId,
 			ArtistRefs: artistRefs,
+			ImageURL:   t.ImageUrl,
 		}
 	}
 
