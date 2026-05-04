@@ -91,7 +91,7 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
   const abortRef = useRef<AbortController | null>(null);
 
   const pollJob = async (jobId: string, signal: AbortSignal): Promise<RuContent> => {
-    const deadline = Date.now() + 30_000;
+    const deadline = Date.now() + 2_00_000;
     while (Date.now() < deadline) {
       if (signal.aborted) throw new DOMException("Aborted", "AbortError");
       const res = await fetch(`/api/jobs/${jobId}`, { signal });
