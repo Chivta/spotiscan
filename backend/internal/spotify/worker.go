@@ -71,7 +71,6 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 	}
 	content, err := fetchFunc(ctx, job.ResourceId)
 	if err != nil {
-		log.Error().Err(err).Str("resource_id", job.ResourceId).Str("resource_type", string(job.ResourceType)).Msg("failed to fetch content from spotify")
 		spotifyErr, ok := err.(*SpotifyError)
 		if ok {
 			switch spotifyErr.Status {
