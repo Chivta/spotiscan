@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	stdlog "log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -105,8 +108,27 @@ func runApp() int {
 		}
 	}
 
-	if err = r.Run(); err != nil {
-		log.Err(err).Msg("Failed to run server")
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Err(err).Msg("server error")
+		}
+	}()
+
+	<-ctx.Done()
+	log.Info().Msg("shutting down server")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Err(err).Msg("server shutdown error")
 		return 1
 	}
 
