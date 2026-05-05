@@ -102,7 +102,6 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 		log.Error().Err(err).Msg("failed to publish content for spotify job")
 		return false
 	}
-	log.Info().Str("job_id", job.Id).Msg("processed spotify job") // TODO: remove ts
 
 	return true
 }

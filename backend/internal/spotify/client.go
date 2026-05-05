@@ -18,9 +18,9 @@ import (
 const (
 	spotifyTokenURL   = "https://accounts.spotify.com/api/token"
 	spotifyLimit      = 50
-	requestsPerWindow = 90
+	requestsPerWindow = 175
 	slidingWindowSize = 30 * time.Second
-	maxConcurrent     = 10
+	maxConcurrent     = 5
 )
 
 func NewSpotifyClient(spotifyId, spotifySecret string) *SpotifyClient {
