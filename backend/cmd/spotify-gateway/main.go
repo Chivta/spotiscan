@@ -50,7 +50,7 @@ func run() int {
 	defer queueClient.Close()
 
 	// declare the scanner queue so publish calls don't silently drop messages
-	if err := queueClient.DeclareQueue(models.ScannerQueueName); err != nil {
+	if err := queueClient.DeclareQueueWithDLQ(models.ScannerQueueName); err != nil {
 		log.Err(err).Msg("failed to declare scanner queue")
 		return 1
 	}

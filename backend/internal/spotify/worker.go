@@ -24,8 +24,7 @@ type SpotifyGatewayWorker struct {
 }
 
 func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
-	err := w.queue.DeclareQueue(models.SpotifyQueueName)
-	if err != nil {
+	if err := w.queue.DeclareQueueWithDLQ(models.SpotifyQueueName); err != nil {
 		return err
 	}
 
@@ -33,6 +32,8 @@ func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	go w.consumeDead(ctx)
 
 	for delivery := range deliveries {
 		ack := w.processJob(ctx, delivery.Job)
@@ -43,6 +44,22 @@ func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (w *SpotifyGatewayWorker) consumeDead(ctx context.Context) {
+	deliveries, err := w.queue.ConsumeContentFetchJobs(ctx, models.SpotifyQueueName+".dead")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to consume spotify dead queue")
+		return
+	}
+	for d := range deliveries {
+		if err := w.jobRepo.PostJobResult(ctx, d.Job.Id, models.JobStatusFailed, appErrors.ErrInternal.Code); err != nil {
+			log.Error().Err(err).Str("job_id", d.Job.Id).Msg("failed to mark dead job as failed")
+			d.Msg.Nack(false, false)
+			continue
+		}
+		d.Msg.Ack(false)
+	}
 }
 
 func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.ContentFetchJob) bool {

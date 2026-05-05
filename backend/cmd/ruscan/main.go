@@ -182,7 +182,7 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 		models.SpotifyQueueName: {},
 	}
 	for provider := range providers {
-		err := queueClient.DeclareQueue(provider)
+		err := queueClient.DeclareQueueWithDLQ(provider)
 		if err != nil {
 			queueClient.Close()
 			redis.Close()

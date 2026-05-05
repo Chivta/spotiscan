@@ -38,15 +38,26 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Client) DeclareQueue(queueName string) error {
-	_, err := c.ch.QueueDeclare(
-		queueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,	   // arguments
-	)
+const deliveryLimit = 3
+
+func (c *Client) DeclareQueueWithDLQ(queueName string) error {
+	dlxName := queueName + ".dlx"
+	deadName := queueName + ".dead"
+
+	if err := c.ch.ExchangeDeclare(dlxName, "direct", true, false, false, false, nil); err != nil {
+		return err
+	}
+	if _, err := c.ch.QueueDeclare(deadName, true, false, false, false, nil); err != nil {
+		return err
+	}
+	if err := c.ch.QueueBind(deadName, queueName, dlxName, false, nil); err != nil {
+		return err
+	}
+	_, err := c.ch.QueueDeclare(queueName, true, false, false, false, amqp.Table{
+		"x-queue-type":           "quorum",
+		"x-dead-letter-exchange": dlxName,
+		"x-delivery-limit":       int64(deliveryLimit),
+	})
 	return err
 }
 

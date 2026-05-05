@@ -10,42 +10,19 @@ import (
 	"github.com/chivta/ruscan/internal/shared/models"
 )
 
-type (
-	filterArtistsRepo interface {
-		GetRussianWithInfo(ctx context.Context, names []string) ([]models.Artist, error)
-	}
-	jobRepo interface {
-		PostJobResult(ctx context.Context, jobId string, status models.JobStatus, result any) error
-	}
-)
+type filterArtistsRepo interface {
+	GetRussianWithInfo(ctx context.Context, names []string) ([]models.Artist, error)
+}
 
-func NewSpotifyService(artistRepo filterArtistsRepo, jobRepo jobRepo) *SpotifyService {
-	return &SpotifyService{
-		artistRepo: artistRepo,
-		jobRepo:    jobRepo,
-	}
+func NewSpotifyService(artistRepo filterArtistsRepo) *SpotifyService {
+	return &SpotifyService{artistRepo: artistRepo}
 }
 
 type SpotifyService struct {
 	artistRepo filterArtistsRepo
-	jobRepo    jobRepo
 }
 
-func (s *SpotifyService) ProcessContentScanJob(ctx context.Context, content *models.Content, jobId string) bool {
-	ruContent, err := s.filterContent(ctx, content)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to filter content")
-		return false
-	}
-	err = s.jobRepo.PostJobResult(ctx, jobId, models.JobStatusDone, ruContent)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to post job result")
-		return false
-	}
-	return true
-}
-
-func (s *SpotifyService) filterContent(ctx context.Context, content *models.Content) (*models.RuContent, error) {
+func (s *SpotifyService) FilterContent(ctx context.Context, content *models.Content) (*models.RuContent, error) {
 	artistNames := make([]string, len(content.Artists))
 	artistNamesMap := make(map[string]models.ArtistRef)
 	for i, artist := range content.Artists {
@@ -66,10 +43,8 @@ func (s *SpotifyService) filterContent(ctx context.Context, content *models.Cont
 		ruArtistIDsMap[externalID] = struct{}{}
 	}
 
-	// going over all tracks and checking for ru artists
 	ruTracks := make([]models.Track, 0)
 	for _, track := range content.Tracks {
-		// detecting any ru artists in the track
 		for _, a := range track.ArtistRefs {
 			if _, isRu := ruArtistIDsMap[a.ExternalID]; isRu {
 				ruTracks = append(ruTracks, track)

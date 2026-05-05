@@ -63,9 +63,9 @@ func run() int {
 
 	artistRepo := repository.NewArtistRepo(db, redisClient)
 	jobRepo := repository.NewJobRepo(redisClient)
-	svc := scanner.NewSpotifyService(artistRepo, jobRepo)
+	svc := scanner.NewSpotifyService(artistRepo)
 
-	worker := scanner.NewScannerWorker(queueClient, svc)
+	worker := scanner.NewScannerWorker(queueClient, svc, jobRepo)
 	log.Info().Msg("scan-worker starting")
 
 	err = worker.Start(ctx)
