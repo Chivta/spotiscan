@@ -79,7 +79,6 @@ func (ResourceType) EnumDescriptor() ([]byte, []int) {
 	return file_proto_scan_job_proto_rawDescGZIP(), []int{0}
 }
 
-// TODO: maybe rename this thing
 type ContentFetchJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`

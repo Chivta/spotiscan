@@ -12,7 +12,6 @@ enum ResourceType {
     ARTIST_NAME = 5;
 }
 
-// TODO: maybe rename this thing
 message ContentFetchJob {
   string id = 1;
   string user_id = 2;

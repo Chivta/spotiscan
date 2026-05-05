@@ -8,6 +8,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 
+	"github.com/chivta/ruscan/internal/shared/appErrors"
 	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/shared/queue"
 )
@@ -28,10 +29,34 @@ type ScanHandler struct {
 	validate  *validator.Validate
 }
 
+type spotifyIDParam struct {
+	ID string `validate:"required,alphanum,len=22"`
+}
+
+type artistNameParam struct {
+	Name string `validate:"required,min=1,max=255"`
+}
+
+func (h *ScanHandler) validateID(c *gin.Context, id string) bool {
+	if err := h.validate.Struct(spotifyIDParam{ID: id}); err != nil {
+		RespondWithError(c, appErrors.ErrBadRequest)
+		return false
+	}
+	return true
+}
+
+func (h *ScanHandler) validateName(c *gin.Context, name string) bool {
+	if err := h.validate.Struct(artistNameParam{Name: name}); err != nil {
+		RespondWithError(c, appErrors.ErrBadRequest)
+		return false
+	}
+	return true
+}
+
 func (h *ScanHandler) enqueue(c *gin.Context, resourceType queue.ResourceType, resourceID string) {
 	queueName := c.Param("provider")
 	if _, ok := h.providers[queueName]; !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid provider"}) // TODO: use sentinel
+		RespondWithError(c, appErrors.ErrBadRequest)
 		return
 	}
 
@@ -56,8 +81,7 @@ func (h *ScanHandler) enqueue(c *gin.Context, resourceType queue.ResourceType, r
 
 func (h *ScanHandler) ScanPlaylist(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "empty id"})
+	if !h.validateID(c, id) {
 		return
 	}
 	h.enqueue(c, queue.ResourceType_PLAYLIST_ID, id)
@@ -65,8 +89,7 @@ func (h *ScanHandler) ScanPlaylist(c *gin.Context) {
 
 func (h *ScanHandler) ScanTrack(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "empty id"})
+	if !h.validateID(c, id) {
 		return
 	}
 	h.enqueue(c, queue.ResourceType_TRACK_ID, id)
@@ -74,8 +97,7 @@ func (h *ScanHandler) ScanTrack(c *gin.Context) {
 
 func (h *ScanHandler) ScanAlbum(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "empty id"})
+	if !h.validateID(c, id) {
 		return
 	}
 	h.enqueue(c, queue.ResourceType_ALBUM_ID, id)
@@ -83,8 +105,7 @@ func (h *ScanHandler) ScanAlbum(c *gin.Context) {
 
 func (h *ScanHandler) ScanArtist(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "empty id"})
+	if !h.validateID(c, id) {
 		return
 	}
 	h.enqueue(c, queue.ResourceType_ARTIST_ID, id)
@@ -92,8 +113,7 @@ func (h *ScanHandler) ScanArtist(c *gin.Context) {
 
 func (h *ScanHandler) ScanArtistByName(c *gin.Context) {
 	name := c.Param("name")
-	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "empty name"})
+	if !h.validateName(c, name) {
 		return
 	}
 	h.enqueue(c, queue.ResourceType_ARTIST_NAME, name)
