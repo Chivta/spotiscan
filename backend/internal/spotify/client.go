@@ -306,7 +306,7 @@ func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*m
 		ExternalID: trackResp.ID,
 		Name:       trackResp.Name,
 	}
-	artists := make([]models.ArtistRef, len(trackResp.Artists))
+	artists := make([]models.ArtistRef, 0, len(trackResp.Artists))
 	if len(trackResp.Album.Images) > 0 {
 		track.ImageURL = trackResp.Album.Images[0].URL
 	}

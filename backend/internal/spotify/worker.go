@@ -38,9 +38,17 @@ func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
 	for delivery := range deliveries {
 		ack := w.processJob(ctx, delivery.Job)
 		if ack {
-			delivery.Msg.Ack(false)
+			err = delivery.Msg.Ack(false)
+			if err != nil {
+				log.Error().Err(err).Str("job_id", delivery.Job.Id).Msg("failed to ack message")
+				return err
+			}
 		} else {
-			delivery.Msg.Nack(false, true)
+			err = delivery.Msg.Nack(false, true)
+			if err != nil {
+				log.Error().Err(err).Str("job_id", delivery.Job.Id).Msg("failed to nack message")
+				return err
+			}
 		}
 	}
 	return nil
@@ -84,6 +92,7 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 		return true
 	default:
 		log.Error().Str("resource_type", string(job.ResourceType)).Msg("unknown resource type")
+		w.jobRepo.PostJobResult(ctx, job.Id, models.JobStatusFailed, appErrors.ErrBadRequest.Code)
 		return true
 	}
 	content, err := fetchFunc(ctx, job.ResourceId)

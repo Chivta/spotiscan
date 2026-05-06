@@ -51,6 +51,11 @@ func (w *SlidingWindow) Wait(ctx context.Context) error {
 		return nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		w.mu.Unlock()
+		return err
+	}
+
 	// calculate waiting time and reserve a slot, so we can unlock before sleeping
 	w.requests = append(w.requests, allowanceTime)
 	w.mu.Unlock()

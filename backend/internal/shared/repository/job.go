@@ -72,3 +72,14 @@ func (r *JobRepo) PostJobResult(ctx context.Context, jobID string, status models
 	_, err = pipe.Exec(ctx)
 	return err
 }
+
+func (r *JobRepo) MarkJobFailed(ctx context.Context, jobID string, status models.JobStatus, failReason appErrors.AppError) error {
+	pipe := r.redis.Pipeline()
+	pipe.HSet(ctx, jobKey(jobID),
+		"status", string(status),
+		"data", failReason.Code,
+	)
+	pipe.Expire(ctx, jobKey(jobID), models.JobTTL)
+	_, err := pipe.Exec(ctx)
+	return err
+}

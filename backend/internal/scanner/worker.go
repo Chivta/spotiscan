@@ -49,7 +49,11 @@ func (w *ScannerWorker) Start(ctx context.Context) error {
 			delivery.Msg.Nack(false, true)
 			continue
 		}
-		delivery.Msg.Ack(false)
+		err = delivery.Msg.Ack(false)
+		if err != nil {
+			log.Error().Err(err).Str("job_id", job.ScanJobId).Msg("failed to ack message")
+			return err
+		}
 	}
 	return nil
 }
@@ -88,7 +92,7 @@ func QueueContent2DomainContent(c *queue.ContentScanJob) *models.Content {
 		}
 	}
 
-	artists := make([]models.ArtistRef, len(c.Artists))
+	artists := make([]models.ArtistRef, 0, len(c.Artists))
 	for i, a := range c.Artists {
 		artists[i] = models.ArtistRef{
 			Name:       a.Name,
