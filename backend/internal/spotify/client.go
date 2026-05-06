@@ -195,6 +195,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 
 	for offset < total {
 		if err := c.window.Wait(ctx); err != nil {
+			fetchErrors = append(fetchErrors, err)
 			break
 		}
 		wg.Add(1)
@@ -373,6 +374,7 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 
 	for offset < total {
 		if err := c.window.Wait(ctx); err != nil {
+			fetchErrors = append(fetchErrors, err)
 			break
 		}
 		wg.Add(1)
