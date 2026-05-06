@@ -21,23 +21,24 @@ func NewJobRepo(redis *redis.Client) *JobRepo {
 
 func jobKey(jobID string) string { return "jobs:" + jobID }
 
-func (r *JobRepo) CreateJob(ctx context.Context, jobID string) error {
+func (r *JobRepo) CreateJob(ctx context.Context, jobID, userID string ) error {
 	pipe := r.redis.Pipeline()
 	pipe.HSet(ctx, jobKey(jobID),
 		"status", string(models.JobStatusPending),
 		"created_at", time.Now().UTC().Format(time.RFC3339),
+		"user_id", userID,
 	)
 	pipe.Expire(ctx, jobKey(jobID), models.JobTTL)
 	_, err := pipe.Exec(ctx)
 	return err
 }
 
-func (r *JobRepo) GetJob(ctx context.Context, jobID string) (*models.Job, error) {
+func (r *JobRepo) GetJob(ctx context.Context, jobID, userID string) (*models.Job, error) {
 	fields, err := r.redis.HGetAll(ctx, jobKey(jobID)).Result()
 	if err != nil {
 		return nil, err
 	}
-	if len(fields) == 0 {
+	if len(fields) == 0 || fields["user_id"] != userID {
 		return nil, appErrors.ErrNotFound
 	}
 

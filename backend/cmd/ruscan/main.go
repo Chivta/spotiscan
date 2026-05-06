@@ -78,7 +78,7 @@ func runApp() int {
 		scanEndpoints.GET("/track/:id", anonQuota, c.scanHandler.ScanTrack)
 		scanEndpoints.GET("/album/:id", anonQuota, c.scanHandler.ScanAlbum)
 		scanEndpoints.GET("/artist/:id", anonQuota, c.scanHandler.ScanArtist)
-		scanEndpoints.GET("/artist/name/:name", anonQuota, c.scanHandler.ScanArtistByName)
+		scanEndpoints.GET("/artist/name", anonQuota, c.scanHandler.ScanArtistByName)
 
 		api.GET("/jobs/:jobId", c.scanHandler.GetJobStatus)
 
@@ -116,11 +116,20 @@ func runApp() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	errCh := make(chan error, 1)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Err(err).Msg("server error")
+			errCh <- err
 		}
 	}()
+
+	select {
+	case <-ctx.Done():
+		log.Info().Msg("shutting down server")
+	case err := <-errCh:
+		log.Err(err).Msg("server error")
+		return 1
+	}
 
 	<-ctx.Done()
 	log.Info().Msg("shutting down server")

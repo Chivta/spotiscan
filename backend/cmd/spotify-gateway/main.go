@@ -34,7 +34,7 @@ func run() int {
 	rabbitURL := os.Getenv("RABBITMQ_URL")
 	spotifyClientID := os.Getenv("SPOTIFY_CLIENT_ID")
 	spotifyClientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
-	if rabbitURL == "" || spotifyClientID == "" || spotifyClientSecret == "" {
+	if rabbitURL == "" || spotifyClientID == "" || spotifyClientSecret == "" || redisURL == "" {
 		log.Error().Msg("RABBITMQ_URL, SPOTIFY_CLIENT_ID, and SPOTIFY_CLIENT_SECRET are required")
 		return 1
 	}

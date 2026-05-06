@@ -14,8 +14,8 @@ import (
 )
 
 type jobRepo interface {
-	CreateJob(ctx context.Context, jobID string) error
-	GetJob(ctx context.Context, jobID string) (*models.Job, error)
+	CreateJob(ctx context.Context, jobID, userID string) error
+	GetJob(ctx context.Context, jobID, userID string) (*models.Job, error)
 }
 
 func NewScanHandler(jobRepo jobRepo, queueClient *queue.Client, providers map[string]struct{}, validate *validator.Validate) *ScanHandler {
@@ -54,6 +54,7 @@ func (h *ScanHandler) validateName(c *gin.Context, name string) bool {
 }
 
 func (h *ScanHandler) enqueue(c *gin.Context, resourceType queue.ResourceType, resourceID string) {
+	userID := c.GetString(models.UserIDKey)
 	queueName := c.Param("provider")
 	if _, ok := h.providers[queueName]; !ok {
 		RespondWithError(c, appErrors.ErrBadRequest)
@@ -61,7 +62,7 @@ func (h *ScanHandler) enqueue(c *gin.Context, resourceType queue.ResourceType, r
 	}
 
 	jobID := uuid.New().String()
-	if err := h.jobRepo.CreateJob(c.Request.Context(), jobID); err != nil {
+	if err := h.jobRepo.CreateJob(c.Request.Context(), jobID, userID); err != nil {
 		RespondWithError(c, err)
 		return
 	}
@@ -112,7 +113,7 @@ func (h *ScanHandler) ScanArtist(c *gin.Context) {
 }
 
 func (h *ScanHandler) ScanArtistByName(c *gin.Context) {
-	name := c.Param("name")
+	name := c.Query("name")
 	if !h.validateName(c, name) {
 		return
 	}
@@ -120,8 +121,9 @@ func (h *ScanHandler) ScanArtistByName(c *gin.Context) {
 }
 
 func (h *ScanHandler) GetJobStatus(c *gin.Context) {
+	userID := c.GetString(models.UserIDKey)
 	jobID := c.Param("jobId")
-	job, err := h.jobRepo.GetJob(c.Request.Context(), jobID)
+	job, err := h.jobRepo.GetJob(c.Request.Context(), jobID, userID)
 	if err != nil {
 		RespondWithError(c, err)
 		return

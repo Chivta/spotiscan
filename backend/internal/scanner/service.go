@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -23,6 +24,10 @@ type SpotifyService struct {
 }
 
 func (s *SpotifyService) FilterContent(ctx context.Context, content *models.Content) (*models.RuContent, error) {
+	if content == nil {
+		return nil, fmt.Errorf("content is nil")
+	}
+
 	artistNames := make([]string, len(content.Artists))
 	artistNamesMap := make(map[string]models.ArtistRef)
 	for i, artist := range content.Artists {
