@@ -3,14 +3,14 @@ package spotify
 import (
 	"context"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
-	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/rs/zerolog/log"
+
+	"github.com/chivta/ruscan/internal/shared/domain"
+	"github.com/chivta/ruscan/internal/shared/queue"
 )
 
 type JobRepo interface {
-	PostJobResult(ctx context.Context, jobID string, status models.JobStatus, result any) error
+	PostJobResult(ctx context.Context, jobID string, status domain.JobStatus, result any) error
 }
 
 func NewSpotifyGatewayWorker(jobRepo JobRepo, queue *queue.Client, spotifyClient *SpotifyClient) *SpotifyGatewayWorker {
@@ -24,11 +24,11 @@ type SpotifyGatewayWorker struct {
 }
 
 func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
-	if err := w.queue.DeclareQueueWithDLQ(models.SpotifyQueueName); err != nil {
+	if err := w.queue.DeclareQueueWithDLQ(domain.SpotifyQueueName); err != nil {
 		return err
 	}
 
-	deliveries, err := w.queue.ConsumeContentFetchJobs(ctx, models.SpotifyQueueName)
+	deliveries, err := w.queue.ConsumeContentFetchJobs(ctx, domain.SpotifyQueueName)
 	if err != nil {
 		return err
 	}
@@ -55,13 +55,13 @@ func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
 }
 
 func (w *SpotifyGatewayWorker) consumeDead(ctx context.Context) {
-	deliveries, err := w.queue.ConsumeContentFetchJobs(ctx, models.SpotifyQueueName+".dead")
+	deliveries, err := w.queue.ConsumeContentFetchJobs(ctx, domain.SpotifyQueueName+".dead")
 	if err != nil {
 		log.Error().Err(err).Msg("failed to consume spotify dead queue")
 		return
 	}
 	for d := range deliveries {
-		if err := w.jobRepo.PostJobResult(ctx, d.Job.Id, models.JobStatusFailed, appErrors.ErrInternal.Code); err != nil {
+		if err := w.jobRepo.PostJobResult(ctx, d.Job.Id, domain.JobStatusFailed, domain.ErrInternal.Code); err != nil {
 			log.Error().Err(err).Str("job_id", d.Job.Id).Msg("failed to mark dead job as failed")
 			d.Msg.Nack(false, false)
 			continue
@@ -72,7 +72,7 @@ func (w *SpotifyGatewayWorker) consumeDead(ctx context.Context) {
 
 func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.ContentFetchJob) bool {
 	log.Info().Str("job_id", job.Id).Str("resource_type", string(job.ResourceType)).Str("resource_id", job.ResourceId).Msg("processing spotify gateway job")
-	var fetchFunc func(context.Context, string) (*models.Content, error)
+	var fetchFunc func(context.Context, string) (*domain.Content, error)
 	switch job.ResourceType {
 	case queue.ResourceType_PLAYLIST_ID:
 		fetchFunc = w.spotifyClient.GetSpotifyPlaylist
@@ -84,7 +84,7 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 		fetchFunc = w.spotifyClient.GetSpotifyArtist
 	case queue.ResourceType_ARTIST_NAME:
 		// passing through just the artist name, since it doesnt need spotify api call
-		err := w.queue.Publish(ctx, models.ScannerQueueName, DomainContent2QueueContent(&models.Content{Artists: []models.ArtistRef{{Name: job.ResourceId}}}, job.Id))
+		err := w.queue.Publish(ctx, domain.ScannerQueueName, DomainContent2QueueContent(&domain.Content{Artists: []domain.ArtistRef{{Name: job.ResourceId}}}, job.Id))
 		if err != nil {
 			log.Error().Err(err).Msg("failed to publish content for artist name job")
 			return false
@@ -92,7 +92,7 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 		return true
 	default:
 		log.Error().Str("resource_type", string(job.ResourceType)).Msg("unknown resource type")
-		w.jobRepo.PostJobResult(ctx, job.Id, models.JobStatusFailed, appErrors.ErrBadRequest.Code)
+		w.jobRepo.PostJobResult(ctx, job.Id, domain.JobStatusFailed, domain.ErrBadRequest.Code)
 		return true
 	}
 	content, err := fetchFunc(ctx, job.ResourceId)
@@ -101,17 +101,17 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 		if ok {
 			switch spotifyErr.Status {
 			case 404:
-				err = appErrors.ErrSpotifyNotFound
+				err = domain.ErrSpotifyNotFound
 			case 400:
-				err = appErrors.ErrBadRequest
+				err = domain.ErrBadRequest
 			case 429:
-				err = appErrors.ErrTooManyRequests
+				err = domain.ErrTooManyRequests
 			default:
 				log.Error().Err(spotifyErr).Int("status", spotifyErr.Status).Msg("spotify API error")
-				err = appErrors.ErrSpotifyAPIError
+				err = domain.ErrSpotifyAPIError
 			}
 			log.Error().Err(err).Str("resource_id", job.ResourceId).Str("resource_type", string(job.ResourceType)).Msg("spotify API error during fetching")
-			err = w.jobRepo.PostJobResult(ctx, job.Id, models.JobStatusFailed, err.Error())
+			err = w.jobRepo.PostJobResult(ctx, job.Id, domain.JobStatusFailed, err.Error())
 			if err != nil {
 				log.Error().Err(err).Msg("failed to post job result for spotify error")
 				return false
@@ -123,7 +123,7 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 		}
 	}
 
-	err = w.queue.Publish(ctx, models.ScannerQueueName, DomainContent2QueueContent(content, job.Id))
+	err = w.queue.Publish(ctx, domain.ScannerQueueName, DomainContent2QueueContent(content, job.Id))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to publish content for spotify job")
 		return false
@@ -132,7 +132,7 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 	return true
 }
 
-func DomainContent2QueueContent(c *models.Content, jobId string) *queue.ContentScanJob {
+func DomainContent2QueueContent(c *domain.Content, jobId string) *queue.ContentScanJob {
 	var tracks []*queue.Track
 	var artists []*queue.ArtistRef
 

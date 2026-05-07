@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-
-	"github.com/chivta/ruscan/internal/shared/models"
+	
+	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
 const (
@@ -152,7 +152,7 @@ func (c *SpotifyClient) doRequest(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*models.Content, error) {
+func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId string) (*domain.Content, error) {
 	token, err := c.getValidToken(ctx)
 	if err != nil {
 		return nil, err
@@ -177,11 +177,11 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 		return nil, err
 	}
 
-	result := &models.Content{}
+	result := &domain.Content{}
 	addedTracks := make(map[string]struct{}, len(playlist.Tracks.Items))
-	result.Tracks = make([]models.Track, 0, len(playlist.Tracks.Items))
+	result.Tracks = make([]domain.Track, 0, len(playlist.Tracks.Items))
 	addedArtists := make(map[string]struct{}, len(playlist.Tracks.Items))
-	result.Artists = make([]models.ArtistRef, 0, len(playlist.Tracks.Items))
+	result.Artists = make([]domain.ArtistRef, 0, len(playlist.Tracks.Items))
 
 	c.translateItemsToContent(playlist.Tracks.Items, result, addedTracks, addedArtists)
 
@@ -244,7 +244,7 @@ func (c *SpotifyClient) GetSpotifyPlaylist(ctx context.Context, playlistId strin
 	return result, nil
 }
 
-func (c *SpotifyClient) translateItemsToContent(items []SpotifyItem, targetContent *models.Content, addedTracks map[string]struct{}, addedArtists map[string]struct{}) {
+func (c *SpotifyClient) translateItemsToContent(items []SpotifyItem, targetContent *domain.Content, addedTracks map[string]struct{}, addedArtists map[string]struct{}) {
 	for _, item := range items {
 		if item.Track == nil || item.Track.ID == "" || item.IsLocal {
 			continue
@@ -252,17 +252,17 @@ func (c *SpotifyClient) translateItemsToContent(items []SpotifyItem, targetConte
 		if _, exists := addedTracks[item.Track.ID]; exists {
 			continue
 		}
-		var track models.Track
+		var track domain.Track
 		track.ExternalID = item.Track.ID
 		track.Name = item.Track.Name
 		for _, artist := range item.Track.Artists {
-			track.ArtistRefs = append(track.ArtistRefs, models.ArtistRef{
+			track.ArtistRefs = append(track.ArtistRefs, domain.ArtistRef{
 				ExternalID: artist.ID,
 				Name:       artist.Name,
 			})
 			if _, exists := addedArtists[artist.ID]; !exists {
 				addedArtists[artist.ID] = struct{}{}
-				targetContent.Artists = append(targetContent.Artists, models.ArtistRef{
+				targetContent.Artists = append(targetContent.Artists, domain.ArtistRef{
 					ExternalID: artist.ID,
 					Name:       artist.Name,
 				})
@@ -276,7 +276,7 @@ func (c *SpotifyClient) translateItemsToContent(items []SpotifyItem, targetConte
 	}
 }
 
-func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*models.Content, error) {
+func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*domain.Content, error) {
 	token, err := c.getValidToken(ctx)
 	if err != nil {
 		return nil, err
@@ -302,31 +302,31 @@ func (c *SpotifyClient) GetSpotifyTrack(ctx context.Context, trackId string) (*m
 		return nil, err
 	}
 
-	track := models.Track{
+	track := domain.Track{
 		ExternalID: trackResp.ID,
 		Name:       trackResp.Name,
 	}
-	artists := make([]models.ArtistRef, 0, len(trackResp.Artists))
+	artists := make([]domain.ArtistRef, 0, len(trackResp.Artists))
 	if len(trackResp.Album.Images) > 0 {
 		track.ImageURL = trackResp.Album.Images[0].URL
 	}
 	for _, artist := range trackResp.Artists {
-		track.ArtistRefs = append(track.ArtistRefs, models.ArtistRef{
+		track.ArtistRefs = append(track.ArtistRefs, domain.ArtistRef{
 			ExternalID: artist.ID,
 			Name:       artist.Name,
 		})
-		artists = append(artists, models.ArtistRef{
+		artists = append(artists, domain.ArtistRef{
 			ExternalID: artist.ID,
 			Name:       artist.Name,
 		})
 	}
-	return &models.Content{
-		Tracks:  []models.Track{track},
+	return &domain.Content{
+		Tracks:  []domain.Track{track},
 		Artists: artists,
 	}, nil
 }
 
-func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*models.Content, error) {
+func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*domain.Content, error) {
 	token, err := c.getValidToken(ctx)
 	if err != nil {
 		return nil, err
@@ -357,9 +357,9 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 		imageURL = albumResp.Images[0].URL
 	}
 
-	result := &models.Content{
-		Tracks:  make([]models.Track, 0, albumResp.Tracks.Total),
-		Artists: make([]models.ArtistRef, 0),
+	result := &domain.Content{
+		Tracks:  make([]domain.Track, 0, albumResp.Tracks.Total),
+		Artists: make([]domain.ArtistRef, 0),
 	}
 	seenArtists := make(map[string]struct{})
 	c.translateAlbumTracksToContent(albumResp.Tracks.Items, result, seenArtists, imageURL)
@@ -425,24 +425,24 @@ func (c *SpotifyClient) GetSpotifyAlbum(ctx context.Context, albumId string) (*m
 	return result, nil
 }
 
-func (c *SpotifyClient) translateAlbumTracksToContent(items []SpotifyAlbumTrack, targetContent *models.Content, seenArtists map[string]struct{}, imageURL string) {
+func (c *SpotifyClient) translateAlbumTracksToContent(items []SpotifyAlbumTrack, targetContent *domain.Content, seenArtists map[string]struct{}, imageURL string) {
 	for _, item := range items {
 		if item.ID == "" {
 			continue
 		}
-		track := models.Track{
+		track := domain.Track{
 			ExternalID: item.ID,
 			Name:       item.Name,
 			ImageURL:   imageURL,
 		}
 		for _, artist := range item.Artists {
-			track.ArtistRefs = append(track.ArtistRefs, models.ArtistRef{
+			track.ArtistRefs = append(track.ArtistRefs, domain.ArtistRef{
 				ExternalID: artist.ID,
 				Name:       artist.Name,
 			})
 			if _, seen := seenArtists[artist.ID]; !seen {
 				seenArtists[artist.ID] = struct{}{}
-				targetContent.Artists = append(targetContent.Artists, models.ArtistRef{
+				targetContent.Artists = append(targetContent.Artists, domain.ArtistRef{
 					ExternalID: artist.ID,
 					Name:       artist.Name,
 				})
@@ -452,7 +452,7 @@ func (c *SpotifyClient) translateAlbumTracksToContent(items []SpotifyAlbumTrack,
 	}
 }
 
-func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (*models.Content, error) {
+func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (*domain.Content, error) {
 	token, err := c.getValidToken(ctx)
 	if err != nil {
 		return nil, err
@@ -478,8 +478,8 @@ func (c *SpotifyClient) GetSpotifyArtist(ctx context.Context, artistId string) (
 		return nil, err
 	}
 
-	return &models.Content{
-		Artists: []models.ArtistRef{{
+	return &domain.Content{
+		Artists: []domain.ArtistRef{{
 			ExternalID: artistResp.ID,
 			Name:       artistResp.Name,
 		}},

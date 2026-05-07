@@ -14,9 +14,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
 	"github.com/chivta/ruscan/internal/api/metrics"
-	"github.com/chivta/ruscan/internal/shared/models"
+
+	"github.com/chivta/ruscan/internal/shared/domain"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -28,9 +29,9 @@ type (
 		IncrementAnonRequestCounter(ctx context.Context, anonID, path string, expiration time.Duration) (int, error)
 	}
 	userRepo interface {
-		GetUserByEmail(ctx context.Context, email string) (*models.User, error)
-		GetUserByID(ctx context.Context, id int) (*models.User, error)
-		CreateUser(ctx context.Context, user *models.User) (int, error)
+		GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
+		GetUserByID(ctx context.Context, id int) (*domain.User, error)
+		CreateUser(ctx context.Context, user *domain.User) (int, error)
 	}
 )
 
@@ -50,7 +51,7 @@ type AuthService struct {
 
 type JWTClaims struct {
 	UserID string      `json:"user_id"`
-	Role   models.Role `json:"role"`
+	Role   domain.Role `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -58,19 +59,19 @@ type Session struct {
 	JWT          string
 	RefreshToken string
 	UserID       string
-	Role         models.Role
+	Role         domain.Role
 }
 
 type AnonymousSession struct {
 	JWT    string
 	UserID string
-	Role   models.Role
+	Role   domain.Role
 }
 
-func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Session, error) {
+func (s *AuthService) Login(ctx context.Context, loginDTO domain.LoginDTO) (*Session, error) {
 	user, err := s.userRepo.GetUserByEmail(ctx, loginDTO.Email)
 	if err != nil {
-		if err != appErrors.ErrNotFound {
+		if err != domain.ErrNotFound {
 			metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		}
 		return nil, err
@@ -78,7 +79,7 @@ func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Ses
 
 	if err := comparePasswordHashWithSalt(user.PasswordHash, loginDTO.Password); err != nil {
 		metrics.ErrorsTotal.WithLabelValues("auth").Inc()
-		return nil, appErrors.ErrInvalidCredentials
+		return nil, domain.ErrInvalidCredentials
 	}
 
 	session, err := s.createSession(ctx, user)
@@ -90,20 +91,20 @@ func (s *AuthService) Login(ctx context.Context, loginDTO models.LoginDTO) (*Ses
 	return session, nil
 }
 
-func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*Session, error) {
+func (s *AuthService) Signup(ctx context.Context, signupDTO domain.SignupDTO) (*Session, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signupDTO.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	user := models.User{
+	user := domain.User{
 		Email:        signupDTO.Email,
 		PasswordHash: string(hashedPassword),
-		Role:         models.RoleUser,
+		Role:         domain.RoleUser,
 	}
 	id, err := s.userRepo.CreateUser(ctx, &user)
 	if err != nil {
-		if err != appErrors.ErrEmailExists {
+		if err != domain.ErrEmailExists {
 			log.Error().Err(err).Msg("failed to create user")
 			metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		}
@@ -122,13 +123,13 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO models.SignupDTO) (*
 }
 
 // createSession issues a new JWT + refresh token, stores the refresh token hash, and returns session.
-func (s *AuthService) createSession(ctx context.Context, user *models.User) (*Session, error) {
+func (s *AuthService) createSession(ctx context.Context, user *domain.User) (*Session, error) {
 	refreshToken, err := generateRefreshToken()
 	if err != nil {
 		return nil, err
 	}
 	refreshTokenHash := hashRefreshToken(refreshToken)
-	refreshExpiresAt := time.Now().Add(time.Duration(models.RefreshTokenDuration) * time.Second)
+	refreshExpiresAt := time.Now().Add(time.Duration(domain.RefreshTokenDuration) * time.Second)
 	if err := s.tokenRepo.StoreRefreshTokenHash(ctx, user.ID, refreshTokenHash, refreshExpiresAt); err != nil {
 		return nil, err
 	}
@@ -137,13 +138,13 @@ func (s *AuthService) createSession(ctx context.Context, user *models.User) (*Se
 		UserID: strconv.Itoa(user.ID),
 		Role:   user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(models.JWTDuration) * time.Second)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(domain.JWTDuration) * time.Second)),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(s.jwtSecret)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
+		return nil, fmt.Errorf("%w: %w", domain.ErrUnauthorized, err)
 	}
 
 	return &Session{
@@ -167,7 +168,7 @@ func (s *AuthService) ParseJWT(jwtStr string) (JWTClaims, error) {
 		return s.jwtSecret, nil
 	})
 	if err != nil {
-		return claims, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
+		return claims, fmt.Errorf("%w: %w", domain.ErrUnauthorized, err)
 	}
 	return claims, nil
 }
@@ -176,33 +177,33 @@ func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSes
 	anonID, err := generateAnonUserID()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to generate anon user ID")
-		return nil, appErrors.ErrInternal
+		return nil, domain.ErrInternal
 	}
 
 	claims := JWTClaims{
 		UserID: anonID,
-		Role:   models.RoleAnon,
+		Role:   domain.RoleAnon,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(models.AnonSessionDuration) * time.Second)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(domain.AnonSessionDuration) * time.Second)),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(s.jwtSecret)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", appErrors.ErrUnauthorized, err)
+		return nil, fmt.Errorf("%w: %w", domain.ErrUnauthorized, err)
 	}
 
 	metrics.AnonSessions.Inc()
 	return &AnonymousSession{
 		JWT:    signed,
 		UserID: anonID,
-		Role:   models.RoleAnon,
+		Role:   domain.RoleAnon,
 	}, nil
 }
 
 func (s *AuthService) IncrementAnonQuota(ctx context.Context, anonID, path string) (int, error) {
-	return s.tokenRepo.IncrementAnonRequestCounter(ctx, anonID, path, time.Duration(models.AnonSessionDuration)*time.Second)
+	return s.tokenRepo.IncrementAnonRequestCounter(ctx, anonID, path, time.Duration(domain.AnonSessionDuration)*time.Second)
 }
 
 // ExchangeRefreshToken validates the refresh token against the DB, revokes it, and returns a new session.
@@ -215,36 +216,36 @@ func (s *AuthService) ExchangeRefreshToken(ctx context.Context, expiredJWTStr, r
 		return s.jwtSecret, nil
 	})
 	if err != nil {
-		return nil, appErrors.ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	userID, err := strconv.Atoi(claims.UserID)
 	if err != nil {
-		return nil, appErrors.ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	incomingHash := hashRefreshToken(refreshToken)
 
 	storedHash, expiresAt, err := s.tokenRepo.GetRefreshTokenByUserID(ctx, userID)
 	if err != nil {
-		return nil, appErrors.ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	if subtle.ConstantTimeCompare([]byte(storedHash), []byte(incomingHash)) != 1 {
-		return nil, appErrors.ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	if !time.Now().Before(expiresAt) {
-		return nil, appErrors.ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	if err := s.tokenRepo.DeleteRefreshTokenHash(ctx, userID); err != nil {
-		return nil, appErrors.ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, appErrors.ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	return s.createSession(ctx, user)

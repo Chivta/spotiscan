@@ -4,18 +4,17 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/shared/queue"
 )
 
 type jobRepo interface {
 	CreateJob(ctx context.Context, jobID, userID string) error
-	GetJob(ctx context.Context, jobID, userID string) (*models.Job, error)
+	GetJob(ctx context.Context, jobID, userID string) (*domain.Job, error)
 }
 
 func NewScanHandler(jobRepo jobRepo, queueClient *queue.Client, providers map[string]struct{}, validate *validator.Validate) *ScanHandler {
@@ -39,7 +38,7 @@ type artistNameParam struct {
 
 func (h *ScanHandler) validateID(c *gin.Context, id string) bool {
 	if err := h.validate.Struct(spotifyIDParam{ID: id}); err != nil {
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return false
 	}
 	return true
@@ -47,17 +46,17 @@ func (h *ScanHandler) validateID(c *gin.Context, id string) bool {
 
 func (h *ScanHandler) validateName(c *gin.Context, name string) bool {
 	if err := h.validate.Struct(artistNameParam{Name: name}); err != nil {
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return false
 	}
 	return true
 }
 
 func (h *ScanHandler) enqueue(c *gin.Context, resourceType queue.ResourceType, resourceID string) {
-	userID := c.GetString(models.UserIDKey)
+	userID := c.GetString(domain.UserIDKey)
 	queueName := c.Param("provider")
 	if _, ok := h.providers[queueName]; !ok {
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
@@ -69,7 +68,7 @@ func (h *ScanHandler) enqueue(c *gin.Context, resourceType queue.ResourceType, r
 
 	if err := h.q.Publish(c.Request.Context(), queueName, &queue.ContentFetchJob{
 		Id:           jobID,
-		UserId:       c.GetString(models.UserIDKey),
+		UserId:       c.GetString(domain.UserIDKey),
 		ResourceType: resourceType,
 		ResourceId:   resourceID,
 	}); err != nil {
@@ -121,7 +120,7 @@ func (h *ScanHandler) ScanArtistByName(c *gin.Context) {
 }
 
 func (h *ScanHandler) GetJobStatus(c *gin.Context) {
-	userID := c.GetString(models.UserIDKey)
+	userID := c.GetString(domain.UserIDKey)
 	jobID := c.Param("jobId")
 	job, err := h.jobRepo.GetJob(c.Request.Context(), jobID, userID)
 	if err != nil {

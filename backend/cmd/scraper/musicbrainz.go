@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
-
-	"github.com/chivta/ruscan/internal/shared/models"
 )
 
 const (
@@ -30,8 +29,8 @@ type MusicBrainzArtist struct {
 	Name string `json:"name"`
 }
 
-func musicBrainzArtistToModel(a MusicBrainzArtist) models.Artist {
-	return models.Artist{
+func musicBrainzArtistToModel(a MusicBrainzArtist) domain.Artist {
+	return domain.Artist{
 		Name:          a.Name,
 		Source:        "musicbrainz",
 		SourceURL:     fmt.Sprintf("https://musicbrainz.org/artist/%s", a.ID),
@@ -91,13 +90,13 @@ func fetchMusicBrainzPage(ctx context.Context, areaID string, offset int) (*Musi
 	return &resp, nil
 }
 
-func scrapeMusicBrainzArtistsByArea(ctx context.Context, areaID string) ([]models.Artist, error) {
+func scrapeMusicBrainzArtistsByArea(ctx context.Context, areaID string) ([]domain.Artist, error) {
 	first, err := fetchMusicBrainzPage(ctx, areaID, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	artists := make([]models.Artist, 0, first.Count)
+	artists := make([]domain.Artist, 0, first.Count)
 	for _, a := range first.Artists {
 		artists = append(artists, musicBrainzArtistToModel(a))
 	}

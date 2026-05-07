@@ -3,27 +3,26 @@ package services
 import (
 	"context"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
 )
 
 type (
 	suggestionRepo interface {
-		CreateArtistInsertSuggestion(ctx context.Context, name, description string, creatorID int) (models.ArtistInsertSuggestion, error)
-		GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]models.ArtistInsertSuggestion, error)
+		CreateArtistInsertSuggestion(ctx context.Context, name, description string, creatorID int) (domain.ArtistInsertSuggestion, error)
+		GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistInsertSuggestion, error)
 		DeleteArtistInsertSuggestion(ctx context.Context, id, creatorID int) error
-		UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistInsertSuggestion, error)
-		CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (models.ArtistDeleteSuggestion, error)
-		GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]models.ArtistDeleteSuggestion, error)
+		UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (domain.ArtistInsertSuggestion, error)
+		CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (domain.ArtistDeleteSuggestion, error)
+		GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistDeleteSuggestion, error)
 		DeleteArtistDeleteSuggestion(ctx context.Context, id, creatorID int) error
-		UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistDeleteSuggestion, error)
-		GetAllArtistInsertSuggestions(ctx context.Context) ([]models.ArtistInsertSuggestion, error)
-		ApproveArtistInsertSuggestion(ctx context.Context, id int) (models.ArtistInsertSuggestion, error)
-		DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (models.ArtistInsertSuggestion, error)
-		GetAllArtistDeleteSuggestions(ctx context.Context) ([]models.ArtistDeleteSuggestion, error)
-		ApproveArtistDeleteSuggestion(ctx context.Context, id int) (models.ArtistDeleteSuggestion, error)
-		DeclineArtistDeleteSuggestion(ctx context.Context, id int, reason string) (models.ArtistDeleteSuggestion, error)
+		UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (domain.ArtistDeleteSuggestion, error)
+		GetAllArtistInsertSuggestions(ctx context.Context) ([]domain.ArtistInsertSuggestion, error)
+		ApproveArtistInsertSuggestion(ctx context.Context, id int) (domain.ArtistInsertSuggestion, error)
+		DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (domain.ArtistInsertSuggestion, error)
+		GetAllArtistDeleteSuggestions(ctx context.Context) ([]domain.ArtistDeleteSuggestion, error)
+		ApproveArtistDeleteSuggestion(ctx context.Context, id int) (domain.ArtistDeleteSuggestion, error)
+		DeclineArtistDeleteSuggestion(ctx context.Context, id int, reason string) (domain.ArtistDeleteSuggestion, error)
 	}
 	artistRepo interface {
 		ArtistExists(ctx context.Context, name string) (bool, error)
@@ -42,25 +41,25 @@ type SuggestionService struct {
 	artistRepo     artistRepo
 }
 
-func (s *SuggestionService) CreateArtistInsertSuggestion(ctx context.Context, name, description string, creatorID int) (models.ArtistInsertSuggestion, error) {
+func (s *SuggestionService) CreateArtistInsertSuggestion(ctx context.Context, name, description string, creatorID int) (domain.ArtistInsertSuggestion, error) {
 	exists, err := s.artistRepo.ArtistExists(ctx, name)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check if artist exists")
-		return models.ArtistInsertSuggestion{}, appErrors.ErrDatabaseFailure
+		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
 	if exists {
-		return models.ArtistInsertSuggestion{}, appErrors.ErrArtistExists
+		return domain.ArtistInsertSuggestion{}, domain.ErrArtistExists
 	}
 
 	suggestion, err := s.suggestionRepo.CreateArtistInsertSuggestion(ctx, name, description, creatorID)
 	if err != nil {
-		return models.ArtistInsertSuggestion{}, err
+		return domain.ArtistInsertSuggestion{}, err
 	}
 
 	return suggestion, nil
 }
 
-func (s *SuggestionService) GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]models.ArtistInsertSuggestion, error) {
+func (s *SuggestionService) GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistInsertSuggestion, error) {
 	return s.suggestionRepo.GetArtistInsertSuggestions(ctx, creatorID)
 }
 
@@ -68,24 +67,24 @@ func (s *SuggestionService) DeleteArtistInsertSuggestion(ctx context.Context, id
 	return s.suggestionRepo.DeleteArtistInsertSuggestion(ctx, id, creatorID)
 }
 
-func (s *SuggestionService) UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistInsertSuggestion, error) {
+func (s *SuggestionService) UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (domain.ArtistInsertSuggestion, error) {
 	return s.suggestionRepo.UpdateArtistInsertSuggestion(ctx, id, creatorID, description)
 }
 
-func (s *SuggestionService) CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (models.ArtistDeleteSuggestion, error) {
+func (s *SuggestionService) CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (domain.ArtistDeleteSuggestion, error) {
 	exists, err := s.artistRepo.ArtistExists(ctx, artistName)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check if artist exists")
-		return models.ArtistDeleteSuggestion{}, appErrors.ErrDatabaseFailure
+		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
 	if !exists {
-		return models.ArtistDeleteSuggestion{}, appErrors.ErrNotFound
+		return domain.ArtistDeleteSuggestion{}, domain.ErrNotFound
 	}
 
 	return s.suggestionRepo.CreateArtistDeleteSuggestion(ctx, artistName, description, creatorID)
 }
 
-func (s *SuggestionService) GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]models.ArtistDeleteSuggestion, error) {
+func (s *SuggestionService) GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistDeleteSuggestion, error) {
 	return s.suggestionRepo.GetArtistDeleteSuggestions(ctx, creatorID)
 }
 
@@ -93,30 +92,30 @@ func (s *SuggestionService) DeleteArtistDeleteSuggestion(ctx context.Context, id
 	return s.suggestionRepo.DeleteArtistDeleteSuggestion(ctx, id, creatorID)
 }
 
-func (s *SuggestionService) UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (models.ArtistDeleteSuggestion, error) {
+func (s *SuggestionService) UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (domain.ArtistDeleteSuggestion, error) {
 	return s.suggestionRepo.UpdateArtistDeleteSuggestion(ctx, id, creatorID, description)
 }
 
-func (s *SuggestionService) GetAllArtistInsertSuggestions(ctx context.Context) ([]models.ArtistInsertSuggestion, error) {
+func (s *SuggestionService) GetAllArtistInsertSuggestions(ctx context.Context) ([]domain.ArtistInsertSuggestion, error) {
 	return s.suggestionRepo.GetAllArtistInsertSuggestions(ctx)
 }
 
-func (s *SuggestionService) ApproveArtistInsertSuggestion(ctx context.Context, id int) (models.ArtistInsertSuggestion, error) {
+func (s *SuggestionService) ApproveArtistInsertSuggestion(ctx context.Context, id int) (domain.ArtistInsertSuggestion, error) {
 	return s.suggestionRepo.ApproveArtistInsertSuggestion(ctx, id)
 }
 
-func (s *SuggestionService) GetAllArtistDeleteSuggestions(ctx context.Context) ([]models.ArtistDeleteSuggestion, error) {
+func (s *SuggestionService) GetAllArtistDeleteSuggestions(ctx context.Context) ([]domain.ArtistDeleteSuggestion, error) {
 	return s.suggestionRepo.GetAllArtistDeleteSuggestions(ctx)
 }
 
-func (s *SuggestionService) ApproveArtistDeleteSuggestion(ctx context.Context, id int) (models.ArtistDeleteSuggestion, error) {
+func (s *SuggestionService) ApproveArtistDeleteSuggestion(ctx context.Context, id int) (domain.ArtistDeleteSuggestion, error) {
 	return s.suggestionRepo.ApproveArtistDeleteSuggestion(ctx, id)
 }
 
-func (s *SuggestionService) DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (models.ArtistInsertSuggestion, error) {
+func (s *SuggestionService) DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (domain.ArtistInsertSuggestion, error) {
 	return s.suggestionRepo.DeclineArtistInsertSuggestion(ctx, id, reason)
 }
 
-func (s *SuggestionService) DeclineArtistDeleteSuggestion(ctx context.Context, id int, reason string) (models.ArtistDeleteSuggestion, error) {
+func (s *SuggestionService) DeclineArtistDeleteSuggestion(ctx context.Context, id int, reason string) (domain.ArtistDeleteSuggestion, error) {
 	return s.suggestionRepo.DeclineArtistDeleteSuggestion(ctx, id, reason)
 }

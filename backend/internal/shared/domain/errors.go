@@ -1,4 +1,4 @@
-package appErrors
+package domain
 
 type AppError struct {
 	HTTPCode int  	`json:"-"`

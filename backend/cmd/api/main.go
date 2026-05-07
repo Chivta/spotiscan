@@ -20,9 +20,9 @@ import (
 	"github.com/chivta/ruscan/internal/api/handlers"
 	"github.com/chivta/ruscan/internal/api/metrics"
 	"github.com/chivta/ruscan/internal/api/middlewares"
-	services "github.com/chivta/ruscan/internal/api/services"
+	"github.com/chivta/ruscan/internal/api/services"
 	"github.com/chivta/ruscan/internal/shared/config"
-	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/shared/repository"
 	"github.com/chivta/ruscan/scripts"
@@ -66,13 +66,13 @@ func runApp() int {
 
 	api := r.Group("/api")
 	api.Use(c.authMiddleware.ParseAuth())
-	api.Use(c.rateLimitMiddleware.LimitRequests(models.RateLimitRequestLimit, models.RateLimitWindowSeconds))
+	api.Use(c.rateLimitMiddleware.LimitRequests(domain.RateLimitRequestLimit, domain.RateLimitWindowSeconds))
 	{
 		api.GET("/me", c.authHandler.Me)
 		api.POST("/auth/signup", c.authHandler.Signup)
 		api.POST("/auth/login", c.authHandler.Login)
 
-		anonQuota := c.authMiddleware.RequireAnonQuota("/scan", models.AnonRequestLimit)
+		anonQuota := c.authMiddleware.RequireAnonQuota("/scan", domain.AnonRequestLimit)
 		scanEndpoints := api.Group("/scan/:provider")
 		scanEndpoints.GET("/playlist/:id", anonQuota, c.scanHandler.ScanPlaylist)
 		scanEndpoints.GET("/track/:id", anonQuota, c.scanHandler.ScanTrack)
@@ -210,7 +210,7 @@ func initApp(cfg *config.Config) (*appContainer, error) {
 	}
 	// available providers (also queue names): spotify, youtube...
 	providers := map[string]struct{}{
-		models.SpotifyQueueName: {},
+		domain.SpotifyQueueName: {},
 	}
 	for provider := range providers {
 		err := queueClient.DeclareQueueWithDLQ(provider)

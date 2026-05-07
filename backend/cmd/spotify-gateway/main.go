@@ -11,9 +11,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/repository"
-	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/chivta/ruscan/internal/shared/queue"
+	"github.com/chivta/ruscan/internal/shared/repository"
 	"github.com/chivta/ruscan/internal/spotify"
 )
 
@@ -50,7 +50,7 @@ func run() int {
 	defer queueClient.Close()
 
 	// declare the scanner queue so publish calls don't silently drop messages
-	if err := queueClient.DeclareQueueWithDLQ(models.ScannerQueueName); err != nil {
+	if err := queueClient.DeclareQueueWithDLQ(domain.ScannerQueueName); err != nil {
 		log.Err(err).Msg("failed to declare scanner queue")
 		return 1
 	}
@@ -61,7 +61,6 @@ func run() int {
 		return 1
 	}
 	defer redisClient.Close()
-
 
 	jobRepo := repository.NewJobRepo(redisClient)
 

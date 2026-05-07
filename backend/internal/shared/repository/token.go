@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -42,9 +42,9 @@ func (r *TokenRepo) GetRefreshTokenByUserID(ctx context.Context, userID int) (st
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
 		if err == sql.ErrNoRows {
-			return "", time.Time{}, appErrors.ErrUnauthorized
+			return "", time.Time{}, domain.ErrUnauthorized
 		}
-		return "", time.Time{}, appErrors.ErrDatabaseFailure
+		return "", time.Time{}, domain.ErrDatabaseFailure
 	}
 	return tokenHash, expiresAt, nil
 }
@@ -58,7 +58,7 @@ func (r *TokenRepo) IncrementAnonRequestCounter(ctx context.Context, anonID, pat
 	// Set TTL only on key creation so the window is fixed, not sliding.
 	if newValue == 1 {
 		if err := r.redis.Expire(ctx, key, ttl).Err(); err != nil {
-			return 0, appErrors.ErrDatabaseFailure
+			return 0, domain.ErrDatabaseFailure
 		}
 	}
 	return int(newValue), nil
@@ -74,7 +74,7 @@ func (r *TokenRepo) StoreRefreshTokenHash(ctx context.Context, userID int, token
 	)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
-		return appErrors.ErrDatabaseFailure
+		return domain.ErrDatabaseFailure
 	}
 
 	return nil
@@ -88,7 +88,7 @@ func (r *TokenRepo) DeleteRefreshTokenHash(ctx context.Context, userID int) erro
 	)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
-		return appErrors.ErrDatabaseFailure
+		return domain.ErrDatabaseFailure
 	}
 	return nil
 }

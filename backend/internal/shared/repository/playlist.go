@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/chivta/ruscan/internal/spotify"
 )
 
@@ -18,7 +18,7 @@ type PlaylistRepo struct {
 	spotifyClient *spotify.SpotifyClient
 }
 
-func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*models.Content, error) {
+func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId string) (*domain.Content, error) {
 	playlist, err := r.spotifyClient.GetSpotifyPlaylist(ctx, playlistId)
 	if err != nil {
 		return nil, translateSpotifyError(err)
@@ -27,7 +27,7 @@ func (r *PlaylistRepo) GetPlaylistWithTracks(ctx context.Context, playlistId str
 	return playlist, nil
 }
 
-func (r *PlaylistRepo) GetTrack(ctx context.Context, trackId string) (*models.Content, error) {
+func (r *PlaylistRepo) GetTrack(ctx context.Context, trackId string) (*domain.Content, error) {
 	track, err := r.spotifyClient.GetSpotifyTrack(ctx, trackId)
 	if err != nil {
 		return nil, translateSpotifyError(err)
@@ -36,7 +36,7 @@ func (r *PlaylistRepo) GetTrack(ctx context.Context, trackId string) (*models.Co
 	return track, nil
 }
 
-func (r *PlaylistRepo) GetAlbum(ctx context.Context, albumId string) (*models.Content, error) {
+func (r *PlaylistRepo) GetAlbum(ctx context.Context, albumId string) (*domain.Content, error) {
 	album, err := r.spotifyClient.GetSpotifyAlbum(ctx, albumId)
 	if err != nil {
 		return nil, translateSpotifyError(err)
@@ -45,7 +45,7 @@ func (r *PlaylistRepo) GetAlbum(ctx context.Context, albumId string) (*models.Co
 	return album, nil
 }
 
-func (r *PlaylistRepo) GetArtist(ctx context.Context, artistId string) (*models.Content, error) {
+func (r *PlaylistRepo) GetArtist(ctx context.Context, artistId string) (*domain.Content, error) {
 	artist, err := r.spotifyClient.GetSpotifyArtist(ctx, artistId)
 	if err != nil {
 		return nil, translateSpotifyError(err)

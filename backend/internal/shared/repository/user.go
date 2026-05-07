@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/domain"
+
 	"github.com/lib/pq"
 
 	"github.com/redis/go-redis/v9"
@@ -25,7 +25,7 @@ type UserRepo struct {
 	redis *redis.Client
 }
 
-func (r *UserRepo) CreateUser(ctx context.Context, user *models.User) (int, error) {
+func (r *UserRepo) CreateUser(ctx context.Context, user *domain.User) (int, error) {
 	var userID int
 	err := r.db.QueryRowContext(
 		ctx,
@@ -36,16 +36,16 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *models.User) (int, erro
 
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			return 0, appErrors.ErrEmailExists
+			return 0, domain.ErrEmailExists
 		}
 		log.Error().Msgf("db error: %T: %v", err, err)
-		return 0, appErrors.ErrDatabaseFailure
+		return 0, domain.ErrDatabaseFailure
 	}
 	return userID, nil
 }
 
-func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*models.User, error) {
-	var user models.User
+func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*domain.User, error) {
+	var user domain.User
 	var isAdmin bool
 	err := r.db.QueryRowContext(
 		ctx,
@@ -54,21 +54,21 @@ func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*models.User, error
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.ErrNotFound
+			return nil, domain.ErrNotFound
 		}
 		log.Error().Msgf("db error: %T: %v", err, err)
-		return nil, appErrors.ErrDatabaseFailure
+		return nil, domain.ErrDatabaseFailure
 	}
 	if isAdmin {
-		user.Role = models.RoleAdmin
+		user.Role = domain.RoleAdmin
 	} else {
-		user.Role = models.RoleUser
+		user.Role = domain.RoleUser
 	}
 	return &user, nil
 }
 
-func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	var user models.User
+func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var user domain.User
 	var isAdmin bool
 	err := r.db.QueryRowContext(
 		ctx,
@@ -77,15 +77,15 @@ func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*models.Us
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.ErrUnauthorized
+			return nil, domain.ErrUnauthorized
 		}
 		log.Error().Msgf("db error: %T: %v", err, err)
-		return nil, appErrors.ErrDatabaseFailure
+		return nil, domain.ErrDatabaseFailure
 	}
 	if isAdmin {
-		user.Role = models.RoleAdmin
+		user.Role = domain.RoleAdmin
 	} else {
-		user.Role = models.RoleUser
+		user.Role = domain.RoleUser
 	}
 	return &user, nil
 }

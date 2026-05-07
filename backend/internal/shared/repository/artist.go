@@ -6,13 +6,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
-	"github.com/lib/pq"
-
-	"github.com/redis/go-redis/v9"
+	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
 const (
@@ -82,7 +80,7 @@ func (r *ArtistRepo) SetRussianArtistNames(ctx context.Context, names []string) 
 
 // Fetches info for artists whose names are in DB, so implicitly filters out non-Russian
 // names must be lowercase
-func (r *ArtistRepo) GetRussianWithInfo(ctx context.Context, names []string) ([]models.Artist, error) {
+func (r *ArtistRepo) GetRussianWithInfo(ctx context.Context, names []string) ([]domain.Artist, error) {
 	rows, err := r.db.QueryContext(ctx, `
         SELECT id,name,description_ua,description_en,source,source_url,country,confirmed FROM ru_artists WHERE name = ANY($1)
     `, pq.Array(names))
@@ -91,9 +89,9 @@ func (r *ArtistRepo) GetRussianWithInfo(ctx context.Context, names []string) ([]
 	}
 	defer rows.Close()
 
-	var ruArtists []models.Artist
+	var ruArtists []domain.Artist
 	for rows.Next() {
-		var artist models.Artist
+		var artist domain.Artist
 		var descUA, descEN, source, sourceURL, country sql.NullString
 		if err := rows.Scan(&artist.ID, &artist.Name, &descUA, &descEN, &source, &sourceURL, &country, &artist.Confirmed); err != nil {
 			return nil, err
@@ -113,7 +111,7 @@ func (r *ArtistRepo) GetRussianWithInfo(ctx context.Context, names []string) ([]
 	return ruArtists, nil
 }
 
-func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []models.Artist) error {
+func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []domain.Artist) error {
 	if len(artists) == 0 {
 		return nil
 	}
@@ -191,7 +189,7 @@ func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []models.Artist)
 	)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
-		return appErrors.ErrDatabaseFailure
+		return domain.ErrDatabaseFailure
 	}
 	return nil
 }

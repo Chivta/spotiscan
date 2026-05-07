@@ -7,9 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/api/services"
+
+	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
 func NewSuggestionHandler(service *services.SuggestionService, validate *validator.Validate) *SuggestionHandler {
@@ -34,11 +34,11 @@ func (h *SuggestionHandler) CreateArtistInsertSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		RespondWithError(c,appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -54,7 +54,7 @@ func (h *SuggestionHandler) CreateArtistInsertSuggestion(c *gin.Context) {
 }
 
 func (h *SuggestionHandler) GetArtistInsertSuggestions(c *gin.Context) {
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -77,7 +77,7 @@ func (h *SuggestionHandler) DeleteArtistInsertSuggestion(c *gin.Context) {
 		return
 	}
 
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -110,11 +110,11 @@ func (h *SuggestionHandler) UpdateArtistInsertSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		RespondWithError(c,appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -142,11 +142,11 @@ func (h *SuggestionHandler) CreateArtistDeleteSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		RespondWithError(c,appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -162,7 +162,7 @@ func (h *SuggestionHandler) CreateArtistDeleteSuggestion(c *gin.Context) {
 }
 
 func (h *SuggestionHandler) GetArtistDeleteSuggestions(c *gin.Context) {
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -185,7 +185,7 @@ func (h *SuggestionHandler) DeleteArtistDeleteSuggestion(c *gin.Context) {
 		return
 	}
 
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -218,11 +218,11 @@ func (h *SuggestionHandler) UpdateArtistDeleteSuggestion(c *gin.Context) {
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		RespondWithError(c,appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
-	userId := c.GetString(models.UserIDKey)
+	userId := c.GetString(domain.UserIDKey)
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
 		RespondWithError(c, err)
@@ -303,7 +303,7 @@ func (h *SuggestionHandler) DeclineArtistInsertSuggestion(c *gin.Context) {
 		return
 	}
 	if err := h.validate.Struct(req); err != nil {
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
@@ -329,7 +329,7 @@ func (h *SuggestionHandler) DeclineArtistDeleteSuggestion(c *gin.Context) {
 		return
 	}
 	if err := h.validate.Struct(req); err != nil {
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 

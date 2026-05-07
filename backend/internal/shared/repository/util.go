@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/chivta/ruscan/internal/spotify"
 	"github.com/chivta/ruscan/migrations"
 )
@@ -62,22 +62,22 @@ func translateSpotifyError(err error) error {
 	if spotifyErr, ok := err.(*spotify.SpotifyError); ok {
 		switch spotifyErr.Status {
 		case 404:
-			return appErrors.ErrSpotifyNotFound
+			return domain.ErrSpotifyNotFound
 		case 400:
-			return appErrors.ErrBadRequest
+			return domain.ErrBadRequest
 		case 429:
-			return appErrors.ErrTooManyRequests
+			return domain.ErrTooManyRequests
 		default:
 			log.Error().Err(spotifyErr).Int("status", spotifyErr.Status).Msg("spotify API error")
-			return appErrors.ErrSpotifyAPIError
+			return domain.ErrSpotifyAPIError
 		}
 	}
 	if _, ok := err.(*url.Error); ok {
 		log.Error().Err(err).Msg("network error when calling spotify API")
-		return appErrors.ErrSpotifyAPIError
+		return domain.ErrSpotifyAPIError
 	}
 	log.Error().Err(err).Msg("unexpected error when calling spotify API")
-	return appErrors.ErrSpotifyAPIError
+	return domain.ErrSpotifyAPIError
 }
 
 func InitializeRedis(ctx context.Context, redisURL string) (*redis.Client, error) {

@@ -8,9 +8,8 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
-
-	"github.com/chivta/ruscan/internal/shared/models"
 )
 
 const (
@@ -71,7 +70,7 @@ func translateCountry(country string) string {
 	}
 }
 
-func phonkersArtistToModel(a PhonkersDBArtist) models.Artist {
+func phonkersArtistToModel(a PhonkersDBArtist) domain.Artist {
 	var descEn string
 	if a.DescriptionEN == nil {
 		descEn = "Artist has \"Don't listen ❌\" label on Phonkersbase"
@@ -92,7 +91,7 @@ func phonkersArtistToModel(a PhonkersDBArtist) models.Artist {
 	} else {
 		country = "RU" // default to RU if no country provided
 	}
-	return models.Artist{
+	return domain.Artist{
 		Name:          a.Name,
 		Source:        "phonkersbase",
 		DescriptionEN: descEn,
@@ -138,14 +137,14 @@ func containsBlockedLabel(labels []PhonkersDBListenLabel) bool {
 	return false
 }
 
-func scrapePhonkersDBartists(ctx context.Context) ([]models.Artist, error) {
+func scrapePhonkersDBartists(ctx context.Context) ([]domain.Artist, error) {
 	first, err := fetchPhonkersDBPage(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
 	log.Info().Int("total", first.Data.Info.Total).Msg("Total artists in PhonkersDB")
 
-	artists := make([]models.Artist, 0, first.Data.Info.Total)
+	artists := make([]domain.Artist, 0, first.Data.Info.Total)
 	for _, a := range first.Data.Items {
 		if containsBlockedLabel(a.ListenLabels) {
 			artists = append(artists, phonkersArtistToModel(a))

@@ -7,9 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
-
-	"github.com/chivta/ruscan/internal/shared/models"
 )
 
 // LastFMTopArtistsResponse matches the payload from tag.getTopArtists.
@@ -47,8 +46,8 @@ type LastFMTopArtistsAttr struct {
 	Total      string `json:"total"`
 }
 
-func lastFMArtistToModel(a LastFMArtist, tag string) models.Artist {
-	return models.Artist{
+func lastFMArtistToModel(a LastFMArtist, tag string) domain.Artist {
+	return domain.Artist{
 		Name:          a.Name,
 		Source:        "lastfm",
 		SourceURL:     a.URL,
@@ -81,7 +80,7 @@ func fetchLastFMPage(ctx context.Context, method, tag, apiKey string, page int) 
 	return &resp, nil
 }
 
-func scrapeLastFMArtists(ctx context.Context, method string, tag string, apiKey string) ([]models.Artist, error) {
+func scrapeLastFMArtists(ctx context.Context, method string, tag string, apiKey string) ([]domain.Artist, error) {
 	first, err := fetchLastFMPage(ctx, method, tag, apiKey, 1)
 	if err != nil {
 		return nil, err
@@ -92,7 +91,7 @@ func scrapeLastFMArtists(ctx context.Context, method string, tag string, apiKey 
 		return nil, fmt.Errorf("failed to parse totalPages: %w", err)
 	}
 
-	artists := make([]models.Artist, 0)
+	artists := make([]domain.Artist, 0)
 	for _, a := range first.TopArtists.Artist {
 		artists = append(artists, lastFMArtistToModel(a, tag))
 	}

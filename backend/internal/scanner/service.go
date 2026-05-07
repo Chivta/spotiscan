@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
-
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
 )
 
 type filterArtistsRepo interface {
-	GetRussianWithInfo(ctx context.Context, names []string) ([]models.Artist, error)
+	GetRussianWithInfo(ctx context.Context, names []string) ([]domain.Artist, error)
 }
 
 func NewSpotifyService(artistRepo filterArtistsRepo) *SpotifyService {
@@ -23,13 +21,13 @@ type SpotifyService struct {
 	artistRepo filterArtistsRepo
 }
 
-func (s *SpotifyService) FilterContent(ctx context.Context, content *models.Content) (*models.RuContent, error) {
+func (s *SpotifyService) FilterContent(ctx context.Context, content *domain.Content) (*domain.RuContent, error) {
 	if content == nil {
 		return nil, fmt.Errorf("content is nil")
 	}
 
 	artistNames := make([]string, len(content.Artists))
-	artistNamesMap := make(map[string]models.ArtistRef)
+	artistNamesMap := make(map[string]domain.ArtistRef)
 	for i, artist := range content.Artists {
 		artistNames[i] = strings.ToLower(artist.Name)
 		artistNamesMap[strings.ToLower(artist.Name)] = artist
@@ -38,7 +36,7 @@ func (s *SpotifyService) FilterContent(ctx context.Context, content *models.Cont
 	ruArtists, err := s.artistRepo.GetRussianWithInfo(ctx, artistNames)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to filter Russian artists and get info")
-		return nil, appErrors.ErrDatabaseFailure
+		return nil, domain.ErrDatabaseFailure
 	}
 
 	ruArtistIDsMap := make(map[string]struct{}, len(ruArtists))
@@ -48,7 +46,7 @@ func (s *SpotifyService) FilterContent(ctx context.Context, content *models.Cont
 		ruArtistIDsMap[externalID] = struct{}{}
 	}
 
-	ruTracks := make([]models.Track, 0)
+	ruTracks := make([]domain.Track, 0)
 	for _, track := range content.Tracks {
 		for _, a := range track.ArtistRefs {
 			if _, isRu := ruArtistIDsMap[a.ExternalID]; isRu {
@@ -58,7 +56,7 @@ func (s *SpotifyService) FilterContent(ctx context.Context, content *models.Cont
 		}
 	}
 
-	return &models.RuContent{
+	return &domain.RuContent{
 		Artists: ruArtists,
 		Tracks:  ruTracks,
 	}, nil

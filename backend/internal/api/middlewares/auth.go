@@ -8,10 +8,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
 	"github.com/chivta/ruscan/internal/api/handlers"
-	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/api/services"
+
+	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
 type AuthMiddleware struct {
@@ -28,16 +28,16 @@ func NewAuthMiddleware(authService *services.AuthService, secureCookies bool) *A
 
 func (m *AuthMiddleware) RequireAdminRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		assignedRole, exists := c.Get(models.UserRoleKey)
+		assignedRole, exists := c.Get(domain.UserRoleKey)
 		if !exists {
 			log.Warn().Msg("RequireRole: userRole not found in context")
-			handlers.RespondWithError(c, appErrors.ErrInternal)
+			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
 
-		if assignedRole != models.RoleAdmin {
-			handlers.RespondWithError(c, appErrors.ErrForbidden)
+		if assignedRole != domain.RoleAdmin {
+			handlers.RespondWithError(c, domain.ErrForbidden)
 			c.Abort()
 			return
 		}
@@ -48,16 +48,16 @@ func (m *AuthMiddleware) RequireAdminRole() gin.HandlerFunc {
 
 func (m *AuthMiddleware) RequireUserRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		assignedRole, exists := c.Get(models.UserRoleKey)
+		assignedRole, exists := c.Get(domain.UserRoleKey)
 		if !exists {
 			log.Warn().Msg("RequireRole: userRole not found in context")
-			handlers.RespondWithError(c, appErrors.ErrInternal)
+			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
 
-		if assignedRole != models.RoleUser && assignedRole != models.RoleAdmin {
-			handlers.RespondWithError(c, appErrors.ErrForbidden)
+		if assignedRole != domain.RoleUser && assignedRole != domain.RoleAdmin {
+			handlers.RespondWithError(c, domain.ErrForbidden)
 			c.Abort()
 			return
 		}
@@ -75,14 +75,14 @@ func (m *AuthMiddleware) issueAnonSession(c *gin.Context) {
 		return
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(models.CookieJWT, anonSession.JWT, models.AnonSessionCookieAge, "/", "", m.secureCookies, true)
-	c.Set(models.UserIDKey, anonSession.UserID)
-	c.Set(models.UserRoleKey, anonSession.Role)
+	c.SetCookie(domain.CookieJWT, anonSession.JWT, domain.AnonSessionCookieAge, "/", "", m.secureCookies, true)
+	c.Set(domain.UserIDKey, anonSession.UserID)
+	c.Set(domain.UserRoleKey, anonSession.Role)
 }
 
 func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jwtStr, err := c.Cookie(models.CookieJWT)
+		jwtStr, err := c.Cookie(domain.CookieJWT)
 		if err != nil {
 			// No JWT cookie: treat as anonymous user
 			m.issueAnonSession(c)
@@ -95,13 +95,13 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 			if !errors.Is(err, jwt.ErrTokenExpired) {
 				c.Abort()
 				c.SetSameSite(http.SameSiteLaxMode)
-				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
-				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.SetCookie(domain.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(domain.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
+				handlers.RespondWithError(c, domain.ErrUnauthorized)
 				return
 			}
 
-			if claims.Role == models.RoleAnon {
+			if claims.Role == domain.RoleAnon {
 				// Anon JWT expired — issue new one without hitting the DB (since we don't store anon sessions)
 				m.issueAnonSession(c)
 				c.Next()
@@ -109,13 +109,13 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 			}
 
 			// JWT expired — attempt refresh
-			refreshStr, err := c.Cookie(models.CookieRefreshToken)
+			refreshStr, err := c.Cookie(domain.CookieRefreshToken)
 			if err != nil {
 				c.Abort()
 				c.SetSameSite(http.SameSiteLaxMode)
-				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
-				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.SetCookie(domain.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(domain.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
+				handlers.RespondWithError(c, domain.ErrUnauthorized)
 				return
 			}
 
@@ -123,53 +123,53 @@ func (m *AuthMiddleware) ParseAuth() gin.HandlerFunc {
 			if err != nil {
 				c.Abort()
 				c.SetSameSite(http.SameSiteLaxMode)
-				c.SetCookie(models.CookieJWT, "", -1, "/", "", m.secureCookies, true)
-				c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
-				handlers.RespondWithError(c, appErrors.ErrUnauthorized)
+				c.SetCookie(domain.CookieJWT, "", -1, "/", "", m.secureCookies, true)
+				c.SetCookie(domain.CookieRefreshToken, "", -1, "/", "", m.secureCookies, true)
+				handlers.RespondWithError(c, domain.ErrUnauthorized)
 				return
 			}
 
 			c.SetSameSite(http.SameSiteLaxMode)
-			c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", m.secureCookies, true)
-			c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", m.secureCookies, true)
+			c.SetCookie(domain.CookieJWT, session.JWT, domain.JWTCookieAge, "/", "", m.secureCookies, true)
+			c.SetCookie(domain.CookieRefreshToken, session.RefreshToken, domain.RefreshTokenCookieAge, "/", "", m.secureCookies, true)
 
-			c.Set(models.UserIDKey, session.UserID)
-			c.Set(models.UserRoleKey, session.Role)
+			c.Set(domain.UserIDKey, session.UserID)
+			c.Set(domain.UserRoleKey, session.Role)
 			c.Next()
 			return
 		}
 
-		c.Set(models.UserIDKey, claims.UserID)
-		c.Set(models.UserRoleKey, claims.Role)
+		c.Set(domain.UserIDKey, claims.UserID)
+		c.Set(domain.UserRoleKey, claims.Role)
 		c.Next()
 	}
 }
 
 func (m *AuthMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		anonIDAny, exists := c.Get(models.UserIDKey)
+		anonIDAny, exists := c.Get(domain.UserIDKey)
 		if !exists {
 			log.Warn().Msg("RequireAnonQuota: userID not found in context")
-			handlers.RespondWithError(c, appErrors.ErrInternal)
+			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
 		anonID, ok := anonIDAny.(string)
 		if !ok {
 			log.Warn().Msg("RequireAnonQuota: userID in context is not a string")
-			handlers.RespondWithError(c, appErrors.ErrInternal)
+			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
-		assignedRole, exists := c.Get(models.UserRoleKey)
+		assignedRole, exists := c.Get(domain.UserRoleKey)
 		if !exists {
 			log.Warn().Msg("RequireAnonQuota: userRole not found in context")
-			handlers.RespondWithError(c, appErrors.ErrInternal)
+			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
 
-		if assignedRole != models.RoleAnon {
+		if assignedRole != domain.RoleAnon {
 			c.Next()
 			return
 		}
@@ -177,13 +177,13 @@ func (m *AuthMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFun
 		n, err := m.authService.IncrementAnonQuota(c.Request.Context(), anonID, path)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to increment anon quota")
-			handlers.RespondWithError(c, appErrors.ErrInternal)
+			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
 
 		if n > limit {
-			handlers.RespondWithError(c, appErrors.ErrQuotaExceeded)
+			handlers.RespondWithError(c, domain.ErrQuotaExceeded)
 			c.Abort()
 			return
 		}

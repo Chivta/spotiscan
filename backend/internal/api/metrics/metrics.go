@@ -6,11 +6,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/chivta/ruscan/internal/shared/appErrors"
 )
 
 var (
@@ -142,7 +141,7 @@ func Middleware(ignoredPaths ...string) gin.HandlerFunc {
 
 // ErrorTypeLabel maps an application error to a label value for ErrorsTotal.
 func ErrorTypeLabel(err error) string {
-	var appErr *appErrors.AppError
+	var appErr *domain.AppError
 	if !errors.As(err, &appErr) {
 		return "internal"
 	}

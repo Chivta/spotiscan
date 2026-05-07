@@ -3,9 +3,9 @@ package handlers
 import (
 	"errors"
 
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/gin-gonic/gin"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -13,7 +13,7 @@ func RespondWithError(c *gin.Context, err error) {
 	if err == nil {
 		return
 	}
-	var appErr *appErrors.AppError
+	var appErr *domain.AppError
 	if errors.As(err, &appErr) {
 		c.JSON(appErr.HTTPCode, gin.H{"code": appErr.Code})
 	} else {

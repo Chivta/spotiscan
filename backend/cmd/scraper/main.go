@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/shared/config"
-	"github.com/chivta/ruscan/internal/shared/models"
+	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/chivta/ruscan/internal/shared/repository"
 )
 
@@ -20,7 +20,7 @@ func main() {
 }
 
 type artistsRepo interface {
-	InsertArtists(ctx context.Context, artists []models.Artist) error
+	InsertArtists(ctx context.Context, artists []domain.Artist) error
 	GetRuTags(ctx context.Context) ([]string, error)
 	GetRuRegionIds(ctx context.Context) ([]string, error)
 }

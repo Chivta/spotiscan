@@ -7,9 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/chivta/ruscan/internal/shared/appErrors"
-	"github.com/chivta/ruscan/internal/shared/models"
 	"github.com/chivta/ruscan/internal/api/services"
+
+	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
 func NewAuthHandler(authService *services.AuthService, validate *validator.Validate, secureCookies bool) *AuthHandler {
@@ -23,9 +23,9 @@ type AuthHandler struct {
 }
 
 func (h *AuthHandler) Signup(c *gin.Context) {
-	var signupDTO models.SignupDTO
+	var signupDTO domain.SignupDTO
 	if err := c.BindJSON(&signupDTO); err != nil {
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
@@ -33,10 +33,10 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	if err != nil {
 		_, ok := err.(validator.ValidationErrors)
 		if !ok {
-			RespondWithError(c, appErrors.ErrInternal)
+			RespondWithError(c, domain.ErrInternal)
 			return
 		}
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
@@ -47,15 +47,15 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", h.secureCookies, true)
-	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", h.secureCookies, true)
+	c.SetCookie(domain.CookieJWT, session.JWT, domain.JWTCookieAge, "/", "", h.secureCookies, true)
+	c.SetCookie(domain.CookieRefreshToken, session.RefreshToken, domain.RefreshTokenCookieAge, "/", "", h.secureCookies, true)
 	c.JSON(200, gin.H{"message": "signup successful"})
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
-	var loginDTO models.LoginDTO
+	var loginDTO domain.LoginDTO
 	if err := c.BindJSON(&loginDTO); err != nil {
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
@@ -63,10 +63,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		_, ok := err.(validator.ValidationErrors)
 		if !ok {
-			RespondWithError(c, appErrors.ErrInternal)
+			RespondWithError(c, domain.ErrInternal)
 			return
 		}
-		RespondWithError(c, appErrors.ErrBadRequest)
+		RespondWithError(c, domain.ErrBadRequest)
 		return
 	}
 
@@ -77,21 +77,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(models.CookieJWT, session.JWT, models.JWTCookieAge, "/", "", h.secureCookies, true)
-	c.SetCookie(models.CookieRefreshToken, session.RefreshToken, models.RefreshTokenCookieAge, "/", "", h.secureCookies, true)
+	c.SetCookie(domain.CookieJWT, session.JWT, domain.JWTCookieAge, "/", "", h.secureCookies, true)
+	c.SetCookie(domain.CookieRefreshToken, session.RefreshToken, domain.RefreshTokenCookieAge, "/", "", h.secureCookies, true)
 	c.JSON(200, gin.H{"message": "login successful"})
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	userID, exists := c.Get(models.UserIDKey)
+	userID, exists := c.Get(domain.UserIDKey)
 	if !exists {
-		RespondWithError(c, appErrors.ErrUnauthorized)
+		RespondWithError(c, domain.ErrUnauthorized)
 		return
 	}
 
 	userIDInt, err := strconv.Atoi(userID.(string))
 	if err != nil {
-		RespondWithError(c, appErrors.ErrInternal)
+		RespondWithError(c, domain.ErrInternal)
 		return
 	}
 
@@ -101,16 +101,16 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(models.CookieJWT, "", -1, "/", "", h.secureCookies, true)
-	c.SetCookie(models.CookieRefreshToken, "", -1, "/", "", h.secureCookies, true)
+	c.SetCookie(domain.CookieJWT, "", -1, "/", "", h.secureCookies, true)
+	c.SetCookie(domain.CookieRefreshToken, "", -1, "/", "", h.secureCookies, true)
 	c.JSON(200, gin.H{"message": "logout successful"})
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
-	userID, _ := c.Get(models.UserIDKey)
-	userRole, _ := c.Get(models.UserRoleKey)
+	userID, _ := c.Get(domain.UserIDKey)
+	userRole, _ := c.Get(domain.UserRoleKey)
 	c.JSON(200, gin.H{
-		models.UserIDKey:   userID,
-		models.UserRoleKey: userRole,
+		domain.UserIDKey:   userID,
+		domain.UserRoleKey: userRole,
 	})
 }
