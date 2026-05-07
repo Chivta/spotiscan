@@ -116,7 +116,7 @@ export default function PlaylistScanner({ onNotRussian }: PlaylistScannerProps) 
   };
 
   const fetchRuContentByName = async (name: string, signal: AbortSignal): Promise<RuContent> => {
-    const response = await fetch(`/api/scan/spotify/artist/name/${encodeURIComponent(name)}`, { signal });
+    const response = await fetch(`/api/scan/spotify/artist/name?name=${encodeURIComponent(name)}`, { signal });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
       throw Object.assign(new Error(body?.error || "Something went wrong"), { code: body?.code });

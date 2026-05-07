@@ -5,7 +5,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import AdminPage from "./pages/AdminPage.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import Header from "./components/Header.tsx";
-import type { User } from "./types/models.ts";
+import type { User } from "./types/domain.ts";
 import { LanguageProvider } from "./context/LanguageContext.tsx";
 
 function RootRoute({ onUser }: { onUser: (user: User) => void }) {
