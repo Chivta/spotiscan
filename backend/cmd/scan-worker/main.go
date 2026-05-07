@@ -29,11 +29,11 @@ func run() int {
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
 
-	dbURL := os.Getenv("DB_URL")
+	dbURL := os.Getenv("DATABASE_URL")
 	redisURL := os.Getenv("REDIS_URL")
 	rabbitURL := os.Getenv("RABBITMQ_URL")
 	if dbURL == "" || redisURL == "" || rabbitURL == "" {
-		log.Error().Msg("DB_URL, REDIS_URL, and RABBITMQ_URL are required")
+		log.Error().Msg("DATABASE_URL, REDIS_URL, and RABBITMQ_URL are required")
 		return 1
 	}
 

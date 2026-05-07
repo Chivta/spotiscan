@@ -92,7 +92,7 @@ func QueueContent2DomainContent(c *queue.ContentScanJob) *domain.Content {
 		}
 	}
 
-	artists := make([]domain.ArtistRef, 0, len(c.Artists))
+	artists := make([]domain.ArtistRef, len(c.Artists))
 	for i, a := range c.Artists {
 		artists[i] = domain.ArtistRef{
 			Name:       a.Name,

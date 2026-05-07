@@ -17,11 +17,11 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/chivta/ruscan/internal/api"
 	"github.com/chivta/ruscan/internal/api/handlers"
 	"github.com/chivta/ruscan/internal/api/metrics"
 	"github.com/chivta/ruscan/internal/api/middlewares"
 	"github.com/chivta/ruscan/internal/api/services"
-	"github.com/chivta/ruscan/internal/shared/config"
 	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/shared/repository"
@@ -33,7 +33,7 @@ func main() {
 }
 
 func runApp() int {
-	cfg, err := config.Load()
+	cfg, err := api.LoadConfig()
 	if err != nil {
 		stdlog.Fatalf("Failed to load config: %v", err)
 	}
@@ -163,7 +163,7 @@ type appContainer struct {
 	queue               *queue.Client
 }
 
-func initApp(cfg *config.Config) (*appContainer, error) {
+func initApp(cfg *api.Config) (*appContainer, error) {
 	initCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 

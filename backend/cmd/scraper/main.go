@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -10,19 +9,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/chivta/ruscan/internal/shared/config"
-	"github.com/chivta/ruscan/internal/shared/domain"
+
 	"github.com/chivta/ruscan/internal/shared/repository"
+	"github.com/chivta/ruscan/internal/scraper"
 )
 
 func main() {
 	os.Exit(runApp())
-}
-
-type artistsRepo interface {
-	InsertArtists(ctx context.Context, artists []domain.Artist) error
-	GetRuTags(ctx context.Context) ([]string, error)
-	GetRuRegionIds(ctx context.Context) ([]string, error)
 }
 
 func runApp() int {
@@ -30,9 +23,9 @@ func runApp() int {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
-	cfg, err := config.Load()
+	cfg, err := scraper.LoadConfig()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		log.Error().Err(err).Msg("Failed to load config")
 		return 1
 	}
 
@@ -56,27 +49,27 @@ func runApp() int {
 
 	var wg sync.WaitGroup
 
-	if cfg.ScraperConfig.ScrapeLastFMTopArtistsForAllTags {
+	if cfg.ScrapeLastFMTopArtistsForAllTags {
 		wg.Go(func() {
-			err := scrapeLastFMTopArtistsForAllTags(ctx, repo, cfg.ScraperConfig.LastFMAPIKey)
+			err := scraper.ScrapeLastFMTopArtistsForAllTags(ctx, repo, cfg.LastFMAPIKey)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to scrape LastFM artists")
 			}
 		})
 	}
 
-	if cfg.ScraperConfig.ScrapeMusicBrainzArtistsForAllRegions {
+	if cfg.ScrapeMusicBrainzArtistsForAllRegions {
 		wg.Go(func() {
-			err := scrapeMusicBrainzArtistsForAllRegions(ctx, repo)
+			err := scraper.ScrapeMusicBrainzArtistsForAllRegions(ctx, repo)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to scrape MusicBrainz artists by regions")
 			}
 		})
 	}
 
-	if cfg.ScraperConfig.ScrapePhonkersDBArtists {
+	if cfg.ScrapePhonkersDBArtists {
 		wg.Go(func() {
-			err := scrapePhonkersDB(ctx, repo)
+			err := scraper.ScrapePhonkersDB(ctx, repo)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to scrape PhonkersDB artists")
 			}
