@@ -30,19 +30,16 @@ func run() int {
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
 
-	redisURL := os.Getenv("REDIS_URL")
-	rabbitURL := os.Getenv("RABBITMQ_URL")
-	spotifyClientID := os.Getenv("SPOTIFY_CLIENT_ID")
-	spotifyClientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
-	if rabbitURL == "" || spotifyClientID == "" || spotifyClientSecret == "" || redisURL == "" {
-		log.Error().Msg("RABBITMQ_URL, SPOTIFY_CLIENT_ID, and SPOTIFY_CLIENT_SECRET are required")
+	cfg, err := spotify.LoadConfig()
+	if err != nil {
+		log.Err(err).Msg("failed to load config")
 		return 1
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	queueClient, err := queue.NewClient(ctx, rabbitURL)
+	queueClient, err := queue.NewClient(ctx, cfg.RabbitMQURL)
 	if err != nil {
 		log.Err(err).Msg("failed to initialize rabbitmq")
 		return 1
@@ -55,7 +52,7 @@ func run() int {
 		return 1
 	}
 
-	redisClient, err := repository.InitializeRedis(ctx, redisURL)
+	redisClient, err := repository.InitializeRedis(ctx, cfg.RedisURL)
 	if err != nil {
 		log.Err(err).Msg("failed to initialize redis")
 		return 1
@@ -64,7 +61,7 @@ func run() int {
 
 	jobRepo := repository.NewJobRepo(redisClient)
 
-	spotifyClient := spotify.NewSpotifyClient(spotifyClientID, spotifyClientSecret)
+	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	worker := spotify.NewSpotifyGatewayWorker(jobRepo, queueClient, spotifyClient)
 
 	log.Info().Msg("spotify-gateway starting")

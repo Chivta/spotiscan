@@ -29,32 +29,30 @@ func run() int {
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
 
-	dbURL := os.Getenv("DATABASE_URL")
-	redisURL := os.Getenv("REDIS_URL")
-	rabbitURL := os.Getenv("RABBITMQ_URL")
-	if dbURL == "" || redisURL == "" || rabbitURL == "" {
-		log.Error().Msg("DATABASE_URL, REDIS_URL, and RABBITMQ_URL are required")
+	cfg, err := scanner.LoadConfig()
+	if err != nil {
+		log.Err(err).Msg("failed to load config")
 		return 1
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	db, err := repository.InitializeDatabase(ctx, dbURL)
+	db, err := repository.InitializeDatabase(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Err(err).Msg("failed to initialize database")
 		return 1
 	}
 	defer db.Close()
 
-	redisClient, err := repository.InitializeRedis(ctx, redisURL)
+	redisClient, err := repository.InitializeRedis(ctx, cfg.RedisURL)
 	if err != nil {
 		log.Err(err).Msg("failed to initialize redis")
 		return 1
 	}
 	defer redisClient.Close()
 
-	queueClient, err := queue.NewClient(ctx, rabbitURL)
+	queueClient, err := queue.NewClient(ctx, cfg.RabbitMQURL)
 	if err != nil {
 		log.Err(err).Msg("failed to initialize rabbitmq")
 		return 1
