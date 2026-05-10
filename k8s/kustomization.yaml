@@ -2,10 +2,21 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
 - api/deployment.yaml
+- api/service.yaml
+- api/service-monitor.yaml
 - frontend/deployment.yaml
+- frontend/service.yaml
 - scan-worker/deployment.yaml
 - scraper/cronjob.yaml
 - spotify-gateway/deployment.yaml
+- rabbitmq/statefulset.yaml
+- rabbitmq/service.yaml
+- redis/statefullset.yaml
+- redis/service.yaml
+- postgres/statefulset.yaml
+- postgres/service.yaml
+- ingress.yaml
+- secrets.enc.yaml
 
 images:
 - name: ghcr.io/chivta/ruscan/api
