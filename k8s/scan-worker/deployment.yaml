@@ -37,5 +37,17 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: DATABASE_URL
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
       imagePullSecrets:
       - name: ghcr-secret
