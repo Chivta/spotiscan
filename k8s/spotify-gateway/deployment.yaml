@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spotify-gateway
+  namespace: ruscan
+  labels:
+    app: spotify-gateway
+spec:
+  selector:
+    matchLabels:
+      app: spotify-gateway
+  template:
+    metadata:
+      labels:
+        app: spotify-gateway
+    spec:
+      containers:
+        - name: spotify-gateway
+          image: ghcr.io/chivta/ruscan/spotify-gateway:latest
+          env:
+            - name: REDIS_URL
+              value: redis://redis-svc:6379
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: RABBITMQ_URL
+            - name: SPOTIFY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: SPOTIFY_CLIENT_ID
+            - name: SPOTIFY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: SPOTIFY_CLIENT_SECRET
+            
+
+      imagePullSecrets:
+      - name: ghcr-secret

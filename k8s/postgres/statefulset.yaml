@@ -18,40 +18,30 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: postgres:17-alpine
           ports:
             - containerPort: 5432
           env:
             - name: POSTGRES_USER
-              value: "ruscan"
+              value: ruscan
             - name: POSTGRES_DB
-              value: "ruscan"
+              value: ruscan
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: app-secrets
-                  key: DB_PASSWORD
-          resources:
-            requests:
-              cpu: 250m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
+                  key: DATABASE_PASSWORD
           livenessProbe:
             exec:
               command: ["pg_isready", "-U", "ruscan", "-d", "ruscan"]
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "ruscan", "-d", "ruscan"]
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 10
-          volumeMounts:
-            - name: postgres-data
-              mountPath: /var/lib/postgresql/data
-              subPath: pgdata
+
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
@@ -60,20 +50,3 @@ spec:
         resources:
           requests:
             storage: 5Gi
-
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres-svc 
-  namespace: ruscan
-  labels:
-    app: postgres
-spec:
-  selector:
-    app: postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
-  type: ClusterIP

@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend 
+  name: api
   namespace: ruscan
   labels:
-    app: backend
+    app: api
 spec:
-  replicas: 1
   revisionHistoryLimit: 3
-  selector: 
+  replicas: 1
+  selector:
     matchLabels:
-      app: backend 
+      app: api
   template:
     metadata:
       labels:
-        app: backend
+        app: api
     spec:
       containers:
-        - name: backend
-          image: ghcr.io/chivta/ruscan/ruscan-backend:latest
+        - name: api
+          image: ghcr.io/chivta/ruscan/api:latest
           ports:
             - containerPort: 8080
           envFrom:
@@ -26,18 +26,12 @@ spec:
                 name: app-secrets
           env:
             - name: GIN_MODE
-              value: "release"
+              value: release
             - name: SECURE_COOKIES
               value: "true"
             - name: REDIS_URL
-              value: "redis://redis-svc:6379"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 256Mi
+              value: redis://redis-svc:6379
+            - name: POSTGRES_URL
           livenessProbe:
             httpGet:
               path: /health
@@ -49,24 +43,6 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 5
+            initialDelaySeconds: 15
             periodSeconds: 10
-      imagePullSecrets:
-        - name: ghcr-secret
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend-svc
-  namespace: ruscan
-  labels:
-    app: backend
-spec:
-  selector:
-    app: backend  
-  ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
-  type: ClusterIP
+            failureThreshold: 3

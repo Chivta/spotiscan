@@ -1,14 +1,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: backend
+  name: api
   namespace: ruscan
   labels:
-    app: backend
+    app: api
 spec:
   selector:
     matchLabels:
-      app: backend
+      app: api
   endpoints:
     - port: http
       path: /metrics
