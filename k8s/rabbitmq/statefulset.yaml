@@ -18,10 +18,13 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: rabbitmq:4-management-alpine
+          image: rabbitmq:4.3.0-management-alpine
           ports:
             - containerPort: 5672
             - containerPort: 15672
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
           resources:
             requests:
               cpu: 100m
@@ -37,6 +40,16 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: RABBITMQ_DEFAULT_PASS
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "ping"]
+              initialDelaySeconds: 5
+              periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "ping"]
+              initialDelaySeconds: 5
+              periodSeconds: 10
 
   volumeClaimTemplates:
   - metadata:

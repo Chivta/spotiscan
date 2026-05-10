@@ -9,6 +9,7 @@ spec:
   schedule: "0 3 * * 0" # Every Sunday at 3 AM
   jobTemplate:
     spec:
+      backoffLimit: 3
       template:
         metadata:
           labels:

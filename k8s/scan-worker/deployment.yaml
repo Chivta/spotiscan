@@ -38,15 +38,13 @@ spec:
                   name: app-secrets
                   key: DATABASE_URL
           livenessProbe:
-            httpGet:
-              path: /
-              port: 80
+            exec:
+              command: ["pgrep", "-x", "scan-worker"]
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /
-              port: 80
+            exec:
+              command: ["pgrep", "-x", "scan-worker"]
             initialDelaySeconds: 5
             periodSeconds: 10
       imagePullSecrets:

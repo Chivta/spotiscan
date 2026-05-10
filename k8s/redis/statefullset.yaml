@@ -20,6 +20,9 @@ spec:
           image: redis:7-alpine
           ports:
             - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
           resources:
             requests:
               cpu: 50m
