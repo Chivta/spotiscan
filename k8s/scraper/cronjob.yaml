@@ -16,7 +16,7 @@ spec:
         spec:
           containers:
             - name: scraper
-              image: ghcr.io/chivta/ruscan/scraper:latest
+              image: ghcr.io/chivta/ruscan/scraper:placeholder
               resources:
                 requests:
                   cpu: 50m

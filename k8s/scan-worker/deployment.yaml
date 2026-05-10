@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: scan-worker
-          image: ghcr.io/chivta/ruscan/scan-worker:latest
+          image: ghcr.io/chivta/ruscan/scan-worker:placeholder
           resources:
             requests:
               cpu: 50m

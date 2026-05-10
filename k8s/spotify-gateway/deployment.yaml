@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: spotify-gateway
-          image: ghcr.io/chivta/ruscan/spotify-gateway:latest
+          image: ghcr.io/chivta/ruscan/spotify-gateway:placeholder
           resources:
             requests:
               cpu: 50m

@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/chivta/ruscan/frontend:latest
+          image: ghcr.io/chivta/ruscan/frontend:placeholder
           ports:
             - containerPort: 80
           resources:
