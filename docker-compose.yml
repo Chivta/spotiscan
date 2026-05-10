@@ -13,6 +13,7 @@ services:
       - DATABASE_URL=postgres://app:app@postgres:5432/app?sslmode=disable
       - RABBITMQ_URL=amqp://app:app@rabbitmq:5672/
       - REDIS_URL=redis://redis:6379
+      - SECURE_COOKIES=false
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 5s
