@@ -7,41 +7,20 @@ import (
 	"sync"
 
 	"github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
-const (
-	ruArtistsRedisKey = "ru_artists"
-)
-
-func NewArtistRepo(db *sql.DB, redisClient *redis.Client) *ArtistRepo {
+func NewArtistRepo(db *sql.DB) *ArtistRepo {
 	return &ArtistRepo{
 		db:    db,
-		redis: redisClient,
 	}
 }
 
 type ArtistRepo struct {
 	db     *sql.DB
-	redis  *redis.Client
 	loadMu sync.Mutex
-}
-
-func (r *ArtistRepo) LoadRussianArtistsToRedis(ctx context.Context) error {
-	log.Info().Msg("loading ru_artists set from DB")
-	allNames, err := r.GetAllRussianArtistNames(ctx)
-	if err != nil {
-		return err
-	}
-	err = r.SetRussianArtistNames(ctx, allNames)
-	if err != nil {
-		return err
-	}
-	log.Info().Msgf("successfully loaded %d ru artists into redis", len(allNames))
-	return nil
 }
 
 func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
@@ -65,17 +44,6 @@ func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, er
 	}
 
 	return ruNames, nil
-}
-
-func (r *ArtistRepo) SetRussianArtistNames(ctx context.Context, names []string) error {
-	// Clear existing set and add new names
-	pipe := r.redis.Pipeline()
-	pipe.Del(ctx, ruArtistsRedisKey)
-	if len(names) > 0 {
-		pipe.SAdd(ctx, ruArtistsRedisKey, names)
-	}
-	_, err := pipe.Exec(ctx)
-	return err
 }
 
 // Fetches info for artists whose names are in DB, so implicitly filters out non-Russian

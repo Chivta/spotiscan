@@ -38,14 +38,8 @@ func runApp() int {
 	}
 	defer db.Close()
 
-	redis, err := repository.InitializeRedis(ctx, cfg.RedisURL)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to initialize redis")
-		return 1
-	}
-	defer redis.Close()
 
-	repo := repository.NewArtistRepo(db, redis)
+	repo := repository.NewArtistRepo(db)
 
 	var wg sync.WaitGroup
 
@@ -77,8 +71,6 @@ func runApp() int {
 	}
 
 	wg.Wait()
-
-	repo.LoadRussianArtistsToRedis(ctx)
 
 	return 0
 }

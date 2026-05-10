@@ -12,7 +12,6 @@ import (
 
 type Config struct {
 	DatabaseURL                           string `validate:"required,uri"`
-	RedisURL                              string `validate:"required,uri"`
 	ScrapeLastFMTopArtistsForAllTags      bool
 	ScrapePhonkersDBArtists               bool
 	ScrapeMusicBrainzArtistsForAllRegions bool
@@ -26,7 +25,6 @@ func LoadConfig() (*Config, error) {
 
 	cfg := &Config{
 		DatabaseURL:                           os.Getenv("DATABASE_URL"),
-		RedisURL:                              os.Getenv("REDIS_URL"),
 		ScrapeLastFMTopArtistsForAllTags:      parseBool("SCRAPE_LASTFM_TOP_ARTISTS_FOR_ALL_TAGS"),
 		ScrapePhonkersDBArtists:               parseBool("SCRAPE_PHONKERS_DB_ARTISTS"),
 		ScrapeMusicBrainzArtistsForAllRegions: parseBool("SCRAPE_MUSICBRAINZ_ARTISTS_FOR_ALL_REGIONS"),

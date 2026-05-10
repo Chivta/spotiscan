@@ -183,7 +183,7 @@ func initApp(cfg *api.Config) (*appContainer, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
-	artistRepo := repository.NewArtistRepo(db, redis)
+	artistRepo := repository.NewArtistRepo(db)
 	tokenRepo := repository.NewTokenRepo(db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	userRepo := repository.NewUserRepo(db, redis)
 
@@ -193,13 +193,6 @@ func initApp(cfg *api.Config) (*appContainer, error) {
 		redis.Close()
 		db.Close()
 		return nil, fmt.Errorf("Failed to load rate limit script to redis: %v", err)
-	}
-
-	err = artistRepo.LoadRussianArtistsToRedis(initCtx)
-	if err != nil {
-		redis.Close()
-		db.Close()
-		return nil, fmt.Errorf("Failed to load Russian artists to redis: %v", err)
 	}
 
 	queueClient, err := queue.NewClient(initCtx, cfg.RabbitMQURL)

@@ -417,12 +417,7 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 		log.Error().Err(err).Msg("failed to commit artist insert suggestion approval")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
-
-	err = r.redis.SAdd(ctx, ruArtistsRedisKey, nameLower).Err()
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to add artist to redis set after approving suggestion")
-	}
-
+	
 	return suggestion, nil
 }
 
@@ -494,11 +489,6 @@ func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id i
 	if err := tx.Commit(); err != nil {
 		log.Error().Err(err).Msg("failed to commit artist delete suggestion approval")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
-	}
-
-	err = r.redis.SRem(ctx, ruArtistsRedisKey, nameLower).Err()
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to remove artist from redis set after approving delete suggestion")
 	}
 
 	return suggestion, nil

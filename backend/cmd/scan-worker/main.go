@@ -59,7 +59,7 @@ func run() int {
 	}
 	defer queueClient.Close()
 
-	artistRepo := repository.NewArtistRepo(db, redisClient)
+	artistRepo := repository.NewArtistRepo(db)
 	jobRepo := repository.NewJobRepo(redisClient)
 	svc := scanner.NewSpotifyService(artistRepo)
 
