@@ -29,7 +29,12 @@ func LoadConfig() (*Config, error) {
 		JWTSecret:           os.Getenv("JWT_SECRET"),
 		SpotifyClientID:     os.Getenv("SPOTIFY_CLIENT_ID"),
 		SpotifyClientSecret: os.Getenv("SPOTIFY_CLIENT_SECRET"),
-		SecureCookies:       func() bool { v, _ := strconv.ParseBool(os.Getenv("SECURE_COOKIES")); return v }(),
+		SecureCookies:       func() bool { 
+			v, err := strconv.ParseBool(os.Getenv("SECURE_COOKIES"))
+			if err != nil {
+				panic(fmt.Sprintf("failed to parse bool from env var SECURE_COOKIES: %v", err))
+			}
+			return v }(),
 	}
 
 	validate := validator.New()
