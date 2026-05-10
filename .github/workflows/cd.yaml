@@ -6,25 +6,36 @@ on:
     branches: [main]
     types: [completed]
 
+permissions:
+  packages: write
+
 jobs:
   build-and-push:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+
     outputs:
-      backend_built: ${{ steps.changed.outputs.backend }}
-      frontend_built: ${{ steps.changed.outputs.frontend }}
+      backend_built: ${{ steps.changes.outputs.backend }}
+      frontend_built: ${{ steps.changes.outputs.frontend }}
       tag: ${{ github.event.workflow_run.head_sha }}
+
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Detect changed paths
-        id: changed
+        id: changes
+        # Read changed against latest tag in kustomization.yaml
         run: |
           SHA="${{ github.event.workflow_run.head_sha }}"
           BEFORE=$(grep -m1 'newTag:' k8s/kustomization.yaml | awk '{print $2}' || echo "")
@@ -44,61 +55,91 @@ jobs:
             echo "frontend=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push backend
-        if: steps.changed.outputs.backend == 'true'
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v6
+        name: Build and push api
+        if: steps.changes.outputs.backend == 'true'
         with:
           context: ./backend
+          file: ./backend/Dockerfile.api
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/ruscan-backend:latest
-            ghcr.io/${{ github.repository }}/ruscan-backend:${{ github.event.workflow_run.head_sha }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,scope=backend,mode=max
+            ghcr.io/${{ github.repository }}/api:latest
+            ghcr.io/${{ github.repository }}/api:${{ github.event.workflow_run.head_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
 
-      - name: Build and push scraper
-        if: steps.changed.outputs.backend == 'true'
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v6
+        name: Build and push scraper
+        if: steps.changes.outputs.backend == 'true'
         with:
           context: ./backend
-          target: scraper
+          file: ./backend/Dockerfile.scraper
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/ruscan-scraper:latest
-            ghcr.io/${{ github.repository }}/ruscan-scraper:${{ github.event.workflow_run.head_sha }}
+            ghcr.io/${{ github.repository }}/scraper:latest
+            ghcr.io/${{ github.repository }}/scraper:${{ github.event.workflow_run.head_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
           cache-from: type=gha,scope=scraper
           cache-to: type=gha,scope=scraper,mode=max
 
-      - name: Build and push frontend
-        if: steps.changed.outputs.frontend == 'true'
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v6
+        name: Build and push spotify-gateway
+        if: steps.changes.outputs.backend == 'true'
         with:
-          context: ./frontend
+          context: ./backend
+          file: ./backend/Dockerfile.spotify-gateway
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/ruscan-frontend:latest
-            ghcr.io/${{ github.repository }}/ruscan-frontend:${{ github.event.workflow_run.head_sha }}
+            ghcr.io/${{ github.repository }}/spotify-gateway:latest
+            ghcr.io/${{ github.repository }}/spotify-gateway:${{ github.event.workflow_run.head_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+          cache-from: type=gha,scope=spotify-gateway
+          cache-to: type=gha,scope=spotify-gateway,mode=max
+
+      - uses: docker/build-push-action@v6
+        name: Build and push scan-worker
+        if: steps.changes.outputs.backend == 'true'
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.scan-worker
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/scan-worker:latest
+            ghcr.io/${{ github.repository }}/scan-worker:${{ github.event.workflow_run.head_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+
+          cache-from: type=gha,scope=scan-worker
+          cache-to: type=gha,scope=scan-worker,mode=max
+
+      - uses: docker/build-push-action@v6
+        name: Build and push frontend
+        if: steps.changes.outputs.frontend == 'true'
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: | 
+            ghcr.io/${{ github.repository }}/frontend:latest
+            ghcr.io/${{ github.repository }}/frontend:${{ github.event.workflow_run.head_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
 
   deploy:
     needs: build-and-push
-    runs-on: ubuntu-latest
-    if: |
-      needs.build-and-push.outputs.backend_built == 'true' ||
-      needs.build-and-push.outputs.frontend_built == 'true'
     permissions:
       contents: write
+    
+    runs-on: ubuntu-latest
+
+    # Check if anything was built
+    if: ${{ needs.build-and-push.outputs.backend_built == 'true' || needs.build-and-push.outputs.frontend_built == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,19 +148,23 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Update image tags in kustomization.yaml
+      - name: Update tags in kustomization.yaml
         working-directory: ./k8s
         run: |
           if [ "${{ needs.build-and-push.outputs.backend_built }}" = "true" ]; then
             kustomize edit set image \
-              ghcr.io/${{ github.repository }}/ruscan-backend=ghcr.io/${{ github.repository }}/ruscan-backend:${{ needs.build-and-push.outputs.tag }}
+              ghcr.io/${{ github.repository }}/api=ghcr.io/${{ github.repository }}/api:${{ needs.build-and-push.outputs.tag }}
             kustomize edit set image \
-              ghcr.io/${{ github.repository }}/ruscan-scraper=ghcr.io/${{ github.repository }}/ruscan-scraper:${{ needs.build-and-push.outputs.tag }}
+              ghcr.io/${{ github.repository }}/scraper=ghcr.io/${{ github.repository }}/scraper:${{ needs.build-and-push.outputs.tag }}
+            kustomize edit set image \
+              ghcr.io/${{ github.repository }}/spotify-gateway=ghcr.io/${{ github.repository }}/spotify-gateway:${{ needs.build-and-push.outputs.tag }}
+            kustomize edit set image \
+              ghcr.io/${{ github.repository }}/scan-worker=ghcr.io/${{ github.repository }}/scan-worker:${{ needs.build-and-push.outputs.tag }}
           fi
           if [ "${{ needs.build-and-push.outputs.frontend_built }}" = "true" ]; then
             kustomize edit set image \
-              ghcr.io/${{ github.repository }}/ruscan-frontend=ghcr.io/${{ github.repository }}/ruscan-frontend:${{ needs.build-and-push.outputs.tag }}
-          fi
+              ghcr.io/${{ github.repository }}/frontend=ghcr.io/${{ github.repository }}/frontend:${{ needs.build-and-push.outputs.tag }}
+          fi  
 
       - name: Commit and push to main
         run: |
