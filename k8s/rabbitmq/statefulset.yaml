@@ -19,6 +19,11 @@ spec:
       containers:
         - name: rabbitmq
           image: rabbitmq:4.3.0-management-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
           ports:
             - containerPort: 5672
             - containerPort: 15672
@@ -43,13 +48,13 @@ spec:
           livenessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "ping"]
-              initialDelaySeconds: 5
-              periodSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 10
           readinessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "ping"]
-              initialDelaySeconds: 5
-              periodSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 10
 
   volumeClaimTemplates:
   - metadata:

@@ -19,6 +19,12 @@ spec:
       containers:
         - name: api
           image: ghcr.io/chivta/ruscan/api:placeholder
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
           ports:
             - containerPort: 8080
           envFrom:

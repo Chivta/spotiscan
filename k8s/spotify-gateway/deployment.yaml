@@ -17,6 +17,12 @@ spec:
       containers:
         - name: spotify-gateway
           image: ghcr.io/chivta/ruscan/spotify-gateway:placeholder
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
           resources:
             requests:
               cpu: 50m
@@ -42,16 +48,6 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: SPOTIFY_CLIENT_SECRET
-          livenessProbe:
-            exec:
-              command: ["pgrep", "-x", "spotify-gateway"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            exec:
-              command: ["pgrep", "-x", "spotify-gateway"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
 
       imagePullSecrets:
       - name: ghcr-secret

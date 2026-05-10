@@ -17,6 +17,12 @@ spec:
       containers:
         - name: scan-worker
           image: ghcr.io/chivta/ruscan/scan-worker:placeholder
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
           resources:
             requests:
               cpu: 50m
@@ -37,15 +43,6 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: DATABASE_URL
-          livenessProbe:
-            exec:
-              command: ["pgrep", "-x", "scan-worker"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            exec:
-              command: ["pgrep", "-x", "scan-worker"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
+                  
       imagePullSecrets:
       - name: ghcr-secret

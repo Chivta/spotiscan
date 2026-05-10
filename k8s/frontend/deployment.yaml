@@ -19,6 +19,8 @@ spec:
       containers:
         - name: frontend
           image: ghcr.io/chivta/ruscan/frontend:placeholder
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 80
           resources:

@@ -18,6 +18,12 @@ spec:
           containers:
             - name: scraper
               image: ghcr.io/chivta/ruscan/scraper:placeholder
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
               resources:
                 requests:
                   cpu: 50m
