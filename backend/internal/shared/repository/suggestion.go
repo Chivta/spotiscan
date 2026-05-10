@@ -95,7 +95,7 @@ func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name,
 
 func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistInsertSuggestion, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at
+		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at, updated_at
 		 FROM artist_insert_suggestions
 		 WHERE creator_id = $1
 		 ORDER BY created_at DESC`,
@@ -110,7 +110,7 @@ func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creator
 	for rows.Next() {
 		var suggestion domain.ArtistInsertSuggestion
 		var declineReason sql.NullString
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
@@ -230,7 +230,7 @@ func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artis
 
 func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistDeleteSuggestion, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at
+		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at, updated_at
 		 FROM artist_delete_suggestions
 		 WHERE creator_id = $1
 		 ORDER BY created_at DESC`,
@@ -245,7 +245,7 @@ func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creator
 	for rows.Next() {
 		var suggestion domain.ArtistDeleteSuggestion
 		var declineReason sql.NullString
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist delete suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
@@ -340,7 +340,7 @@ func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, c
 }
 
 func (r *SuggestionRepo) GetAllArtistInsertSuggestions(ctx context.Context) ([]domain.ArtistInsertSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at FROM artist_insert_suggestions ORDER BY created_at DESC`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at FROM artist_insert_suggestions ORDER BY created_at DESC`)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query all artist insert suggestions from database")
 		return nil, domain.ErrDatabaseFailure
@@ -351,7 +351,7 @@ func (r *SuggestionRepo) GetAllArtistInsertSuggestions(ctx context.Context) ([]d
 	for rows.Next() {
 		var suggestion domain.ArtistInsertSuggestion
 		var declineReason sql.NullString
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &declineReason, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &declineReason, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist insert suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
@@ -422,7 +422,7 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 }
 
 func (r *SuggestionRepo) GetAllArtistDeleteSuggestions(ctx context.Context) ([]domain.ArtistDeleteSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at FROM artist_delete_suggestions ORDER BY created_at DESC`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at FROM artist_delete_suggestions ORDER BY created_at DESC`)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query all artist delete suggestions from database")
 		return nil, domain.ErrDatabaseFailure
@@ -433,7 +433,7 @@ func (r *SuggestionRepo) GetAllArtistDeleteSuggestions(ctx context.Context) ([]d
 	for rows.Next() {
 		var suggestion domain.ArtistDeleteSuggestion
 		var declineReason sql.NullString
-		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &declineReason, &suggestion.CreatorID, &suggestion.CreatedAt); err != nil {
+		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &declineReason, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist delete suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
