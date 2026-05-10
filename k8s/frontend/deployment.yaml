@@ -21,6 +21,13 @@ spec:
           image: ghcr.io/chivta/ruscan/frontend:latest
           ports:
             - containerPort: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
           envFrom:
             - secretRef:
                 name: app-secrets

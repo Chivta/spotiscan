@@ -17,6 +17,13 @@ spec:
       containers:
         - name: spotify-gateway
           image: ghcr.io/chivta/ruscan/spotify-gateway:latest
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
           env:
             - name: REDIS_URL
               value: redis://redis-svc:6379
