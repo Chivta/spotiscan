@@ -20,12 +20,17 @@ resources:
 
 images:
 - name: ghcr.io/chivta/ruscan/api
-  newTag: 
-- name: ghcr.io/chivta/ruscan/scraper
-  newTag: 
-- name: ghcr.io/chivta/ruscan/scan-worker
-  newTag: 
-- name: ghcr.io/chivta/ruscan/spotify-gateway
-  newTag: 
+  newName: ghcr.io/chivta/ruscan/api
+  newTag: 700ad80dfa07b9c6f101211b1eddd11d43aa948d
 - name: ghcr.io/chivta/ruscan/frontend
-  newTag: 
+  newName: ghcr.io/chivta/ruscan/frontend
+  newTag: 700ad80dfa07b9c6f101211b1eddd11d43aa948d
+- name: ghcr.io/chivta/ruscan/scan-worker
+  newName: ghcr.io/chivta/ruscan/scan-worker
+  newTag: 700ad80dfa07b9c6f101211b1eddd11d43aa948d
+- name: ghcr.io/chivta/ruscan/scraper
+  newName: ghcr.io/chivta/ruscan/scraper
+  newTag: 700ad80dfa07b9c6f101211b1eddd11d43aa948d
+- name: ghcr.io/chivta/ruscan/spotify-gateway
+  newName: ghcr.io/chivta/ruscan/spotify-gateway
+  newTag: 700ad80dfa07b9c6f101211b1eddd11d43aa948d
