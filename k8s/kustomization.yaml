@@ -11,7 +11,7 @@ resources:
 - spotify-gateway/deployment.yaml
 - rabbitmq/statefulset.yaml
 - rabbitmq/service.yaml
-- redis/statefullset.yaml
+- redis/statefulset.yaml
 - redis/service.yaml
 - postgres/statefulset.yaml
 - postgres/service.yaml
