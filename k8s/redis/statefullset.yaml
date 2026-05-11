@@ -18,12 +18,6 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            runAsUser: 999
-            runAsGroup: 999
           ports:
             - containerPort: 6379
           volumeMounts:

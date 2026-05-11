@@ -19,12 +19,6 @@ spec:
       containers:
         - name: rabbitmq
           image: rabbitmq:4.3.0-management-alpine
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            runAsUser: 999
-            runAsGroup: 999
           ports:
             - containerPort: 5672
             - containerPort: 15672

@@ -19,12 +19,6 @@ spec:
       containers:
         - name: postgres
           image: postgres:17-alpine
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            runAsUser: 999  
-            runAsGroup: 999
           ports:
             - containerPort: 5432
           volumeMounts:
