@@ -52,6 +52,6 @@ spec:
                   value: "true"
                 - name: ScrapeMusicBrainzArtistsForAllRegions
                   value: "true"
-
-
           restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: ghcr-secret
