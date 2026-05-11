@@ -9,7 +9,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-
 type Config struct {
 	DatabaseURL                           string `validate:"required,uri"`
 	ScrapeLastFMTopArtistsForAllTags      bool
@@ -21,12 +20,13 @@ type Config struct {
 func LoadConfig() (*Config, error) {
 	godotenv.Load("./.env")
 
-	parseBool := func(key string) bool { 
+	parseBool := func(key string) bool {
 		v, err := strconv.ParseBool(os.Getenv(key))
 		if err != nil {
 			panic(fmt.Sprintf("failed to parse bool from env var %s: %v", key, err))
 		}
-		return v }
+		return v
+	}
 
 	cfg := &Config{
 		DatabaseURL:                           os.Getenv("DATABASE_URL"),

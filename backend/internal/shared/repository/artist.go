@@ -14,7 +14,7 @@ import (
 
 func NewArtistRepo(db *sql.DB) *ArtistRepo {
 	return &ArtistRepo{
-		db:    db,
+		db: db,
 	}
 }
 

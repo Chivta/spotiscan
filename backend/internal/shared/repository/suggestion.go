@@ -417,7 +417,7 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 		log.Error().Err(err).Msg("failed to commit artist insert suggestion approval")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
-	
+
 	return suggestion, nil
 }
 

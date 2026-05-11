@@ -7,12 +7,12 @@ import (
 
 func NewRatelimitRepo(redis *redis.Client) *RatelimitRepo {
 	return &RatelimitRepo{
-		redis:   redis,
+		redis: redis,
 	}
 }
 
 type RatelimitRepo struct {
-	redis   *redis.Client
+	redis *redis.Client
 
 	rateLimitScriptSHA string
 }

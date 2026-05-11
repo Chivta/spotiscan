@@ -19,10 +19,10 @@ type SpotifyPlaylistItemsResponse struct {
 }
 
 type SpotifyPlaylistResponse struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Images      []SpotifyImage `json:"images"`
+	ID          string                       `json:"id"`
+	Name        string                       `json:"name"`
+	Description string                       `json:"description"`
+	Images      []SpotifyImage               `json:"images"`
 	Tracks      SpotifyPlaylistItemsResponse `json:"tracks"`
 }
 
@@ -50,9 +50,9 @@ type SpotifyAlbum struct {
 }
 
 type SpotifyTrackResponse struct {
-	ID      string       `json:"id"`
-	Name    string       `json:"name"`
-	Album   SpotifyAlbum `json:"album"`
+	ID      string          `json:"id"`
+	Name    string          `json:"name"`
+	Album   SpotifyAlbum    `json:"album"`
 	Artists []SpotifyArtist `json:"artists"`
 }
 

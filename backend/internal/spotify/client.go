@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	
+
 	"github.com/chivta/ruscan/internal/shared/domain"
 )
 

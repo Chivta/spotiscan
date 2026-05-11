@@ -10,27 +10,28 @@ import (
 )
 
 type Config struct {
-	DatabaseURL         string `validate:"required,uri"`
-	RedisURL            string `validate:"required,uri"`
-	RabbitMQURL         string `validate:"required,uri"`
-	JWTSecret           string `validate:"required,min=32"`
-	SecureCookies       bool
+	DatabaseURL   string `validate:"required,uri"`
+	RedisURL      string `validate:"required,uri"`
+	RabbitMQURL   string `validate:"required,uri"`
+	JWTSecret     string `validate:"required,min=32"`
+	SecureCookies bool
 }
 
 func LoadConfig() (*Config, error) {
 	godotenv.Load("./.env")
 
 	cfg := &Config{
-		DatabaseURL:         os.Getenv("DATABASE_URL"),
-		RedisURL:            os.Getenv("REDIS_URL"),
-		RabbitMQURL:         os.Getenv("RABBITMQ_URL"),
-		JWTSecret:           os.Getenv("JWT_SECRET"),
-		SecureCookies:       func() bool { 
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		RedisURL:    os.Getenv("REDIS_URL"),
+		RabbitMQURL: os.Getenv("RABBITMQ_URL"),
+		JWTSecret:   os.Getenv("JWT_SECRET"),
+		SecureCookies: func() bool {
 			v, err := strconv.ParseBool(os.Getenv("SECURE_COOKIES"))
 			if err != nil {
 				panic(fmt.Sprintf("failed to parse bool from env var SECURE_COOKIES: %v", err))
 			}
-			return v }(),
+			return v
+		}(),
 	}
 
 	validate := validator.New()

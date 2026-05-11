@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"time"	
+	"time"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
@@ -13,8 +13,8 @@ import (
 
 func NewTokenRepo(db *sql.DB, redis *redis.Client) *TokenRepo {
 	return &TokenRepo{
-		db:            db,
-		redis:         redis,
+		db:    db,
+		redis: redis,
 	}
 }
 

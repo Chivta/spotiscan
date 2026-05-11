@@ -9,9 +9,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-
-	"github.com/chivta/ruscan/internal/shared/repository"
 	"github.com/chivta/ruscan/internal/scraper"
+	"github.com/chivta/ruscan/internal/shared/repository"
 )
 
 func main() {
@@ -37,7 +36,6 @@ func runApp() int {
 		return 1
 	}
 	defer db.Close()
-
 
 	repo := repository.NewArtistRepo(db)
 

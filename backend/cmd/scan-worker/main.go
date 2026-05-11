@@ -11,9 +11,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/chivta/ruscan/internal/scanner"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/shared/repository"
-	"github.com/chivta/ruscan/internal/scanner"
 )
 
 func main() {

@@ -1,7 +1,7 @@
 package domain
 
 type AppError struct {
-	HTTPCode int  	`json:"-"`
+	HTTPCode int    `json:"-"`
 	Code     string `json:"code"`
 }
 
