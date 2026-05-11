@@ -46,12 +46,14 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 15
             failureThreshold: 5
+            timeoutSeconds: 10
           readinessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "ping"]
             initialDelaySeconds: 60
             periodSeconds: 15
             failureThreshold: 5
+            timeoutSeconds: 10
 
   volumeClaimTemplates:
   - metadata:
