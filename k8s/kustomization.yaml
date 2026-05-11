@@ -20,12 +20,12 @@ resources:
 
 images:
 - name: ghcr.io/chivta/ruscan/api
-  newTag: placeholder
+  newTag: 
 - name: ghcr.io/chivta/ruscan/scraper
-  newTag: placeholder
+  newTag: 
 - name: ghcr.io/chivta/ruscan/scan-worker
-  newTag: placeholder
+  newTag: 
 - name: ghcr.io/chivta/ruscan/spotify-gateway
-  newTag: placeholder
+  newTag: 
 - name: ghcr.io/chivta/ruscan/frontend
-  newTag: placeholder
+  newTag: 
