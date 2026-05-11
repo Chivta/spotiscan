@@ -48,10 +48,10 @@ spec:
                     secretKeyRef:
                       name: app-secrets
                       key: LASTFM_API_KEY
-                - name: ScrapeLastFMTopArtistsForAllTags
+                - name: SCRAPE_LASTFM_TOP_ARTISTS_FOR_ALL_TAGS
                   value: "true"
-                - name: ScrapePhonkersDBArtists
+                - name: SCRAPE_PHONKERS_DB_ARTISTS
                   value: "true"
-                - name: ScrapeMusicBrainzArtistsForAllRegions
+                - name: SCRAPE_MUSICBRAINZ_ARTISTS_FOR_ALL_REGIONS
                   value: "true"
           restartPolicy: OnFailure
