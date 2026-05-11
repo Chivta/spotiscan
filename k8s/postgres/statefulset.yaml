@@ -21,9 +21,6 @@ spec:
           image: postgres:16-alpine
           ports:
             - containerPort: 5432
-          volumeMounts:
-          - name: postgres-data
-            mountPath: /var/lib/postgresql/data
           env:
             - name: POSTGRES_USER
               value: ruscan
@@ -51,7 +48,11 @@ spec:
               command: ["pg_isready", "-U", "ruscan", "-d", "ruscan"]
             initialDelaySeconds: 5
             periodSeconds: 10
-
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+              
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
