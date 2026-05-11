@@ -43,12 +43,12 @@ spec:
           livenessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "ping"]
-            initialDelaySeconds: 5
+            initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "ping"]
-            initialDelaySeconds: 5
+            initialDelaySeconds: 30
             periodSeconds: 10
 
   volumeClaimTemplates:
