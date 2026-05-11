@@ -21,6 +21,15 @@ spec:
           image: ghcr.io/chivta/ruscan/frontend:placeholder
           securityContext:
             allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
           ports:
             - containerPort: 80
           resources:
@@ -44,3 +53,9 @@ spec:
             periodSeconds: 10
       imagePullSecrets:
       - name: ghcr-secret
+      
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
