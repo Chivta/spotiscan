@@ -18,7 +18,9 @@ spec:
         metadata:
           labels:
             app: scraper
-        spec:
+        spec:      
+          imagePullSecrets:
+          - name: ghcr-secret
           containers:
             - name: scraper
               image: ghcr.io/chivta/ruscan/scraper:placeholder
@@ -53,5 +55,3 @@ spec:
                 - name: ScrapeMusicBrainzArtistsForAllRegions
                   value: "true"
           restartPolicy: OnFailure
-        imagePullSecrets:
-          - name: ghcr-secret
