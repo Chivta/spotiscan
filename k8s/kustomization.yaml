@@ -1,20 +1,31 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- backend/deployment.yaml
-- backend/service-monitor.yaml
+- api/deployment.yaml
+- api/service.yaml
+- api/service-monitor.yaml
 - frontend/deployment.yaml
+- frontend/service.yaml
+- scan-worker/deployment.yaml
 - scraper/cronjob.yaml
+- spotify-gateway/deployment.yaml
+- rabbitmq/statefulset.yaml
+- rabbitmq/service.yaml
+- redis/statefullset.yaml
+- redis/service.yaml
 - postgres/statefulset.yaml
-- redis/deployment.yaml
+- postgres/service.yaml
 - ingress.yaml
+- secrets.enc.yaml
+
 images:
-- name: ghcr.io/chivta/ruscan/ruscan-backend
-  newName: ghcr.io/chivta/ruscan/ruscan-backend
-  newTag: f6e9e7757fab53d9a1401eb8a82c3df9a91ead38
-- name: ghcr.io/chivta/ruscan/ruscan-frontend
-  newName: ghcr.io/chivta/ruscan/ruscan-frontend
-  newTag: f6e9e7757fab53d9a1401eb8a82c3df9a91ead38
-- name: ghcr.io/chivta/ruscan/ruscan-scraper
-  newName: ghcr.io/chivta/ruscan/ruscan-scraper
-  newTag: f6e9e7757fab53d9a1401eb8a82c3df9a91ead38
+- name: ghcr.io/chivta/ruscan/api
+  newTag: placeholder
+- name: ghcr.io/chivta/ruscan/scraper
+  newTag: placeholder
+- name: ghcr.io/chivta/ruscan/scan-worker
+  newTag: placeholder
+- name: ghcr.io/chivta/ruscan/spotify-gateway
+  newTag: placeholder
+- name: ghcr.io/chivta/ruscan/frontend
+  newTag: placeholder

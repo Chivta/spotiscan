@@ -1,56 +1,62 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [main]
+  # Do not run CI/CD on purely k8s changes
+  # So github-actions[bot] won't trigger CD when it updates the kustomization.yaml with new tags
   push:
     branches: [main]
+    paths-ignore:
+      - 'k8s/kustomization.yaml'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'k8s/kustomization.yaml'
 
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.26.1'
+          go-version: '1.26.2'
           cache: true
           cache-dependency-path: backend/go.sum
-
-      - name: Download dependencies
+          
+      - name: Download deps
         run: go mod download
-        working-directory: ./backend
 
-      - name: Run tests
-        run: go test -v -race ${{ github.event_name == 'push' && '-coverprofile=coverage.out' || '' }} ./...
-        working-directory: ./backend
+      - name: Build
+        run: go build ./...
 
-      - name: Upload coverage
-        if: github.event_name == 'push'
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./backend/coverage.out
-          flags: unittests
-          fail_ci_if_error: false
+      - name: Test
+        run: go test ./...
 
-  build-frontend:
+      - name: Vet
+        run: go vet ./...
+     
+  frontend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: npm
+          node-version: 'lts/*'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install deps
         run: npm ci
-        working-directory: ./frontend
 
-      - name: Build (type-check + bundling)
+      - name: Build
         run: npm run build
-        working-directory: ./frontend

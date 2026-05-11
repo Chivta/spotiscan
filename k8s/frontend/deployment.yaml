@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: frontend
+metadata: 
+  name: frontend-deployment
   namespace: ruscan
   labels:
     app: frontend
@@ -18,16 +18,27 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/chivta/ruscan/ruscan-frontend:latest
+          image: ghcr.io/chivta/ruscan/frontend:placeholder
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
           ports:
             - containerPort: 80
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: 10m
+              memory: 32Mi
             limits:
-              cpu: 200m
-              memory: 128Mi
+              cpu: 100m
+              memory: 64Mi
           livenessProbe:
             httpGet:
               path: /
@@ -41,20 +52,10 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
       imagePullSecrets:
-        - name: ghcr-secret
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: frontend-svc
-  namespace: ruscan
-  labels:
-    app: frontend
-spec:
-  selector:
-    app: frontend
-  ports:
-    - port: 80
-      targetPort: 80
-  type: ClusterIP
+      - name: ghcr-secret
+      
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}

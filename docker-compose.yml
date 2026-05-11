@@ -1,71 +1,92 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ruscan
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ruscan"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  backend:
+  api:
+    restart: unless-stopped
     build:
       context: ./backend
       target: dev
+      dockerfile: Dockerfile.api
     volumes:
-      - ./backend:/app          # dev-only
-      - backend_tmp:/app/tmp
+      - ./backend:/build
     env_file:
       - ./backend/.env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # Linux only; Mac/Windows have this built-in
     environment:
+      - DATABASE_URL=postgres://app:app@postgres:5432/app?sslmode=disable
+      - RABBITMQ_URL=amqp://app:app@rabbitmq:5672/
       - REDIS_URL=redis://redis:6379
-      - FRONTEND_URL=http://localhost:5173
-      - DB_URL=postgres://postgres:postgres@postgres:5432/ruscan?sslmode=disable
       - SECURE_COOKIES=false
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
-      interval: 10s
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
-  scraper:
-    profiles:
-      - scraper
+  spotify-gateway:
+    restart: unless-stopped
     build:
       context: ./backend
-      target: scraper
-    volumes:
-      - ./backend:/app
-    env_file:
-      - ./backend/.env
+      target: dev
+      dockerfile: Dockerfile.spotify-gateway
     environment:
+      - RABBITMQ_URL=amqp://app:app@rabbitmq:5672/
       - REDIS_URL=redis://redis:6379
-      - DB_URL=postgres://postgres:postgres@postgres:5432/ruscan?sslmode=disable
+    volumes:
+      - ./backend:/build
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  scan-worker:
+    restart: unless-stopped
+    build:
+      context: ./backend
+      target: dev
+      dockerfile: Dockerfile.scan-worker
+    volumes:
+      - ./backend:/build
+    environment:
+      - DATABASE_URL=postgres://app:app@postgres:5432/app?sslmode=disable
+      - RABBITMQ_URL=amqp://app:app@rabbitmq:5672
+      - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
-      backend:
-        condition: service_healthy # scraper needs backend to be healthy to ensure DB migrations have run
+      rabbitmq:
+        condition: service_healthy
       redis:
-        condition: service_started # to load new artists into cache after update
+        condition: service_healthy
+
+  scraper:  
+    profiles:
+    - scraper
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.scraper
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgres://app:app@postgres:5432/app?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - SCRAPE_LASTFM_TOP_ARTISTS_FOR_ALL_TAGS=true
+      - SCRAPE_MUSICBRAINZ_ARTISTS_FOR_ALL_REGIONS=true
+      - SCRAPE_PHONKERS_DB_ARTISTS=true
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     build:
@@ -75,22 +96,57 @@ services:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     environment:
-      - VITE_API_URL=http://backend:8080
+      - VITE_API_URL=http://api:8080
     ports:
       - "5173:5173"
     depends_on:
-      backend:
-        condition: service_started
+      api:
+        condition: service_healthy
+
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
 
   redis:
     image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: app
+      RABBITMQ_DEFAULT_PASS: app
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
 volumes:
   postgres_data:
-  backend_tmp:
   frontend_node_modules:
-  redis_data:

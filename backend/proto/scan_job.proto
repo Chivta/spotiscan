@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package ruscan;
+option go_package = "internal/shared/queue";
+
+enum ResourceType {
+    INVALID = 0;
+    PLAYLIST_ID = 1;
+    TRACK_ID = 2;
+    ALBUM_ID = 3;
+    ARTIST_ID = 4;
+    ARTIST_NAME = 5;
+}
+
+message ContentFetchJob {
+  string id = 1;
+  string user_id = 2;
+  ResourceType resource_type = 3;
+  string resource_id = 4;
+}
+
+message ArtistRef {
+  string external_id = 1;
+  string name = 2;
+}
+
+message Track {
+  string external_id = 1;
+  string name = 2;
+  string image_url = 3;
+  repeated ArtistRef artists = 4;
+}
+
+message ContentScanJob {
+  string scan_job_id = 1;
+  repeated Track   tracks  = 2;
+  repeated ArtistRef  artists = 3;
+}
