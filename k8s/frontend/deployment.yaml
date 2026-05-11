@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata: 
-  name: frontend-deployment
+  name: frontend
   namespace: ruscan
   labels:
     app: frontend
@@ -19,12 +19,6 @@ spec:
       containers:
         - name: frontend
           image: ghcr.io/chivta/ruscan/frontend:placeholder
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            runAsNonRoot: true
-            readOnlyRootFilesystem: true
           volumeMounts:
             - name: cache
               mountPath: /var/cache/nginx
