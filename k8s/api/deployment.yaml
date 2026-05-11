@@ -36,23 +36,7 @@ spec:
             - name: SECURE_COOKIES
               value: "true"
             - name: REDIS_URL
-              value: redis://redis-svc:6379
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: DATABASE_URL
-            - name: RABBITMQ_URL
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: RABBITMQ_URL
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: JWT_SECRET
-                  
+              value: redis://redis-svc:6379                  
           resources:
             requests:
               cpu: 100m
