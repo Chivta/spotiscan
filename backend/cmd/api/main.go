@@ -184,7 +184,7 @@ func initApp(cfg *api.Config) (*appContainer, error) {
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
 	artistRepo := repository.NewArtistRepo(db)
-	tokenRepo := repository.NewTokenRepo(db, redis, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	tokenRepo := repository.NewTokenRepo(db, redis)
 	userRepo := repository.NewUserRepo(db, redis)
 
 	ratelimitRepo := repository.NewRatelimitRepo(redis)

@@ -14,8 +14,6 @@ type Config struct {
 	RedisURL            string `validate:"required,uri"`
 	RabbitMQURL         string `validate:"required,uri"`
 	JWTSecret           string `validate:"required,min=32"`
-	SpotifyClientID     string `validate:"required,min=1"`
-	SpotifyClientSecret string `validate:"required,min=1"`
 	SecureCookies       bool
 }
 
@@ -27,8 +25,6 @@ func LoadConfig() (*Config, error) {
 		RedisURL:            os.Getenv("REDIS_URL"),
 		RabbitMQURL:         os.Getenv("RABBITMQ_URL"),
 		JWTSecret:           os.Getenv("JWT_SECRET"),
-		SpotifyClientID:     os.Getenv("SPOTIFY_CLIENT_ID"),
-		SpotifyClientSecret: os.Getenv("SPOTIFY_CLIENT_SECRET"),
 		SecureCookies:       func() bool { 
 			v, err := strconv.ParseBool(os.Getenv("SECURE_COOKIES"))
 			if err != nil {

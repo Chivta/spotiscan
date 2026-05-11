@@ -3,9 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"time"
-
-	"golang.org/x/oauth2"
+	"time"	
 
 	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/rs/zerolog/log"
@@ -13,22 +11,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewTokenRepo(db *sql.DB, redis *redis.Client, spotifyId, spotifySecret string) *TokenRepo {
+func NewTokenRepo(db *sql.DB, redis *redis.Client) *TokenRepo {
 	return &TokenRepo{
 		db:            db,
 		redis:         redis,
-		spotifyId:     spotifyId,
-		spotifySecret: spotifySecret,
 	}
 }
 
 type TokenRepo struct {
 	db    *sql.DB
 	redis *redis.Client
-
-	token         *oauth2.Token
-	spotifyId     string
-	spotifySecret string
 }
 
 func (r *TokenRepo) GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error) {
