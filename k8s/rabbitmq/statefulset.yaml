@@ -23,7 +23,8 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
           ports:
             - containerPort: 5672
             - containerPort: 15672
