@@ -43,11 +43,11 @@ spec:
                     secretKeyRef:
                       name: app-secrets
                       key: DATABASE_URL
-                - name: LastFMAPIKey
+                - name: LASTFM_API_KEY
                   valueFrom:
                     secretKeyRef:
                       name: app-secrets
-                      key: LastFMAPIKey
+                      key: LASTFM_API_KEY
                 - name: ScrapeLastFMTopArtistsForAllTags
                   value: "true"
                 - name: ScrapePhonkersDBArtists
