@@ -1,7 +1,6 @@
 export interface User {
-  ID: number;
-  Email?: string;
-  Role: "user" | "admin" | "anon";
+  userID: string;
+  userRole: "user" | "admin" | "anon";
 }
 
 export interface Artist {

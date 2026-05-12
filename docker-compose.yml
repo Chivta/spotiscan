@@ -16,6 +16,7 @@ services:
       - SECURE_COOKIES=false
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      start_period: 10s
       interval: 5s
       timeout: 5s
       retries: 5

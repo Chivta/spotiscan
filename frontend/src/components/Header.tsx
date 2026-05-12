@@ -33,14 +33,12 @@ export default function Header({ user, onLogout }: HeaderProps) {
   const tx = translations[lang];
   const navigate = useNavigate();
   const location = useLocation();
-  const isAdmin = user.Role === "admin";
+  const isAdmin = user.userRole === "admin";
 
   return (
     <>
       <style>{`
-        .header-email { display: inline; }
         @media (max-width: 600px) {
-          .header-email { display: none; }
           .header-nav { gap: 6px !important; }
           .header-nav-btn { padding: 6px 10px !important; }
         }
@@ -73,11 +71,6 @@ export default function Header({ user, onLogout }: HeaderProps) {
         </div>
 
         <div className="header-nav" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {user.Email && (
-            <span className="header-email" style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: 13 }}>
-              {user.Email}
-            </span>
-          )}
 
           {isAdmin && (
             <button

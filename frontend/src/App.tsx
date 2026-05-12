@@ -5,12 +5,11 @@ import Dashboard from "./pages/Dashboard.tsx";
 import AdminPage from "./pages/AdminPage.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import Header from "./components/Header.tsx";
-import type { User } from "./types/domain.ts";
+import type { User } from "./types/models.ts";
 import { LanguageProvider } from "./context/LanguageContext.tsx";
 
-function RootRoute({ onUser }: { onUser: (user: User) => void }) {
+function RootRoute() {
   const [checked, setChecked] = useState(false);
-  const [authed, setAuthed] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,9 +19,7 @@ function RootRoute({ onUser }: { onUser: (user: User) => void }) {
         throw new Error("unauthenticated");
       })
       .then((user: User) => {
-        if (user.Role !== "anon") {
-          onUser(user);
-          setAuthed(true);
+        if (user.userRole !== "anon") {
           navigate("/dashboard", { replace: true });
         } else {
           setChecked(true);
@@ -31,50 +28,66 @@ function RootRoute({ onUser }: { onUser: (user: User) => void }) {
       .catch(() => setChecked(true));
   }, []);
 
-  if (authed) return null;
   if (!checked) return null;
   return <Landing />;
 }
 
-function AppRoutes() {
+function ProtectedRoute({ requiredRole, render }: {
+  requiredRole?: "admin";
+  render: (user: User, onLogout: () => void) => React.ReactNode;
+}) {
   const [user, setUser] = useState<User | null>(null);
+  const [checked, setChecked] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch("/api/me", { credentials: "include" })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then((u: User) => {
+        if (u.userRole !== "anon" && (!requiredRole || u.userRole === requiredRole)) {
+          setUser(u);
+        }
+        setChecked(true);
+      })
+      .catch(() => setChecked(true));
+  }, []);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    setUser(null);
     navigate("/", { replace: true });
   };
 
+  if (!checked) return null;
+  if (!user) return <Navigate to="/" replace />;
+  return <>{render(user, handleLogout)}</>;
+}
+
+function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<RootRoute onUser={setUser} />} />
+      <Route path="/" element={<RootRoute />} />
       <Route path="/signup" element={<AuthPage initialMode="signup" />} />
       <Route path="/login" element={<AuthPage initialMode="login" />} />
       <Route
         path="/dashboard"
         element={
-          user && user.Role !== "anon" ? (
+          <ProtectedRoute render={(user, onLogout) => (
             <>
-              <Header user={user} onLogout={handleLogout} />
+              <Header user={user} onLogout={onLogout} />
               <Dashboard />
             </>
-          ) : (
-            <Navigate to="/" replace />
-          )
+          )} />
         }
       />
       <Route
         path="/admin"
         element={
-          user && user.Role === "admin" ? (
+          <ProtectedRoute requiredRole="admin" render={(user, onLogout) => (
             <>
-              <Header user={user} onLogout={handleLogout} />
+              <Header user={user} onLogout={onLogout} />
               <AdminPage />
             </>
-          ) : (
-            <Navigate to="/" replace />
-          )
+          )} />
         }
       />
       <Route path="*" element={<Navigate to="/" replace />} />
