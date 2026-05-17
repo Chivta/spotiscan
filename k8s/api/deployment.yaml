@@ -19,7 +19,6 @@ spec:
       containers:
         - name: api
           image: ghcr.io/chivta/ruscan/api:placeholder
-          imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
