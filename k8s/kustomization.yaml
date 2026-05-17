@@ -24,7 +24,7 @@ images:
   newTag: 700ad80dfa07b9c6f101211b1eddd11d43aa948d
 - name: ghcr.io/chivta/ruscan/frontend
   newName: ghcr.io/chivta/ruscan/frontend
-  newTag: b40826f52227b150fb1b310d9415c244c03e6932
+  newTag: ecbcc4a53eb801187ab9f3f44646cf8793d8a6ed
 - name: ghcr.io/chivta/ruscan/scan-worker
   newName: ghcr.io/chivta/ruscan/scan-worker
   newTag: 700ad80dfa07b9c6f101211b1eddd11d43aa948d
