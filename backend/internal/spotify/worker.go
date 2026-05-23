@@ -71,7 +71,6 @@ func (w *SpotifyGatewayWorker) consumeDead(ctx context.Context) {
 }
 
 func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.ContentFetchJob) bool {
-	log.Info().Str("job_id", job.Id).Str("resource_type", string(job.ResourceType)).Str("resource_id", job.ResourceId).Msg("processing spotify gateway job")
 	var fetchFunc func(context.Context, string) (*domain.Content, error)
 	switch job.ResourceType {
 	case queue.ResourceType_PLAYLIST_ID:
@@ -110,7 +109,6 @@ func (w *SpotifyGatewayWorker) processJob(ctx context.Context, job *queue.Conten
 				log.Error().Err(spotifyErr).Int("status", spotifyErr.Status).Msg("spotify API error")
 				err = domain.ErrSpotifyAPIError
 			}
-			log.Error().Err(err).Str("resource_id", job.ResourceId).Str("resource_type", string(job.ResourceType)).Msg("spotify API error during fetching")
 			err = w.jobRepo.PostJobResult(ctx, job.Id, domain.JobStatusFailed, err.Error())
 			if err != nil {
 				log.Error().Err(err).Msg("failed to post job result for spotify error")
