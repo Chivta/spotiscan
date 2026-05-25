@@ -11,6 +11,7 @@ import (
 
 	"github.com/chivta/ruscan/internal/scraper"
 	"github.com/chivta/ruscan/internal/shared/repository"
+	"github.com/chivta/ruscan/internal/shared/metrics"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func main() {
 func runApp() int {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(metrics.MetricsHook{Component: "scraper", Counter: metrics.ErrorsTotalCounter})
 
 	cfg, err := scraper.LoadConfig()
 	if err != nil {

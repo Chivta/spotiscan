@@ -19,10 +19,10 @@ import (
 
 	"github.com/chivta/ruscan/internal/api"
 	"github.com/chivta/ruscan/internal/api/handlers"
-	"github.com/chivta/ruscan/internal/api/metrics"
 	"github.com/chivta/ruscan/internal/api/middlewares"
 	"github.com/chivta/ruscan/internal/api/services"
 	"github.com/chivta/ruscan/internal/shared/domain"
+	"github.com/chivta/ruscan/internal/shared/metrics"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/shared/repository"
 	"github.com/chivta/ruscan/scripts"
@@ -40,8 +40,7 @@ func runApp() int {
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
-
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(metrics.MetricsHook{Component: "api", Counter: metrics.ErrorsTotalCounter})
 	// redirect stdlib log to zerolog
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
@@ -59,8 +58,8 @@ func runApp() int {
 	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
 	r.Use(middlewares.Logger("/", "/health", "/api/me", "/metrics"))
 	r.Use(gin.Recovery())
-	r.Use(metrics.Middleware("/metrics", "/health", "/", "/api/me"))
-	r.GET("/metrics", gin.WrapH(metrics.Handler()))
+	r.Use(api.MetricsMiddleware("/metrics", "/health", "/", "/api/me"))
+	r.GET("/metrics", gin.WrapH(api.MetricsHandler()))
 	r.GET("/health", func(c *gin.Context) { c.Status(204) })
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
 

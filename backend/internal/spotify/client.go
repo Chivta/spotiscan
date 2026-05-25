@@ -127,6 +127,13 @@ func (c *SpotifyClient) isSpotifyBlocked() bool {
 // doRequest executes an HTTP request, handling 429 blocking. On error the body
 // is closed internally; callers must close the body only on success.
 func (c *SpotifyClient) doRequest(req *http.Request) (*http.Response, error) {
+	start := time.Now()
+	log.Info().Msg("START!!!")
+	defer func() {
+		duration := time.Since(start).Seconds()
+		log.Info().Msg("IM CALLED!!!") // TODO: remove after verifying that metrics are working
+		SpotifyAPIDuration.WithLabelValues(req.Method).Observe(duration)
+	}()
 	if c.isSpotifyBlocked() {
 		return nil, &SpotifyError{Status: http.StatusTooManyRequests}
 	}

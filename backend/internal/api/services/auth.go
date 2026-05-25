@@ -13,12 +13,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-
-	"github.com/chivta/ruscan/internal/api/metrics"
+	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
-
-	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -71,23 +68,17 @@ type AnonymousSession struct {
 func (s *AuthService) Login(ctx context.Context, loginDTO domain.LoginDTO) (*Session, error) {
 	user, err := s.userRepo.GetUserByEmail(ctx, loginDTO.Email)
 	if err != nil {
-		if err != domain.ErrNotFound {
-			metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
-		}
 		return nil, err
 	}
 
 	if err := comparePasswordHashWithSalt(user.PasswordHash, loginDTO.Password); err != nil {
-		metrics.ErrorsTotal.WithLabelValues("auth").Inc()
 		return nil, domain.ErrInvalidCredentials
 	}
 
 	session, err := s.createSession(ctx, user)
 	if err != nil {
-		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
-	metrics.UserLogins.Inc()
 	return session, nil
 }
 
@@ -106,7 +97,6 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO domain.SignupDTO) (*
 	if err != nil {
 		if err != domain.ErrEmailExists {
 			log.Error().Err(err).Msg("failed to create user")
-			metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		}
 		return nil, err
 	}
@@ -115,10 +105,8 @@ func (s *AuthService) Signup(ctx context.Context, signupDTO domain.SignupDTO) (*
 	session, err := s.createSession(ctx, &user)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create session after user creation")
-		metrics.ErrorsTotal.WithLabelValues(metrics.ErrorTypeLabel(err)).Inc()
 		return nil, err
 	}
-	metrics.UserRegistrations.Inc()
 	return session, nil
 }
 
@@ -194,7 +182,6 @@ func (s *AuthService) CreateAnonymousSession(ctx context.Context) (*AnonymousSes
 		return nil, fmt.Errorf("%w: %w", domain.ErrUnauthorized, err)
 	}
 
-	metrics.AnonSessions.Inc()
 	return &AnonymousSession{
 		JWT:    signed,
 		UserID: anonID,
