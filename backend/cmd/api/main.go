@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	stdlog "log"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -157,7 +157,7 @@ type appContainer struct {
 	suggestionRepo      *repository.SuggestionRepo
 	jobRepo             *repository.JobRepo
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
-	db                  *sql.DB
+	db                  *pgxpool.Pool
 	redis               *redis.Client
 	queue               *queue.Client
 }

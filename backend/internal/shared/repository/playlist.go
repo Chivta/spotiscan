@@ -2,13 +2,12 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
 	"github.com/chivta/ruscan/internal/spotify"
 )
 
-func NewPlaylistRepo(db *sql.DB, spotifyClient *spotify.SpotifyClient) *PlaylistRepo {
+func NewPlaylistRepo(spotifyClient *spotify.SpotifyClient) *PlaylistRepo {
 	return &PlaylistRepo{
 		spotifyClient: spotifyClient,
 	}

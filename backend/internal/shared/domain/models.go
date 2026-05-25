@@ -69,25 +69,25 @@ type User struct {
 }
 
 type ArtistInsertSuggestion struct {
-	ID            int    `json:"ID"`
-	CreatorID     int    `json:"CreatorID"`
-	ArtistName    string `json:"ArtistName"`
-	Description   string `json:"Description"`
-	State         string `json:"State"`
-	DeclineReason string `json:"DeclineReason,omitempty"`
-	CreatedAt     string `json:"CreatedAt"`
-	UpdatedAt     string `json:"UpdatedAt"`
+	ID            int       `json:"ID"`
+	CreatorID     int       `json:"CreatorID"`
+	ArtistName    string    `json:"ArtistName"`
+	Description   string    `json:"Description"`
+	State         string    `json:"State"`
+	DeclineReason string    `json:"DeclineReason,omitempty"`
+	CreatedAt     time.Time `json:"CreatedAt"`
+	UpdatedAt     time.Time `json:"UpdatedAt"`
 }
 
 type ArtistDeleteSuggestion struct {
-	ID            int    `json:"ID"`
-	CreatorID     int    `json:"CreatorID"`
-	ArtistName    string `json:"ArtistName"`
-	Description   string `json:"Description"`
-	State         string `json:"State"`
-	DeclineReason string `json:"DeclineReason,omitempty"`
-	CreatedAt     string `json:"CreatedAt"`
-	UpdatedAt     string `json:"UpdatedAt"`
+	ID            int       `json:"ID"`
+	CreatorID     int       `json:"CreatorID"`
+	ArtistName    string    `json:"ArtistName"`
+	Description   string    `json:"Description"`
+	State         string    `json:"State"`
+	DeclineReason string    `json:"DeclineReason,omitempty"`
+	CreatedAt     time.Time `json:"CreatedAt"`
+	UpdatedAt     time.Time `json:"UpdatedAt"`
 }
 
 type JobStatus string
