@@ -33,17 +33,17 @@ func main() {
 }
 
 func runApp() int {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Hook(metrics.MetricsHook{Component: "api", Counter: metrics.ErrorsTotalCounter})
+	// redirect stdlib log to zerolog
+	stdlog.SetOutput(log.Logger)
+	stdlog.SetFlags(0)
+	
 	cfg, err := api.LoadConfig()
 	if err != nil {
 		stdlog.Fatalf("Failed to load config: %v", err)
 	}
-
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(metrics.MetricsHook{Component: "api", Counter: metrics.ErrorsTotalCounter})
-	// redirect stdlib log to zerolog
-	stdlog.SetOutput(log.Logger)
-	stdlog.SetFlags(0)
 
 	c, err := initApp(cfg)
 	if err != nil {

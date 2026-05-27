@@ -3,9 +3,8 @@ package queue
 import (
 	"context"
 
-	"github.com/rs/zerolog/log"
-
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -78,17 +77,33 @@ func (c *Client) Publish(ctx context.Context, queueName string, job proto.Messag
 	)
 }
 
-type ContentFetchDelivery struct {
+type SpotifyGatewayDelivery struct {
 	Job *ContentFetchJob
-	Msg amqp.Delivery
+	msg amqp.Delivery
 }
 
-type ContentScanDelivery struct {
+func (d SpotifyGatewayDelivery) Ack(multiple bool) error {
+	return d.msg.Ack(multiple)
+}
+
+func (d SpotifyGatewayDelivery) Nack(multiple, requeue bool) error {
+	return d.msg.Nack(multiple, requeue)
+}
+
+type ScanWorkerDelivery struct {
 	Job *ContentScanJob
-	Msg amqp.Delivery
+	msg amqp.Delivery
 }
 
-func (c *Client) ConsumeContentFetchJobs(ctx context.Context, queueName string) (<-chan ContentFetchDelivery, error) {
+func (d ScanWorkerDelivery) Ack(multiple bool) error {
+	return d.msg.Ack(multiple)
+}
+
+func (d ScanWorkerDelivery) Nack(multiple, requeue bool) error {
+	return d.msg.Nack(multiple, requeue)
+}
+
+func (c *Client) ConsumeContentFetchJobs(ctx context.Context, queueName string) (<-chan SpotifyGatewayDelivery, error) {
 	ch, err := c.conn.Channel()
 	if err != nil {
 		return nil, err
@@ -100,7 +115,7 @@ func (c *Client) ConsumeContentFetchJobs(ctx context.Context, queueName string) 
 		return nil, err
 	}
 
-	out := make(chan ContentFetchDelivery)
+	out := make(chan SpotifyGatewayDelivery)
 	go func() {
 		defer close(out)
 		defer ch.Close()
@@ -121,7 +136,7 @@ func (c *Client) ConsumeContentFetchJobs(ctx context.Context, queueName string) 
 				select {
 				case <-ctx.Done():
 					return
-				case out <- ContentFetchDelivery{Job: &job, Msg: msg}:
+				case out <- SpotifyGatewayDelivery{Job: &job, msg: msg}:
 				}
 			}
 		}
@@ -130,7 +145,7 @@ func (c *Client) ConsumeContentFetchJobs(ctx context.Context, queueName string) 
 	return out, nil
 }
 
-func (c *Client) ConsumeContent(ctx context.Context, queueName string) (<-chan ContentScanDelivery, error) {
+func (c *Client) ConsumeContent(ctx context.Context, queueName string) (<-chan ScanWorkerDelivery, error) {
 	ch, err := c.conn.Channel()
 	if err != nil {
 		return nil, err
@@ -142,7 +157,7 @@ func (c *Client) ConsumeContent(ctx context.Context, queueName string) (<-chan C
 		return nil, err
 	}
 
-	out := make(chan ContentScanDelivery)
+	out := make(chan ScanWorkerDelivery)
 	go func() {
 		defer close(out)
 		defer ch.Close()
@@ -163,7 +178,7 @@ func (c *Client) ConsumeContent(ctx context.Context, queueName string) (<-chan C
 				select {
 				case <-ctx.Done():
 					return
-				case out <- ContentScanDelivery{Job: &job, Msg: msg}:
+				case out <- ScanWorkerDelivery{Job: &job, msg: msg}:
 				}
 			}
 		}

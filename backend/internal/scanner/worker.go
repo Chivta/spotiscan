@@ -41,15 +41,15 @@ func (w *ScannerWorker) Start(ctx context.Context) error {
 		result, err := w.svc.FilterContent(ctx, QueueContent2DomainContent(job))
 		if err != nil {
 			log.Error().Err(err).Str("job_id", job.ScanJobId).Msg("failed to filter content")
-			delivery.Msg.Nack(false, true)
+			delivery.Nack(false, true)
 			continue
 		}
 		if err := w.jobRepo.PostJobResult(ctx, job.ScanJobId, domain.JobStatusDone, result); err != nil {
 			log.Error().Err(err).Str("job_id", job.ScanJobId).Msg("failed to post job result")
-			delivery.Msg.Nack(false, true)
+			delivery.Nack(false, true)
 			continue
 		}
-		err = delivery.Msg.Ack(false)
+		err = delivery.Ack(false)
 		if err != nil {
 			log.Error().Err(err).Str("job_id", job.ScanJobId).Msg("failed to ack message")
 			return err
@@ -67,10 +67,14 @@ func (w *ScannerWorker) consumeDead(ctx context.Context) {
 	for d := range deliveries {
 		if err := w.jobRepo.PostJobResult(ctx, d.Job.ScanJobId, domain.JobStatusFailed, domain.ErrInternal.Code); err != nil {
 			log.Error().Err(err).Str("job_id", d.Job.ScanJobId).Msg("failed to mark dead job as failed")
-			d.Msg.Nack(false, false)
+			d.Nack(false, false)
 			continue
 		}
-		d.Msg.Ack(false)
+		err := d.Ack(false)
+		if err != nil {
+			log.Error().Err(err).Str("job_id", d.Job.ScanJobId).Msg("failed to ack dead job message")
+			continue
+		}
 	}
 }
 

@@ -26,10 +26,11 @@ func main() {
 func run() int {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(metrics.MetricsHook{Component: "scanner", Counter: metrics.ErrorsTotalCounter})
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Hook(metrics.MetricsHook{Component: "scanner", Counter: metrics.ErrorsTotalCounter})
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
-
+	
+	// TODO: add metrics to scraper too!!
 	cfg, err := scanner.LoadConfig()
 	if err != nil {
 		log.Err(err).Msg("failed to load config")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	stdlog "log"
 	"os"
 	"sync"
 	"time"
@@ -10,8 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/scraper"
-	"github.com/chivta/ruscan/internal/shared/repository"
 	"github.com/chivta/ruscan/internal/shared/metrics"
+	"github.com/chivta/ruscan/internal/shared/repository"
 )
 
 func main() {
@@ -21,7 +22,9 @@ func main() {
 func runApp() int {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(metrics.MetricsHook{Component: "scraper", Counter: metrics.ErrorsTotalCounter})
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Hook(metrics.MetricsHook{Component: "scraper", Counter: metrics.ErrorsTotalCounter})
+	stdlog.SetOutput(log.Logger)
+	stdlog.SetFlags(0)
 
 	cfg, err := scraper.LoadConfig()
 	if err != nil {

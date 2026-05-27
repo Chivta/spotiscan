@@ -38,13 +38,13 @@ func (w *SpotifyGatewayWorker) Start(ctx context.Context) error {
 	for delivery := range deliveries {
 		ack := w.processJob(ctx, delivery.Job)
 		if ack {
-			err = delivery.Msg.Ack(false)
+			err = delivery.Ack(false)
 			if err != nil {
 				log.Error().Err(err).Str("job_id", delivery.Job.Id).Msg("failed to ack message")
 				return err
 			}
 		} else {
-			err = delivery.Msg.Nack(false, true)
+			err = delivery.Nack(false, true)
 			if err != nil {
 				log.Error().Err(err).Str("job_id", delivery.Job.Id).Msg("failed to nack message")
 				return err
@@ -63,10 +63,14 @@ func (w *SpotifyGatewayWorker) consumeDead(ctx context.Context) {
 	for d := range deliveries {
 		if err := w.jobRepo.PostJobResult(ctx, d.Job.Id, domain.JobStatusFailed, domain.ErrInternal.Code); err != nil {
 			log.Error().Err(err).Str("job_id", d.Job.Id).Msg("failed to mark dead job as failed")
-			d.Msg.Nack(false, false)
+			d.Nack(false, false)
 			continue
 		}
-		d.Msg.Ack(false)
+		err := d.Ack(false)
+		if err != nil {
+			log.Error().Err(err).Str("job_id", d.Job.Id).Msg("failed to ack dead job message")
+			continue
+		}
 	}
 }
 

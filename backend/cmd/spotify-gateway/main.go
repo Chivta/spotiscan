@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -26,11 +25,9 @@ func main() {
 }
 
 func run() int {
-	godotenv.Load("./.env")
-
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(metrics.MetricsHook{Component: "spotify-gateway", Counter: metrics.ErrorsTotalCounter})
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Hook(metrics.MetricsHook{Component: "spotify-gateway", Counter: metrics.ErrorsTotalCounter})
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
 
@@ -68,7 +65,7 @@ func run() int {
 	spotifyClient := spotify.NewSpotifyClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	worker := spotify.NewSpotifyGatewayWorker(jobRepo, queueClient, spotifyClient)
 
-	r := gin.New() 
+	r := gin.New()
 	r.GET("/metrics", gin.WrapH(spotify.MetricsHandler()))
 	r.GET("/health", func(c *gin.Context) { c.Status(204) })
 	srv := &http.Server{
