@@ -200,6 +200,15 @@ func (r *ArtistRepo) GetRuRegionIds(ctx context.Context) ([]string, error) {
 	return ids, rows.Err()
 }
 
+func (r *ArtistRepo) GetArtistCount(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM ru_artists`).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *ArtistRepo) ArtistExists(ctx context.Context, name string) (bool, error) {
 	name = strings.ToLower(name)
 	var exists bool

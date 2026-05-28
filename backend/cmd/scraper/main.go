@@ -74,5 +74,18 @@ func runApp() int {
 
 	wg.Wait()
 
+	if cfg.PushgatewayURL != "" {
+		count, err := repo.GetArtistCount(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get artist count")
+		} else {
+			scraper.SetRuArtistsTotal(count)
+		}
+		err = scraper.PushMetrics(cfg.PushgatewayURL)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to push metrics to pushgateway")
+		}
+	}
+
 	return 0
 }
