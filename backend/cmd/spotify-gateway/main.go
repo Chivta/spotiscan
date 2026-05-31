@@ -90,18 +90,19 @@ func run() int {
 		}
 	}()
 
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Err(err).Msg("server shutdown error")
+		}
+	}()
+
 	select {
 	case <-ctx.Done():
-		log.Info().Msg("shutting down")
+		log.Info().Msg("shutting down server")
 	case err := <-errCh:
 		log.Err(err).Msg("server error")
-		return 1
-	}
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Err(err).Msg("server shutdown error")
 		return 1
 	}
 

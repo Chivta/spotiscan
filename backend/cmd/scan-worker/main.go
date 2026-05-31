@@ -76,7 +76,7 @@ func run() int {
 
 	errCh := make(chan error, 1)
 	go func() {
-		log.Info().Msg("metrics server starting on :PORT")
+		log.Info().Msg("metrics server starting on :8080")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Err(err).Msg("metrics server exited with error")
 			errCh <- err
@@ -92,21 +92,19 @@ func run() int {
 		}
 	}()
 
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Err(err).Msg("server shutdown error")
+		}
+	}()
+
 	select {
 	case <-ctx.Done():
 		log.Info().Msg("shutting down server")
 	case err := <-errCh:
 		log.Err(err).Msg("server error")
-		return 1
-	}
-
-	<-ctx.Done()
-	log.Info().Msg("shutting down server")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Err(err).Msg("server shutdown error")
 		return 1
 	}
 
