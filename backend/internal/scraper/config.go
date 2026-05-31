@@ -14,7 +14,7 @@ type Config struct {
 	ScrapeLastFMTopArtistsForAllTags      bool
 	ScrapePhonkersDBArtists               bool
 	ScrapeMusicBrainzArtistsForAllRegions bool
-	LastFMAPIKey                          string
+	LastFMAPIKey                          string `validate:"required,uri"`
 	PushgatewayURL                        string
 }
 

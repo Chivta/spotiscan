@@ -10,6 +10,6 @@ spec:
     matchLabels:
       app: spotify-gateway
   endpoints:
-    - port: http
+    - port: 8080
       path: /metrics
       interval: 15s

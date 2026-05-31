@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
-import type { ArtistInsertSuggestion, ArtistDeleteSuggestion } from "../types/models";
+import type { ArtistInsertSuggestion, ArtistDeleteSuggestion, ISOTimestamp } from "../types/models";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
 
@@ -90,7 +90,7 @@ function DeclineReasonBlock({ reason, label }: { reason: string; label: string }
   );
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: ISOTimestamp): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });

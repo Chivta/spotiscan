@@ -45,7 +45,15 @@ func (t pgxTracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.Trac
 	if !ok {
 		return
 	}
-	operation := strings.SplitN(data.CommandTag.String(), " ", 2)[0]
+	var operation string
+	if data.Err != nil {
+		operation = "error"
+	} else {
+		operation = strings.SplitN(data.CommandTag.String(), " ", 2)[0]
+		if operation == "" {
+			operation = "unknown"
+		}
+	}
 	PostgresLatencyHistogram.WithLabelValues(operation).Observe(time.Since(start).Seconds())
 }
 
@@ -58,13 +66,10 @@ type redisHook struct{}
 func (h redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		start := time.Now()
-		err := next(ctx, cmd)
-		if err != nil {
-			return err
-		}
 		operation := cmd.Name()
+		err := next(ctx, cmd)
 		RedisLatencyHistogram.WithLabelValues(operation).Observe(time.Since(start).Seconds())
-		return nil
+		return err
 	}
 }
 
@@ -75,10 +80,8 @@ func (h redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.Pro
 		if err != nil {
 			return err
 		}
-		for _, cmd := range cmds {
-			operation := cmd.Name()
-			RedisLatencyHistogram.WithLabelValues(operation).Observe(time.Since(start).Seconds())
-		}
+		RedisLatencyHistogram.WithLabelValues("pipeline").Observe(time.Since(start).Seconds())
+
 		return nil
 	}
 }

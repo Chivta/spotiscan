@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: scan-worker-svc
+  namespace: ruscan
+  labels:
+    app: scan-worker
+spec:
+  selector:
+    app: scan-worker
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
