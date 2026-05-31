@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
 import Aurora from "../components/react-bits/Aurora";
-import type { ArtistInsertSuggestion, ArtistDeleteSuggestion } from "../types/models";
+import type { ArtistInsertSuggestion, ArtistDeleteSuggestion, ISOTimestamp } from "../types/models";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n";
 
@@ -31,7 +31,7 @@ function StatusBadge({ state, tx }: { state: SuggestionState; tx: { approved: st
   );
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: ISOTimestamp): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });

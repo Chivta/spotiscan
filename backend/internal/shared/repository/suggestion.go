@@ -2,38 +2,37 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
-func NewSuggestionRepo(db *sql.DB, redis *redis.Client) *SuggestionRepo {
+func NewSuggestionRepo(db *pgxpool.Pool, redis *redis.Client) *SuggestionRepo {
 	return &SuggestionRepo{
 		db:    db,
-		redis: redis, // for updating cached set
+		redis: redis,
 	}
 }
 
 type SuggestionRepo struct {
-	db    *sql.DB
+	db    *pgxpool.Pool
 	redis *redis.Client
 }
 
-// checks if suggestion exists and pending and lock it. Without checking creator_id, used for admin actions
-// returns ErrNotFound, ErrSuggestionNotPending where appropriate or ErrDatabaseFailure with logging
-func lockPendingSuggestion(ctx context.Context, tx *sql.Tx, table string, id int) error {
+func lockPendingSuggestion(ctx context.Context, tx pgx.Tx, table string, id int) error {
 	var state string
-	err := tx.QueryRowContext(
+	err := tx.QueryRow(
 		ctx,
 		`SELECT state FROM `+table+` WHERE id = $1 FOR UPDATE`,
 		id,
 	).Scan(&state)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return domain.ErrNotFound
 		}
 		log.Error().Err(err).Msg("failed to query suggestion for locking")
@@ -45,18 +44,16 @@ func lockPendingSuggestion(ctx context.Context, tx *sql.Tx, table string, id int
 	return nil
 }
 
-// checks if suggestion exists and pending and lock it with creator ID check to prevent leaking suggestion state to unauthorized users
-// returns ErrNotFound, ErrSuggestionNotPending where appropriate or ErrDatabaseFailure with logging
-func lockPendingSuggestionWithCreatorID(ctx context.Context, tx *sql.Tx, table string, id, creatorID int) error {
+func lockPendingSuggestionWithCreatorID(ctx context.Context, tx pgx.Tx, table string, id, creatorID int) error {
 	var state string
-	err := tx.QueryRowContext(
+	err := tx.QueryRow(
 		ctx,
 		`SELECT state FROM `+table+` WHERE id = $1 AND creator_id = $2 FOR UPDATE`,
 		id,
 		creatorID,
 	).Scan(&state)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return domain.ErrNotFound
 		}
 		log.Error().Err(err).Msg("failed to query suggestion for locking")
@@ -71,7 +68,7 @@ func lockPendingSuggestionWithCreatorID(ctx context.Context, tx *sql.Tx, table s
 func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name, description string, creatorID int) (domain.ArtistInsertSuggestion, error) {
 	var suggestion domain.ArtistInsertSuggestion
 
-	err := r.db.QueryRowContext(
+	err := r.db.QueryRow(
 		ctx,
 		`INSERT INTO artist_insert_suggestions (artist_name, description, creator_id)
 		 VALUES ($1, $2, $3)
@@ -94,7 +91,7 @@ func (r *SuggestionRepo) CreateArtistInsertSuggestion(ctx context.Context, name,
 }
 
 func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistInsertSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.db.Query(ctx,
 		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at, updated_at
 		 FROM artist_insert_suggestions
 		 WHERE creator_id = $1
@@ -109,12 +106,14 @@ func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creator
 	var suggestions []domain.ArtistInsertSuggestion
 	for rows.Next() {
 		var suggestion domain.ArtistInsertSuggestion
-		var declineReason sql.NullString
+		var declineReason *string
 		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
-		suggestion.DeclineReason = declineReason.String
+		if declineReason != nil {
+			suggestion.DeclineReason = *declineReason
+		}
 		suggestions = append(suggestions, suggestion)
 	}
 
@@ -127,20 +126,19 @@ func (r *SuggestionRepo) GetArtistInsertSuggestions(ctx context.Context, creator
 }
 
 func (r *SuggestionRepo) DeleteArtistInsertSuggestion(ctx context.Context, id, creatorID int) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for deleting artist suggestion")
 		return domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_insert_suggestions", id, creatorID)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestionWithCreatorID(ctx, tx, "artist_insert_suggestions", id, creatorID); err != nil {
 		return err
 	}
-	res, err := tx.ExecContext(
+	tag, err := tx.Exec(
 		ctx,
-		`DELETE FROM artist_insert_suggestions
-		 WHERE id = $1 AND creator_id = $2`,
+		`DELETE FROM artist_insert_suggestions WHERE id = $1 AND creator_id = $2`,
 		id,
 		creatorID,
 	)
@@ -148,18 +146,11 @@ func (r *SuggestionRepo) DeleteArtistInsertSuggestion(ctx context.Context, id, c
 		log.Error().Err(err).Msg("failed to delete artist suggestion from database")
 		return domain.ErrDatabaseFailure
 	}
-
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get rows affected for deleting artist suggestion")
-		return domain.ErrDatabaseFailure
-	}
-	if rowsAffected == 0 {
+	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction for deleting artist suggestion")
 		return domain.ErrDatabaseFailure
 	}
@@ -169,18 +160,18 @@ func (r *SuggestionRepo) DeleteArtistInsertSuggestion(ctx context.Context, id, c
 func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, creatorID int, description string) (domain.ArtistInsertSuggestion, error) {
 	var suggestion domain.ArtistInsertSuggestion
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for updating artist insert suggestion")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_insert_suggestions", id, creatorID)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestionWithCreatorID(ctx, tx, "artist_insert_suggestions", id, creatorID); err != nil {
 		return domain.ArtistInsertSuggestion{}, err
 	}
 
-	err = tx.QueryRowContext(
+	err = tx.QueryRow(
 		ctx,
 		`UPDATE artist_insert_suggestions
 		 SET description = $1, updated_at = NOW()
@@ -195,8 +186,7 @@ func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, c
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction for updating artist insert suggestion")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
@@ -207,7 +197,7 @@ func (r *SuggestionRepo) UpdateArtistInsertSuggestion(ctx context.Context, id, c
 func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artistName, description string, creatorID int) (domain.ArtistDeleteSuggestion, error) {
 	var suggestion domain.ArtistDeleteSuggestion
 
-	err := r.db.QueryRowContext(
+	err := r.db.QueryRow(
 		ctx,
 		`INSERT INTO artist_delete_suggestions (artist_name, description, creator_id)
 		 VALUES ($1, $2, $3)
@@ -229,7 +219,7 @@ func (r *SuggestionRepo) CreateArtistDeleteSuggestion(ctx context.Context, artis
 }
 
 func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creatorID int) ([]domain.ArtistDeleteSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.db.Query(ctx,
 		`SELECT id, artist_name, description, decline_reason, state, creator_id, created_at, updated_at
 		 FROM artist_delete_suggestions
 		 WHERE creator_id = $1
@@ -244,12 +234,14 @@ func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creator
 	var suggestions []domain.ArtistDeleteSuggestion
 	for rows.Next() {
 		var suggestion domain.ArtistDeleteSuggestion
-		var declineReason sql.NullString
+		var declineReason *string
 		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &declineReason, &suggestion.State, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist delete suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
-		suggestion.DeclineReason = declineReason.String
+		if declineReason != nil {
+			suggestion.DeclineReason = *declineReason
+		}
 		suggestions = append(suggestions, suggestion)
 	}
 
@@ -262,18 +254,18 @@ func (r *SuggestionRepo) GetArtistDeleteSuggestions(ctx context.Context, creator
 }
 
 func (r *SuggestionRepo) DeleteArtistDeleteSuggestion(ctx context.Context, id, creatorID int) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for deleting artist delete suggestion")
 		return domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_delete_suggestions", id, creatorID)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestionWithCreatorID(ctx, tx, "artist_delete_suggestions", id, creatorID); err != nil {
 		return err
 	}
 
-	res, err := tx.ExecContext(
+	tag, err := tx.Exec(
 		ctx,
 		`DELETE FROM artist_delete_suggestions WHERE id = $1 AND creator_id = $2`,
 		id,
@@ -283,17 +275,11 @@ func (r *SuggestionRepo) DeleteArtistDeleteSuggestion(ctx context.Context, id, c
 		log.Error().Err(err).Msg("failed to delete artist delete suggestion from database")
 		return domain.ErrDatabaseFailure
 	}
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get rows affected for deleting artist suggestion")
-		return domain.ErrDatabaseFailure
-	}
-	if rowsAffected == 0 {
+	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction for deleting artist delete suggestion")
 		return domain.ErrDatabaseFailure
 	}
@@ -304,18 +290,18 @@ func (r *SuggestionRepo) DeleteArtistDeleteSuggestion(ctx context.Context, id, c
 func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, creatorID int, description string) (domain.ArtistDeleteSuggestion, error) {
 	var suggestion domain.ArtistDeleteSuggestion
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for updating artist delete suggestion")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestionWithCreatorID(ctx, tx, "artist_delete_suggestions", id, creatorID)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestionWithCreatorID(ctx, tx, "artist_delete_suggestions", id, creatorID); err != nil {
 		return domain.ArtistDeleteSuggestion{}, err
 	}
 
-	err = tx.QueryRowContext(
+	err = tx.QueryRow(
 		ctx,
 		`UPDATE artist_delete_suggestions
 		 SET description = $1, updated_at = NOW()
@@ -330,8 +316,7 @@ func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, c
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction for updating artist delete suggestion")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
@@ -340,7 +325,7 @@ func (r *SuggestionRepo) UpdateArtistDeleteSuggestion(ctx context.Context, id, c
 }
 
 func (r *SuggestionRepo) GetAllArtistInsertSuggestions(ctx context.Context) ([]domain.ArtistInsertSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at FROM artist_insert_suggestions ORDER BY created_at DESC`)
+	rows, err := r.db.Query(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at FROM artist_insert_suggestions ORDER BY created_at DESC`)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query all artist insert suggestions from database")
 		return nil, domain.ErrDatabaseFailure
@@ -350,12 +335,14 @@ func (r *SuggestionRepo) GetAllArtistInsertSuggestions(ctx context.Context) ([]d
 	var suggestions []domain.ArtistInsertSuggestion
 	for rows.Next() {
 		var suggestion domain.ArtistInsertSuggestion
-		var declineReason sql.NullString
+		var declineReason *string
 		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &declineReason, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist insert suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
-		suggestion.DeclineReason = declineReason.String
+		if declineReason != nil {
+			suggestion.DeclineReason = *declineReason
+		}
 		suggestions = append(suggestions, suggestion)
 	}
 	if err := rows.Err(); err != nil {
@@ -366,19 +353,19 @@ func (r *SuggestionRepo) GetAllArtistInsertSuggestions(ctx context.Context) ([]d
 }
 
 func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id int) (domain.ArtistInsertSuggestion, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for approving artist insert suggestion")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_insert_suggestions", id)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestion(ctx, tx, "artist_insert_suggestions", id); err != nil {
 		return domain.ArtistInsertSuggestion{}, err
 	}
 
 	var suggestion domain.ArtistInsertSuggestion
-	err = tx.QueryRowContext(
+	err = tx.QueryRow(
 		ctx,
 		`UPDATE artist_insert_suggestions
 		 SET state = 'approved', updated_at = NOW()
@@ -392,8 +379,7 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 	}
 	nameLower := strings.ToLower(suggestion.ArtistName)
 
-	// if the artist is on the blocklist, remove them from it when approving the insert suggestion
-	_, err = tx.ExecContext(
+	_, err = tx.Exec(
 		ctx,
 		`DELETE FROM artist_blocklist WHERE name = $1`,
 		nameLower,
@@ -403,7 +389,7 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
 
-	_, err = tx.ExecContext(
+	_, err = tx.Exec(
 		ctx,
 		`INSERT INTO ru_artists (name, description_ua, description_en, source) VALUES ($1, $2, $2, 'crowdsourced') ON CONFLICT (name) DO NOTHING`,
 		nameLower, suggestion.Description,
@@ -412,8 +398,8 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 		log.Error().Err(err).Msg("failed to insert artist from approved suggestion")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
-	err = tx.Commit()
-	if err != nil {
+
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit artist insert suggestion approval")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
@@ -422,7 +408,7 @@ func (r *SuggestionRepo) ApproveArtistInsertSuggestion(ctx context.Context, id i
 }
 
 func (r *SuggestionRepo) GetAllArtistDeleteSuggestions(ctx context.Context) ([]domain.ArtistDeleteSuggestion, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at FROM artist_delete_suggestions ORDER BY created_at DESC`)
+	rows, err := r.db.Query(ctx, `SELECT id, artist_name, description, state, decline_reason, creator_id, created_at, updated_at FROM artist_delete_suggestions ORDER BY created_at DESC`)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query all artist delete suggestions from database")
 		return nil, domain.ErrDatabaseFailure
@@ -432,12 +418,14 @@ func (r *SuggestionRepo) GetAllArtistDeleteSuggestions(ctx context.Context) ([]d
 	var suggestions []domain.ArtistDeleteSuggestion
 	for rows.Next() {
 		var suggestion domain.ArtistDeleteSuggestion
-		var declineReason sql.NullString
+		var declineReason *string
 		if err := rows.Scan(&suggestion.ID, &suggestion.ArtistName, &suggestion.Description, &suggestion.State, &declineReason, &suggestion.CreatorID, &suggestion.CreatedAt, &suggestion.UpdatedAt); err != nil {
 			log.Error().Err(err).Msg("failed to scan artist delete suggestion row")
 			return nil, domain.ErrDatabaseFailure
 		}
-		suggestion.DeclineReason = declineReason.String
+		if declineReason != nil {
+			suggestion.DeclineReason = *declineReason
+		}
 		suggestions = append(suggestions, suggestion)
 	}
 	if err := rows.Err(); err != nil {
@@ -448,19 +436,19 @@ func (r *SuggestionRepo) GetAllArtistDeleteSuggestions(ctx context.Context) ([]d
 }
 
 func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id int) (domain.ArtistDeleteSuggestion, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for approving artist delete suggestion")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_delete_suggestions", id)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestion(ctx, tx, "artist_delete_suggestions", id); err != nil {
 		return domain.ArtistDeleteSuggestion{}, err
 	}
 
 	var suggestion domain.ArtistDeleteSuggestion
-	err = tx.QueryRowContext(
+	err = tx.QueryRow(
 		ctx,
 		`UPDATE artist_delete_suggestions
 		 SET state = 'approved', updated_at = NOW()
@@ -474,19 +462,19 @@ func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id i
 	}
 	nameLower := strings.ToLower(suggestion.ArtistName)
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM ru_artists WHERE name = $1`, nameLower)
+	_, err = tx.Exec(ctx, `DELETE FROM ru_artists WHERE name = $1`, nameLower)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to delete artist from approved suggestion")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
 
-	_, err = tx.ExecContext(ctx, `INSERT INTO artist_blocklist (name, reason) VALUES ($1,$2) ON CONFLICT (name) DO NOTHING`, strings.ToLower(suggestion.ArtistName), suggestion.Description)
+	_, err = tx.Exec(ctx, `INSERT INTO artist_blocklist (name, reason) VALUES ($1,$2) ON CONFLICT (name) DO NOTHING`, strings.ToLower(suggestion.ArtistName), suggestion.Description)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to insert artist into blocklist after approving delete suggestion")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit artist delete suggestion approval")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
@@ -496,17 +484,17 @@ func (r *SuggestionRepo) ApproveArtistDeleteSuggestion(ctx context.Context, id i
 
 func (r *SuggestionRepo) DeclineArtistInsertSuggestion(ctx context.Context, id int, reason string) (domain.ArtistInsertSuggestion, error) {
 	var suggestion domain.ArtistInsertSuggestion
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for declining artist insert suggestion")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_insert_suggestions", id)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestion(ctx, tx, "artist_insert_suggestions", id); err != nil {
 		return domain.ArtistInsertSuggestion{}, err
 	}
-	err = tx.QueryRowContext(
+	err = tx.QueryRow(
 		ctx,
 		`UPDATE artist_insert_suggestions
 		 SET state = 'declined', decline_reason = $2, updated_at = NOW()
@@ -520,7 +508,7 @@ func (r *SuggestionRepo) DeclineArtistInsertSuggestion(ctx context.Context, id i
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction for declining artist insert suggestion")
 		return domain.ArtistInsertSuggestion{}, domain.ErrDatabaseFailure
 	}
@@ -531,17 +519,17 @@ func (r *SuggestionRepo) DeclineArtistInsertSuggestion(ctx context.Context, id i
 func (r *SuggestionRepo) DeclineArtistDeleteSuggestion(ctx context.Context, id int, reason string) (domain.ArtistDeleteSuggestion, error) {
 	var suggestion domain.ArtistDeleteSuggestion
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to begin transaction for declining artist delete suggestion")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
-	defer tx.Rollback()
-	err = lockPendingSuggestion(ctx, tx, "artist_delete_suggestions", id)
-	if err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := lockPendingSuggestion(ctx, tx, "artist_delete_suggestions", id); err != nil {
 		return domain.ArtistDeleteSuggestion{}, err
 	}
-	err = tx.QueryRowContext(
+	err = tx.QueryRow(
 		ctx,
 		`UPDATE artist_delete_suggestions
 		 SET state = 'declined', decline_reason = $2, updated_at = NOW()
@@ -555,7 +543,7 @@ func (r *SuggestionRepo) DeclineArtistDeleteSuggestion(ctx context.Context, id i
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction for declining artist delete suggestion")
 		return domain.ArtistDeleteSuggestion{}, domain.ErrDatabaseFailure
 	}

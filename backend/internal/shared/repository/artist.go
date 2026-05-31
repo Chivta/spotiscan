@@ -2,29 +2,28 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"sync"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
-func NewArtistRepo(db *sql.DB) *ArtistRepo {
+func NewArtistRepo(db *pgxpool.Pool) *ArtistRepo {
 	return &ArtistRepo{
 		db: db,
 	}
 }
 
 type ArtistRepo struct {
-	db     *sql.DB
+	db     *pgxpool.Pool
 	loadMu sync.Mutex
 }
 
 func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT name FROM ru_artists`)
+	rows, err := r.db.Query(ctx, `SELECT name FROM ru_artists`)
 	if err != nil {
 		return nil, err
 	}
@@ -39,19 +38,14 @@ func (r *ArtistRepo) GetAllRussianArtistNames(ctx context.Context) ([]string, er
 		ruNames = append(ruNames, name)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return ruNames, nil
+	return ruNames, rows.Err()
 }
 
-// Fetches info for artists whose names are in DB, so implicitly filters out non-Russian
 // names must be lowercase
 func (r *ArtistRepo) GetRussianWithInfo(ctx context.Context, names []string) ([]domain.Artist, error) {
-	rows, err := r.db.QueryContext(ctx, `
+	rows, err := r.db.Query(ctx, `
         SELECT id,name,description_ua,description_en,source,source_url,country,confirmed FROM ru_artists WHERE name = ANY($1)
-    `, pq.Array(names))
+    `, names)
 	if err != nil {
 		return nil, err
 	}
@@ -60,23 +54,29 @@ func (r *ArtistRepo) GetRussianWithInfo(ctx context.Context, names []string) ([]
 	var ruArtists []domain.Artist
 	for rows.Next() {
 		var artist domain.Artist
-		var descUA, descEN, source, sourceURL, country sql.NullString
+		var descUA, descEN, source, sourceURL, country *string
 		if err := rows.Scan(&artist.ID, &artist.Name, &descUA, &descEN, &source, &sourceURL, &country, &artist.Confirmed); err != nil {
 			return nil, err
 		}
-		artist.DescriptionUA = descUA.String
-		artist.DescriptionEN = descEN.String
-		artist.Source = source.String
-		artist.SourceURL = sourceURL.String
-		artist.Country = country.String
+		if descUA != nil {
+			artist.DescriptionUA = *descUA
+		}
+		if descEN != nil {
+			artist.DescriptionEN = *descEN
+		}
+		if source != nil {
+			artist.Source = *source
+		}
+		if sourceURL != nil {
+			artist.SourceURL = *sourceURL
+		}
+		if country != nil {
+			artist.Country = *country
+		}
 		ruArtists = append(ruArtists, artist)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return ruArtists, nil
+	return ruArtists, rows.Err()
 }
 
 func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []domain.Artist) error {
@@ -127,7 +127,7 @@ func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []domain.Artist)
 		return nil
 	}
 
-	_, err := r.db.ExecContext(
+	_, err := r.db.Exec(
 		ctx,
 		`INSERT INTO ru_artists (name, description_ua, description_en, source, source_url, country, confirmed)
 		 SELECT *
@@ -147,13 +147,13 @@ func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []domain.Artist)
 			source_url = EXCLUDED.source_url,
 			country = EXCLUDED.country,
 			confirmed = EXCLUDED.confirmed`,
-		pq.Array(names),
-		pq.Array(descriptionsUA),
-		pq.Array(descriptionsEN),
-		pq.Array(sources),
-		pq.Array(sourceURLs),
-		pq.Array(countries),
-		pq.Array(confirmed),
+		names,
+		descriptionsUA,
+		descriptionsEN,
+		sources,
+		sourceURLs,
+		countries,
+		confirmed,
 	)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
@@ -162,14 +162,11 @@ func (r *ArtistRepo) InsertArtists(ctx context.Context, artists []domain.Artist)
 	return nil
 }
 
-// GetRuTags and GetRuRegionIds is only needed for scraper
-// they are added to artist repo because its repo scraper already uses
 func (r *ArtistRepo) GetRuTags(ctx context.Context) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT name FROM lastfm_ru_tags`)
+	rows, err := r.db.Query(ctx, `SELECT name FROM lastfm_ru_tags`)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	var tags []string
@@ -181,19 +178,14 @@ func (r *ArtistRepo) GetRuTags(ctx context.Context) ([]string, error) {
 		tags = append(tags, name)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return tags, nil
+	return tags, rows.Err()
 }
 
 func (r *ArtistRepo) GetRuRegionIds(ctx context.Context) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT mbid FROM musicbrainz_ru_regions`)
+	rows, err := r.db.Query(ctx, `SELECT mbid FROM musicbrainz_ru_regions`)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	var ids []string
@@ -205,17 +197,22 @@ func (r *ArtistRepo) GetRuRegionIds(ctx context.Context) ([]string, error) {
 		ids = append(ids, id)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
+	return ids, rows.Err()
+}
 
-	return ids, nil
+func (r *ArtistRepo) GetArtistCount(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM ru_artists`).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (r *ArtistRepo) ArtistExists(ctx context.Context, name string) (bool, error) {
 	name = strings.ToLower(name)
 	var exists bool
-	err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ru_artists WHERE name = $1)`, name).Scan(&exists)
+	err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ru_artists WHERE name = $1)`, name).Scan(&exists)
 	if err != nil {
 		return false, err
 	}

@@ -1,14 +1,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: api
+  name: spotify-gateway
   namespace: ruscan
   labels:
-    app: api
+    app: spotify-gateway
 spec:
   selector:
     matchLabels:
-      app: api
+      app: spotify-gateway
   endpoints:
     - port: 8080
       path: /metrics

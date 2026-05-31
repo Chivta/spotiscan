@@ -2,58 +2,46 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"net/url"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
+	"github.com/chivta/ruscan/internal/shared/metrics"
 	"github.com/chivta/ruscan/internal/spotify"
 	"github.com/chivta/ruscan/migrations"
 )
 
-func InitializeDatabase(ctx context.Context, dbUrl string) (*sql.DB, error) {
-	// db_client.NewDBClient blocks on Ping; wrap it in a goroutine so we can
-	// apply a timeout without needing a context-aware driver.
-	dbCh := make(chan *sql.DB, 1)
-	errCh := make(chan error, 1)
-	go func() {
-		db, err := sql.Open("postgres", dbUrl)
-		if err != nil {
-			errCh <- err
-		}
-		err = db.Ping()
-		if err != nil {
-			errCh <- err
-			db.Close()
-			return
-		}
-		dbCh <- db
-	}()
-
-	var db *sql.DB
-	select {
-	case result := <-dbCh:
-		db = result
-	case err := <-errCh:
+func InitializeDatabase(ctx context.Context, dbUrl string) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(dbUrl)
+	if err != nil {
 		return nil, err
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	}
+	config.ConnConfig.Tracer = metrics.PgxTracer()
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, err
 	}
 
-	return db, nil
+	return pool, nil
 }
 
-func RunMigrations(ctx context.Context, db *sql.DB) error {
-	goose.SetBaseFS(migrations.FS)
+func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
+	db := stdlib.OpenDBFromPool(pool)
+	defer db.Close()
 
-	err := goose.SetDialect("postgres")
-	if err != nil {
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
-
 	return goose.UpContext(ctx, db, ".")
 }
 
@@ -86,11 +74,13 @@ func InitializeRedis(ctx context.Context, redisURL string) (*redis.Client, error
 		return nil, err
 	}
 
-	redis := redis.NewClient(options)
+	rds := redis.NewClient(options)
 
-	_, err = redis.Ping(ctx).Result()
+	_, err = rds.Ping(ctx).Result()
 	if err != nil {
 		return nil, err
 	}
-	return redis, nil
+
+	rds.AddHook(metrics.RedisHook())
+	return rds, nil
 }

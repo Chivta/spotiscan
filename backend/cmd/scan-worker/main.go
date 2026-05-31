@@ -3,15 +3,18 @@ package main
 import (
 	"context"
 	stdlog "log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/scanner"
+	"github.com/chivta/ruscan/internal/shared/metrics"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/shared/repository"
 )
@@ -21,14 +24,12 @@ func main() {
 }
 
 func run() int {
-	godotenv.Load("./.env")
-
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Hook(metrics.MetricsHook{Component: "scanner", Counter: metrics.ErrorsTotalCounter})
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
-
+	
 	cfg, err := scanner.LoadConfig()
 	if err != nil {
 		log.Err(err).Msg("failed to load config")
@@ -64,12 +65,48 @@ func run() int {
 	svc := scanner.NewSpotifyService(artistRepo)
 
 	worker := scanner.NewScannerWorker(queueClient, svc, jobRepo)
-	log.Info().Msg("scan-worker starting")
 
-	err = worker.Start(ctx)
-	if err != nil {
-		log.Err(err).Msg("scan-worker exited with error")
+	r := gin.New()
+	r.GET("/metrics", gin.WrapH(scanner.MetricsHandler()))
+	r.GET("/health", func(c *gin.Context) { c.Status(204) })
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		log.Info().Msg("metrics server starting on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Err(err).Msg("metrics server exited with error")
+			errCh <- err
+		}
+	}()
+
+	go func() {
+		log.Info().Msg("scan-worker starting")
+		err := worker.Start(ctx)
+		if err != nil {
+			log.Err(err).Msg("scan-worker exited with error")
+			errCh <- err
+		}
+	}()
+
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Err(err).Msg("server shutdown error")
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Info().Msg("shutting down server")
+	case err := <-errCh:
+		log.Err(err).Msg("server error")
 		return 1
 	}
+
 	return 0
 }

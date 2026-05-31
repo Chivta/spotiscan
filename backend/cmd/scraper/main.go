@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	stdlog "log"
 	"os"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/scraper"
+	"github.com/chivta/ruscan/internal/shared/metrics"
 	"github.com/chivta/ruscan/internal/shared/repository"
 )
 
@@ -20,7 +22,9 @@ func main() {
 func runApp() int {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Hook(metrics.MetricsHook{Component: "scraper", Counter: metrics.ErrorsTotalCounter})
+	stdlog.SetOutput(log.Logger)
+	stdlog.SetFlags(0)
 
 	cfg, err := scraper.LoadConfig()
 	if err != nil {
@@ -69,6 +73,19 @@ func runApp() int {
 	}
 
 	wg.Wait()
+
+	if cfg.PushgatewayURL != "" {
+		count, err := repo.GetArtistCount(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get artist count")
+		} else {
+			scraper.SetRuArtistsTotal(count)
+		}
+		err = scraper.PushMetrics(cfg.PushgatewayURL)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to push metrics to pushgateway")
+		}
+	}
 
 	return 0
 }

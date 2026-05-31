@@ -41,6 +41,9 @@ export interface RuContent {
   Artists: Artist[];
 }
 
+// RFC3339 timestamp string as serialized by Go's time.Time JSON marshaler.
+export type ISOTimestamp = string;
+
 export interface ArtistDeleteSuggestion {
   ID: number;
   CreatorID: number;
@@ -48,8 +51,8 @@ export interface ArtistDeleteSuggestion {
   Description: string;
   State: "pending" | "approved" | "declined";
   DeclineReason?: string;
-  CreatedAt: string;
-  UpdatedAt: string;
+  CreatedAt: ISOTimestamp;
+  UpdatedAt: ISOTimestamp;
 }
 
 export interface ArtistInsertSuggestion {
@@ -59,6 +62,6 @@ export interface ArtistInsertSuggestion {
   Description: string;
   State: "pending" | "approved" | "declined";
   DeclineReason?: string;
-  CreatedAt: string;
-  UpdatedAt: string;
+  CreatedAt: ISOTimestamp;
+  UpdatedAt: ISOTimestamp;
 }

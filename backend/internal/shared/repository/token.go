@@ -2,16 +2,17 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
-	"github.com/chivta/ruscan/internal/shared/domain"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/chivta/ruscan/internal/shared/domain"
 )
 
-func NewTokenRepo(db *sql.DB, redis *redis.Client) *TokenRepo {
+func NewTokenRepo(db *pgxpool.Pool, redis *redis.Client) *TokenRepo {
 	return &TokenRepo{
 		db:    db,
 		redis: redis,
@@ -19,21 +20,21 @@ func NewTokenRepo(db *sql.DB, redis *redis.Client) *TokenRepo {
 }
 
 type TokenRepo struct {
-	db    *sql.DB
+	db    *pgxpool.Pool
 	redis *redis.Client
 }
 
 func (r *TokenRepo) GetRefreshTokenByUserID(ctx context.Context, userID int) (string, time.Time, error) {
 	var tokenHash string
 	var expiresAt time.Time
-	err := r.db.QueryRowContext(
+	err := r.db.QueryRow(
 		ctx,
 		`SELECT token_hash, expires_at FROM refresh_tokens WHERE user_id = $1 ORDER BY id DESC LIMIT 1`,
 		userID,
 	).Scan(&tokenHash, &expiresAt)
 	if err != nil {
 		log.Error().Msgf("db error: %T: %v", err, err)
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return "", time.Time{}, domain.ErrUnauthorized
 		}
 		return "", time.Time{}, domain.ErrDatabaseFailure
@@ -47,7 +48,6 @@ func (r *TokenRepo) IncrementAnonRequestCounter(ctx context.Context, anonID, pat
 	if err != nil {
 		return 0, err
 	}
-	// Set TTL only on key creation so the window is fixed, not sliding.
 	if newValue == 1 {
 		if err := r.redis.Expire(ctx, key, ttl).Err(); err != nil {
 			return 0, domain.ErrDatabaseFailure
@@ -57,7 +57,7 @@ func (r *TokenRepo) IncrementAnonRequestCounter(ctx context.Context, anonID, pat
 }
 
 func (r *TokenRepo) StoreRefreshTokenHash(ctx context.Context, userID int, tokenHash string, expiresAt time.Time) error {
-	_, err := r.db.ExecContext(
+	_, err := r.db.Exec(
 		ctx,
 		`INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
 		userID,
@@ -73,7 +73,7 @@ func (r *TokenRepo) StoreRefreshTokenHash(ctx context.Context, userID int, token
 }
 
 func (r *TokenRepo) DeleteRefreshTokenHash(ctx context.Context, userID int) error {
-	_, err := r.db.ExecContext(
+	_, err := r.db.Exec(
 		ctx,
 		`DELETE FROM refresh_tokens WHERE user_id = $1`,
 		userID,

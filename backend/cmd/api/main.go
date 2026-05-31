@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	stdlog "log"
 	"net/http"
@@ -13,16 +12,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/api"
 	"github.com/chivta/ruscan/internal/api/handlers"
-	"github.com/chivta/ruscan/internal/api/metrics"
 	"github.com/chivta/ruscan/internal/api/middlewares"
 	"github.com/chivta/ruscan/internal/api/services"
 	"github.com/chivta/ruscan/internal/shared/domain"
+	"github.com/chivta/ruscan/internal/shared/metrics"
 	"github.com/chivta/ruscan/internal/shared/queue"
 	"github.com/chivta/ruscan/internal/shared/repository"
 	"github.com/chivta/ruscan/scripts"
@@ -33,18 +33,17 @@ func main() {
 }
 
 func runApp() int {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Hook(metrics.MetricsHook{Component: "api", Counter: metrics.ErrorsTotalCounter})
+	// redirect stdlib log to zerolog
+	stdlog.SetOutput(log.Logger)
+	stdlog.SetFlags(0)
+	
 	cfg, err := api.LoadConfig()
 	if err != nil {
 		stdlog.Fatalf("Failed to load config: %v", err)
 	}
-
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
-
-	// redirect stdlib log to zerolog
-	stdlog.SetOutput(log.Logger)
-	stdlog.SetFlags(0)
 
 	c, err := initApp(cfg)
 	if err != nil {
@@ -59,8 +58,8 @@ func runApp() int {
 	r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
 	r.Use(middlewares.Logger("/", "/health", "/api/me", "/metrics"))
 	r.Use(gin.Recovery())
-	r.Use(metrics.Middleware("/metrics", "/health", "/", "/api/me"))
-	r.GET("/metrics", gin.WrapH(metrics.Handler()))
+	r.Use(api.MetricsMiddleware("/metrics", "/health", "/", "/api/me"))
+	r.GET("/metrics", gin.WrapH(api.MetricsHandler()))
 	r.GET("/health", func(c *gin.Context) { c.Status(204) })
 	r.GET("/", func(c *gin.Context) { c.Status(204) })
 
@@ -123,21 +122,19 @@ func runApp() int {
 		}
 	}()
 
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Err(err).Msg("server shutdown error")
+		}
+	}()
+
 	select {
 	case <-ctx.Done():
 		log.Info().Msg("shutting down server")
 	case err := <-errCh:
 		log.Err(err).Msg("server error")
-		return 1
-	}
-
-	<-ctx.Done()
-	log.Info().Msg("shutting down server")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Err(err).Msg("server shutdown error")
 		return 1
 	}
 
@@ -158,7 +155,7 @@ type appContainer struct {
 	suggestionRepo      *repository.SuggestionRepo
 	jobRepo             *repository.JobRepo
 	rateLimitMiddleware *middlewares.RateLimitMiddleware
-	db                  *sql.DB
+	db                  *pgxpool.Pool
 	redis               *redis.Client
 	queue               *queue.Client
 }

@@ -14,7 +14,8 @@ type Config struct {
 	ScrapeLastFMTopArtistsForAllTags      bool
 	ScrapePhonkersDBArtists               bool
 	ScrapeMusicBrainzArtistsForAllRegions bool
-	LastFMAPIKey                          string
+	LastFMAPIKey                          string `validate:"required,uri"`
+	PushgatewayURL                        string
 }
 
 func LoadConfig() (*Config, error) {
@@ -34,6 +35,7 @@ func LoadConfig() (*Config, error) {
 		ScrapePhonkersDBArtists:               parseBool("SCRAPE_PHONKERS_DB_ARTISTS"),
 		ScrapeMusicBrainzArtistsForAllRegions: parseBool("SCRAPE_MUSICBRAINZ_ARTISTS_FOR_ALL_REGIONS"),
 		LastFMAPIKey:                          os.Getenv("LASTFM_API_KEY"),
+		PushgatewayURL:                        os.Getenv("PUSHGATEWAY_URL"),
 	}
 
 	validate := validator.New()

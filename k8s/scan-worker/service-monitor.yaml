@@ -1,14 +1,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: api
+  name: scan-worker
   namespace: ruscan
   labels:
-    app: api
+    app: scan-worker
 spec:
   selector:
     matchLabels:
-      app: api
+      app: scan-worker
   endpoints:
     - port: 8080
       path: /metrics

@@ -2,18 +2,17 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
 	"github.com/chivta/ruscan/internal/shared/domain"
-
-	"github.com/lib/pq"
-
-	"github.com/redis/go-redis/v9"
 )
 
-func NewUserRepo(db *sql.DB, redis *redis.Client) *UserRepo {
+func NewUserRepo(db *pgxpool.Pool, redis *redis.Client) *UserRepo {
 	return &UserRepo{
 		db:    db,
 		redis: redis,
@@ -21,13 +20,13 @@ func NewUserRepo(db *sql.DB, redis *redis.Client) *UserRepo {
 }
 
 type UserRepo struct {
-	db    *sql.DB
+	db    *pgxpool.Pool
 	redis *redis.Client
 }
 
 func (r *UserRepo) CreateUser(ctx context.Context, user *domain.User) (int, error) {
 	var userID int
-	err := r.db.QueryRowContext(
+	err := r.db.QueryRow(
 		ctx,
 		`INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id`,
 		user.Email,
@@ -35,7 +34,7 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *domain.User) (int, erro
 	).Scan(&userID)
 
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
 			return 0, domain.ErrEmailExists
 		}
 		log.Error().Msgf("db error: %T: %v", err, err)
@@ -47,13 +46,13 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *domain.User) (int, erro
 func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*domain.User, error) {
 	var user domain.User
 	var isAdmin bool
-	err := r.db.QueryRowContext(
+	err := r.db.QueryRow(
 		ctx,
 		`SELECT u.id, u.email, u.password_hash, EXISTS(SELECT 1 FROM admins WHERE user_id = u.id) AS is_admin FROM users u WHERE id = $1`,
 		id,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, domain.ErrNotFound
 		}
 		log.Error().Msgf("db error: %T: %v", err, err)
@@ -70,13 +69,13 @@ func (r *UserRepo) GetUserByID(ctx context.Context, id int) (*domain.User, error
 func (r *UserRepo) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
 	var isAdmin bool
-	err := r.db.QueryRowContext(
+	err := r.db.QueryRow(
 		ctx,
 		`SELECT u.id, u.email, u.password_hash, EXISTS(SELECT 1 FROM admins WHERE user_id = u.id) AS is_admin FROM users u WHERE email = $1`,
 		email,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, domain.ErrUnauthorized
 		}
 		log.Error().Msgf("db error: %T: %v", err, err)

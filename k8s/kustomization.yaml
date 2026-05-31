@@ -7,8 +7,12 @@ resources:
 - frontend/deployment.yaml
 - frontend/service.yaml
 - scan-worker/deployment.yaml
+- scan-worker/service.yaml
+- scan-worker/service-monitor.yaml
 - scraper/cronjob.yaml
 - spotify-gateway/deployment.yaml
+- spotify-gateway/service.yaml
+- spotify-gateway/service-monitor.yaml
 - rabbitmq/statefulset.yaml
 - rabbitmq/service.yaml
 - redis/statefulset.yaml
