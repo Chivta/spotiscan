@@ -10,7 +10,7 @@ import (
 
 var (
 	SpotifyAPIDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "spotify_gateway_api_duration_seconds",
+		Name:    "spotify_api_duration_seconds",
 		Help:    "Spotify API call duration in seconds.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"method"})

@@ -30,7 +30,6 @@ func run() int {
 	stdlog.SetOutput(log.Logger)
 	stdlog.SetFlags(0)
 	
-	// TODO: add metrics to scraper too!!
 	cfg, err := scanner.LoadConfig()
 	if err != nil {
 		log.Err(err).Msg("failed to load config")
@@ -86,7 +85,7 @@ func run() int {
 
 	go func() {
 		log.Info().Msg("scan-worker starting")
-		err = worker.Start(ctx)
+		err := worker.Start(ctx)
 		if err != nil {
 			log.Err(err).Msg("scan-worker exited with error")
 			errCh <- err

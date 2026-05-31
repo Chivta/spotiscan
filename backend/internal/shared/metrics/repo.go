@@ -58,7 +58,10 @@ type redisHook struct{}
 func (h redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		start := time.Now()
-		next(ctx, cmd)
+		err := next(ctx, cmd)
+		if err != nil {
+			return err
+		}
 		operation := cmd.Name()
 		RedisLatencyHistogram.WithLabelValues(operation).Observe(time.Since(start).Seconds())
 		return nil
@@ -68,7 +71,10 @@ func (h redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 func (h redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return func(ctx context.Context, cmds []redis.Cmder) error {
 		start := time.Now()
-		next(ctx, cmds)
+		err := next(ctx, cmds)
+		if err != nil {
+			return err
+		}
 		for _, cmd := range cmds {
 			operation := cmd.Name()
 			RedisLatencyHistogram.WithLabelValues(operation).Observe(time.Since(start).Seconds())
