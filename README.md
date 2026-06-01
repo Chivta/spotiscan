@@ -37,6 +37,15 @@ Backend: http://localhost:8080
 - PostgreSQL 14+ (for local database)
 - Redis (required env var)
 
+## Monitoring
+
+Create exporter user in postgres DB manualy
+
+```sql
+CREATE USER exporter WITH PASSWORD '...';
+GRANT pg_monitor TO exporter;
+```
+
 ## Setup
 
 1. Create `.env` in `backend/`:
@@ -58,21 +67,35 @@ Database migrations run automatically on startup.
 ruscan/
 ├── frontend/              # React app
 │   └── src/
-│       ├── pages/         # Landing, AuthPage, Dashboard
-│       ├── components/    # Header, AnimatedList, Aurora, GradientText
-│       └── types/         # TypeScript interfaces
-├── backend/               # Go API server
-│   ├── cmd/               # Entry point
+│       ├── pages/         # Landing, AuthPage, Dashboard, AdminPage
+│       ├── components/    # Header, Footer, PlaylistScanner, ArtistSuggestions, LanguageSwitcher
+│       ├── context/       # LanguageContext
+│       ├── types/         # TypeScript interfaces
+│       └── i18n.ts        # Translations
+├── backend/               # Go services (monorepo)
+│   ├── cmd/
+│   │   ├── api/           # HTTP API server entry point
+│   │   ├── scan-worker/   # RabbitMQ consumer that runs playlist scans
+│   │   ├── scraper/       # Periodic artist data scraper (cron job)
+│   │   └── spotify-gateway/ # Spotify API proxy with token management & rate limiting
 │   ├── internal/
-│   │   ├── handlers/      # HTTP handlers
-│   │   ├── services/      # Business logic
-│   │   ├── middlewares/   # Auth, rate limiting
-│   │   ├── repository/    # DB, Redis, Spotify API clients
-│   │   ├── models/        # Domain types
-│   │   └── config/        # Config loading & validation
-│   ├── migrations/        # Database migration files (embeded into binary)
-│   └── scripts/           # Lua script for ratelimiting (embeded into binary)
-└── k8s/                   # Kubernetes manifests (kustomize)
+│   │   ├── api/           # HTTP handlers, middlewares, services, config
+│   │   ├── scanner/       # Scan job processing logic
+│   │   ├── scraper/       # LastFM / MusicBrainz / Phonkersbase scrapers
+│   │   ├── spotify/       # Spotify client, rate limiter, token worker
+│   │   └── shared/        # Domain models, repository, queue, metrics
+│   ├── proto/             # Protobuf definitions (scan job messages)
+│   ├── migrations/        # SQL migration files (embedded into binary)
+│   └── scripts/           # Lua scripts for Redis rate limiting (embedded into binary)
+└── k8s/                   # Kubernetes manifests (Kustomize + FluxCD)
+    ├── api/
+    ├── frontend/
+    ├── scan-worker/
+    ├── scraper/
+    ├── spotify-gateway/
+    ├── postgres/
+    ├── rabbitmq/
+    └── redis/
 ```
 
 ## API Endpoints

@@ -32,7 +32,7 @@ spec:
               memory: 128Mi
           env:
             - name: REDIS_URL
-              value: redis://redis-svc:6379
+              value: redis://redis:6379
             - name: RABBITMQ_URL
               valueFrom:
                 secretKeyRef:
