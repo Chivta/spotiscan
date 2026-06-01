@@ -39,7 +39,7 @@ spec:
                   memory: 256Mi
               env:
                 - name: PUSHGATEWAY_URL
-                  value: http://pushgateway:9091
+                  value: http://prometheus-pushgateway.monitoring.svc.cluster.local:9091
                 - name: DATABASE_URL
                   valueFrom:
                     secretKeyRef:
