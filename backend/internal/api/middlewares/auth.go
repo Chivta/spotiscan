@@ -30,7 +30,7 @@ func (m *AuthMiddleware) RequireAdminRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		assignedRole, exists := c.Get(domain.UserRoleKey)
 		if !exists {
-			log.Warn().Msg("RequireRole: userRole not found in context")
+			log.Error().Msg("RequireRole: userRole not found in context")
 			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
@@ -50,7 +50,7 @@ func (m *AuthMiddleware) RequireUserRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		assignedRole, exists := c.Get(domain.UserRoleKey)
 		if !exists {
-			log.Warn().Msg("RequireRole: userRole not found in context")
+			log.Error().Msg("RequireRole: userRole not found in context")
 			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
@@ -149,21 +149,21 @@ func (m *AuthMiddleware) RequireAnonQuota(path string, limit int) gin.HandlerFun
 	return func(c *gin.Context) {
 		anonIDAny, exists := c.Get(domain.UserIDKey)
 		if !exists {
-			log.Warn().Msg("RequireAnonQuota: userID not found in context")
+			log.Error().Msg("RequireAnonQuota: userID not found in context")
 			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
 		anonID, ok := anonIDAny.(string)
 		if !ok {
-			log.Warn().Msg("RequireAnonQuota: userID in context is not a string")
+			log.Error().Msg("RequireAnonQuota: userID in context is not a string")
 			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return
 		}
 		assignedRole, exists := c.Get(domain.UserRoleKey)
 		if !exists {
-			log.Warn().Msg("RequireAnonQuota: userRole not found in context")
+			log.Error().Msg("RequireAnonQuota: userRole not found in context")
 			handlers.RespondWithError(c, domain.ErrInternal)
 			c.Abort()
 			return

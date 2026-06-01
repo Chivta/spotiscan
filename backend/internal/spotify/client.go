@@ -143,7 +143,7 @@ func (c *SpotifyClient) doRequest(req *http.Request) (*http.Response, error) {
 		retryAfter := resp.Header.Get("Retry-After")
 		if retryAfter != "" {
 			if secs, err := strconv.Atoi(retryAfter); err == nil {
-				log.Warn().Int("retrySeconds", secs).Msg("Spotify API rate limit hit, blocking requests")
+				log.Error().Int("retrySeconds", secs).Msg("Spotify API rate limit hit, blocking requests")
 				c.blockSpotifyRequests(time.Duration(secs) * time.Second)
 			}
 		}
